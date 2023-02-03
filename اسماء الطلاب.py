@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import requests
 import json
 
+# TODO: تعديل الكود ليصبح اقل و اضافة تفسيرات اكثر و تعليقات اضافية
 
 def soup( html_doc , select_one : str= None ,select : str= None ):
 
