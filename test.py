@@ -1,6 +1,11 @@
 import os
+import subprocess
 import pyshark
 import requests
+import json
+from pygments import highlight
+from pygments.lexers import JsonLexer
+from pygments.formatters import TerminalFormatter
 
 def curl_requests (url):
     cookies = {
@@ -66,9 +71,50 @@ def curl_loop():
         curl_requests(url)
         print(url)
         input('Press Enter to continue...')
+
+def curl_api_url(Authorization , url):
+    headers = {"Authorization": Authorization}
+    response = requests.request("GET", url, headers=headers)
+    return(response.json())
         
+def my_jq(data):
+    # json_object = json.loads(data)
+    json_str = json.dumps(data, indent=4, sort_keys=True)
+    print(json_str)
+    # print(highlight(json_str, JsonLexer(), TerminalFormatter())) 
+    
+def login(username=9971055725 , password=9971055725):
+    ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
+    url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
+
+    payload = {
+        "username": username,
+        "password": password
+    }
+    response = requests.request("POST", url, data=payload )
+
+    # print(response.json()['data']['message'])
+    if response.json()['data']['message'] == 'Invalid login creadential':
+        print ('Invalid login creadential')
+    else: 
+        # print ('Logged in successfully')
+        # print (response.json()['data']['token'])
+        return response.json()['data']['token']
+               
+def sort_api_help(url):
+    '''
+    دالة تساعدني في توثيق الروابط و كتابة اسماء الدوال و حفطها في ملف
+    '''
+    auth = login()
+    print(curl_api_url(auth, url))
+    my_jq(curl_api_url(auth, url))
+    # subprocess.run(f'''{str(curl_api_url(auth, url))} | jq . ''')
+    # my_jq(f'''{curl_api_url(auth, url)}''')
+
 def main():
-    curl_loop()   
+    sort_api_help('https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name')
+    # login()
+    # curl_loop()   
     # filter_api_from_pcap()
     # save_to_file(filter_api_from_pcap())
 
