@@ -64,8 +64,9 @@ def save_to_file(text):
         
 def read_from_file(file):
     with open(file, 'r') as f :
-        return f.read()
+        d = f.read()
         f.close()
+        return d
 def curl_loop():
     for url in read_from_file('superemis_apis/requests.txt').split('\n'):
         curl_requests(url)
@@ -86,6 +87,7 @@ def my_jq(data):
 def login(username=9971055725 , password=9971055725):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
     url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
+
 
     payload = {
         "username": username,
