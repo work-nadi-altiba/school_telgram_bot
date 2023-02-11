@@ -6,6 +6,15 @@ import keys
 
 print('Starting up bot...')
 
+# Lets us use the /start command
+def send_document(update, context):
+    text = update.message.text    
+    update.reply_document(
+        document=open("./test.xlsx", "rb"),
+        filename="text.xlsx",
+        caption="your caption"
+    )
+
 
 # Lets us use the /start command
 def start_command(update, context):
@@ -27,7 +36,10 @@ def handle_response(text) -> str:
 
     if 'hello' in text:
         return 'Hey there!'
-
+    
+    if 'مرحبا' in text:
+        return 'مراحب هلا \n تفضل امرني '
+    
     if 'how are you' in text:
         return 'I\'m good!'
 
@@ -73,6 +85,7 @@ if __name__ == '__main__':
 
     # Messages
     dp.add_handler(MessageHandler(Filters.text, handle_message))
+    dp.add_handler(MessageHandler(Filters.text, send_document))
 
     # Log all errors
     dp.add_error_handler(error)
