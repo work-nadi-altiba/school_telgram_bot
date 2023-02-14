@@ -9,6 +9,8 @@ from pygments.formatters import TerminalFormatter
 from docxtpl import DocxTemplate
 from docx2pdf import convert
 import subprocess
+import os 
+import glob
 
 def generate_pdf(doc_path, path , rename_number):
 
@@ -64,7 +66,7 @@ def get_auth(username , password):
     response = requests.request("POST", url, data=payload )
 
     if response.json()['data']['message'] == 'Invalid login creadential':
-        print ('Invalid login creadential')
+        return False
     else: 
         return response.json()['data']['token']    
     
@@ -250,14 +252,25 @@ def side_marks_document(username , password):
         context['y1'] = str(years['data'][0]['start_year'])
         context['y2'] = str(years['data'][0]['end_year'])
 
-        fill_doc('./test_files/side_marks_note.docx' , context , f'./test_files/send{v}.docx' )
+        fill_doc('./templet_files/side_marks_note.docx' , context , f'./send_folder/send{v}.docx' )
         context.clear()
-        generate_pdf('./test_files/generated.docx' , './test_files' ,v)
-        input("press enter to continue")
+        generate_pdf(f'./send_folder/send{v}.docx' , './send_folder' ,v)
+        # input("press enter to continue")
         # return students_names
 
+def count_files():
+    files = glob.glob('./send_folder/*')
+    return files
+
+def delete_send_folder():
+    files = glob.glob('./send_folder/*')
+    for f in files:
+        os.remove(f)
+
 def main():
-    side_marks_document(9971055725,9971055725)
+    print('starting script')
+    # print(count_files())
+    # side_marks_document(9971055725,9971055725)
     # generate_pdf('./telegram_bot/generated.docx' , './telegram_bot' ,2)
 
 if __name__ == "__main__":
