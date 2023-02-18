@@ -6,8 +6,9 @@ import json
 from pygments import highlight
 from pygments.lexers import JsonLexer
 from pygments.formatters import TerminalFormatter
-from docxtpl import DocxTemplate
-from docx2pdf import convert
+from openpyxl import Workbook , load_workbook
+# from docxtpl import DocxTemplate
+# from docx2pdf import convert
 import subprocess
 import os 
 import glob
@@ -258,6 +259,123 @@ def side_marks_document(username , password):
         # input("press enter to continue")
         # return students_names
 
+def insert_students_names_in_excel_marks(template , students_id_and_names , outfile):
+    workbook = load_workbook(filename=template)
+    sheet = workbook.active
+    counter = 2
+    for i in data:
+        sheet[f'B{counter}'] = i['student_name']
+        sheet[f'A{counter}'] = i['student_id']
+        counter+=1
+    workbook.save( filename = outfile )
+
+def delete_empty_rows(file , outfile):
+    workbook = load_workbook(filename=file)
+    sheet = workbook.active
+    
+    # Find the last row of data in the sheet
+    max_row = sheet.max_row
+    # breakpoint()
+    # Loop through each row in reverse order and check if it is empty
+    for row in range(max_row, 1, -1):
+        if all([cell.value in (None, '') for cell in sheet[row]][:6]):
+            # Remove the row if it is empty
+            sheet.delete_rows(row, 1)
+            
+    # Compute sum for each row
+    for row in range(2, sheet.max_row + 1):
+        sheet.cell(row=row, column=7).value = f"=SUM(C{row}:F{row})"
+    # Set header for sum column
+    sheet.cell(row=1, column=7).value = "المجموع"
+    # Auto-fit column width for sum column
+    sheet.column_dimensions['G'].auto_size = True
+    
+    # Save the updated workbook
+    workbook.save(outfile)
+
+def read_excel_marks(file):
+        workbook = load_workbook(filename=file)
+        sheet = workbook.active
+        counter = 2
+        for value in sheet.values:
+            if value[0] ==None:
+                break
+            elif not value[2] == None :
+                value = list(value)
+#                   التقويم الرابع و  الثالث و  الثاني و   الاول  
+#                 value[2]+ value[3]+ value[4]+value[5]
+                value[6]= value[2]+ value[3]+ value[4]+value[5]
+                print(value)                
+            else : 
+                print(value)
+                
+def insert_students_names_and_marks(assessments_json, students_id_and_names , template , outfile):
+    workbook = load_workbook(filename=template)
+    sheet = workbook.active
+    marks_and_name = []
+    dic =  {'Sid':'' ,'Sname': '', 'ass1': '' ,'ass2': '' , 'ass3': '' , 'ass4': '' }
+    for i in students_id_and_names:   
+#         print(i['student_id'])
+        for v in assessments_json['data']:
+            if v['student_id'] == i['student_id'] :  
+                dic['Sid'] = i['student_id'] 
+                dic['Sname'] = i['student_name'] 
+                if v['assessment_period']['name'] == 'التقويم الأول':
+                    dic['ass1'] = v["marks"]     
+                elif v['assessment_period']['name'] == 'التقويم الثاني':
+                    dic['ass2'] = v["marks"]             
+                elif v['assessment_period']['name'] == 'التقويم الثالث':
+                    dic['ass3'] = v["marks"]           
+                elif v['assessment_period']['name'] == 'التقويم الرابع':
+                    dic['ass4']= v["marks"]
+        marks_and_name.append(dic)
+        dic =  { 'Sid':'' ,'Sname': '', 'ass1': '' ,'ass2': '' , 'ass3': '' , 'ass4': '' }
+
+        headers = ['id', 'اسم الطالب', 'التقويم الاول', 'التقويم الثاني', 'التقويم الثالث', 'التقويم الرابع']
+        for col_num, header in enumerate(headers, start=1):
+            sheet.cell(row=1, column=col_num, value=header)
+        # Iterate over the data and insert into rows
+        for row_num, row_data in enumerate(marks_and_name, start=2):
+            for col_num, cell_data in enumerate(row_data.values(), start=1):
+                sheet.cell(row=row_num, column=col_num, value=cell_data)
+                
+    workbook.save( filename = outfile )
+    delete_empty_rows(outfile , outfile)
+
+def create_excel_sheets_marks(username, password ):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    user_id = user_info(auth , username)['data'][0]['id']
+    years = get_curr_period(auth)
+    # ما بعرف كيف سويتها لكن زبطت 
+    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+    classes_id_3 = []  
+    for class_info in classes_id_2:
+        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name']}])
+
+    for v in range(len(classes_id_1)):
+        # id
+        print (classes_id_3[v][0]['institution_class_id'])
+        # subject name 
+        print (classes_id_3[v][0]['sub_name'])
+        # class name
+        print (classes_id_3[v][0]['class_name'])
+        students = get_class_students(auth
+                                    ,period_id
+                                    ,classes_id_1[v]
+                                    ,classes_id_3[v][0]['institution_class_id']
+                                    ,inst_id)
+        # students_names = sorted([i['user']['name'] for i in students['data']])
+        # print(students_names)
+        students_id_and_names = []
+        for IdAndName in students['data']:
+            students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id=4&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+        insert_students_names_and_marks(assessments_json , students_id_and_names , './templet_files/excel_marks.xlsx' , './send_folder/' + classes_id_3[v][0]['class_name'] + '.xlsx')
+
 def count_files():
     files = glob.glob('./send_folder/*')
     return files
@@ -271,7 +389,10 @@ def main():
     print('starting script')
     # print(count_files())
     # side_marks_document(9971055725,9971055725)
+    # create_excel_sheets_marks(9971055725,9971055725)
     # generate_pdf('./telegram_bot/generated.docx' , './telegram_bot' ,2)
+    # print(user_info(auth=get_auth(9971055725,9971055725) , username=9971055725))
+    # delete_empty_rows('/opt/programming/school_programms1/telegram_bot/send_folder/الصف السابع-أ.xlsx')
 
 if __name__ == "__main__":
     main()

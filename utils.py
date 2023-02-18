@@ -6,8 +6,8 @@ import json
 from pygments import highlight
 from pygments.lexers import JsonLexer
 from pygments.formatters import TerminalFormatter
-from docxtpl import DocxTemplate
-from docx2pdf import convert
+# from docxtpl import DocxTemplate
+# from docx2pdf import convert
 import subprocess
 
 def generate_pdf(doc_path, path , rename_number):
