@@ -13,6 +13,47 @@ import subprocess
 import os 
 import glob
 
+def page_counter_official_marks_doc_a3_two_face ():
+    dual_page_dic = {}
+    counter = 46
+    start_cell = 6
+    
+    for i in range(3,47,2):
+        print ( i , counter)
+        print ( counter-1 , i+1 )
+        if counter == 46 :
+            dual_page_dic.update({ f'{counter}' : f'A{start_cell}:A{start_cell+24}'})
+            dual_page_dic.update({ f'{i+1}' : f'A{start_cell+33}:A{start_cell+33+24}'})
+            
+            dual_page_dic.update({ f'{i}' : f'L{start_cell}:L{start_cell+24}'})
+            dual_page_dic.update({ f'{counter-1}' : f'L{start_cell+33}:L{start_cell+33+24}'})
+            
+            start_cell +=33*2-1      
+            counter -= 2
+        elif i == 23:
+            dual_page_dic.update({ f'{counter}' : f'A{start_cell}:A{start_cell+24}'})
+            dual_page_dic.update({ f'{i+1}' : f'A{start_cell+32}:A{start_cell+32+24}'})
+            
+            dual_page_dic.update({ f'{i}' : f'L{start_cell}:L{start_cell+24}'})
+            dual_page_dic.update({ f'{counter-1}' : f'L{start_cell+32}:L{start_cell+32+24}'}) 
+                            
+            break
+        else:
+            print(start_cell)
+            dual_page_dic.update({ f'{counter}' : f'A{start_cell}:A{start_cell+24}'})
+            dual_page_dic.update({ f'{i+1}' : f'A{start_cell+32}:A{start_cell+32+24}'})
+            
+            dual_page_dic.update({ f'{i}' : f'L{start_cell}:L{start_cell+24}'})
+            dual_page_dic.update({ f'{counter-1}' : f'L{start_cell+32}:L{start_cell+32+24}'})            
+            start_cell += 32*2
+            counter -= 2
+        # print(dual_page_dic)
+        # input('press anything to continue')        
+        
+    print(dual_page_dic)
+
+
+
 def generate_pdf(doc_path, path , rename_number):
 
     subprocess.call(['soffice',
