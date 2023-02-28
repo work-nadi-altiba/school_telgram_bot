@@ -52,8 +52,6 @@ def page_counter_official_marks_doc_a3_two_face ():
         
     print(dual_page_dic)
 
-
-
 def generate_pdf(doc_path, path , rename_number):
 
     subprocess.call(['soffice',
