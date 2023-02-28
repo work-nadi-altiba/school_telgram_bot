@@ -502,3 +502,23 @@ host:
 emis.moe.gov.jo
 user-agent:
 Dart/2.15 (dart:io)
+
+
+
+
+METHOD: GET
+URL
+https://emis.moe.gov.jo/openemis-core/restful/Assessment.Assessments?academic_period_id=13&_fields=id,education_grade_id,code,name
+HEADERS
+accept-encoding:
+gzip
+authorization:
+Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOjM5NzEyMzYsImV4cCI6MTY3NzYyMzQzNH0.SVhceI3R9J8xUU83hYSGPfX0PtqOrwDXMQ6Ul_98JQsH4vbHqAzHhidUBPhK24Ui1rvdlg6niXId8CspDpdENGie1HArdTFznVdrJ6xzEeGpbK4StB4tp-gXnXHMZGla_BI48Dkb-AVj4QaF1ZHDV8-kUnWunz37-akG0mCasn8
+content-type:
+application/x-www-form-urlencoded
+controlleraction:
+Results
+host:
+emis.moe.gov.jo
+user-agent:
+Dart/2.15 (dart:io)
