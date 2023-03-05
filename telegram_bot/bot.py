@@ -1,17 +1,20 @@
 # pip install python-telegram-bot
 # pip install python-telegram-bot==13.7
+
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
 import keys
 
-
 print('Starting up bot...')
+
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text="/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية' \n /cancel لألغاء العملية")
 
 def send_files(bot, chat_id, files):
     for file in files:
         bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
-
 
 # Lets us use the /help command
 def help_command(update, context):
@@ -64,14 +67,27 @@ def send_students_certs(update, context):
     # code
     pass
 def init_official_marks(update, context):
-    # code
-    pass
+    update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
 def send_official_marks_doc(update, context):
-    # code
-    pass
+    user = update.message.from_user
+    context.user_data['creds'] = update.message.text.split('/')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+    print(username, password)
+    if get_auth(username, password) == False:
+        update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+    else:
+        fill_official_marks_doc_wrapper(username, password)
+        files = count_files()
+        chat_id = update.message.chat.id
+        send_files(bot, chat_id, files)
+        delete_send_folder()
+        return ConversationHandler.END
 
 # # fill assess arbitrary marks conversation handler stats
-# INIT_F , RESPOND = range(1)
+INIT_F , RESPOND = range(2)
 # # send side marks document conversation handler stats
 # INIT_SM , SEND_SN = range(1)
 # # send students certs conversation handler stats
@@ -92,7 +108,8 @@ if __name__ == '__main__':
     
     # Commands
     dp.add_handler(CommandHandler('help', help_command))
-
+    dp.add_handler(CommandHandler('start', start))
+    
     # Messages
     # dp.add_handler(MessageHandler(Filters.text, handle_message))
     # dp.add_handler(MessageHandler(Filters.text, send_document))
@@ -111,12 +128,12 @@ if __name__ == '__main__':
 # )
 
     send_side_marks_note_doc_conv = ConversationHandler(
-    entry_points=[CommandHandler('side_marks_note', init_side_marks)],
-    states={
-        CREDS : [MessageHandler(Filters.text , send_side_marks_note_doc)]
-    },
-    fallbacks=[CommandHandler('cancel', cancel)]
-)
+        entry_points=[CommandHandler('side_marks_note', init_side_marks)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , send_side_marks_note_doc)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
 
 #     send_students_certs_conv = ConversationHandler(
 #     entry_points=[CommandHandler('شهادات', start)],
@@ -128,15 +145,13 @@ if __name__ == '__main__':
 #     fallbacks=[CommandHandler('انهاء', cancel)]
 # )
 
-#     send_official_marks_doc_conv = ConversationHandler(
-#     entry_points=[CommandHandler('سجل_علامات_رسمي', start)],
-#     states={
-#         NAME: [MessageHandler(Filters.text, name)],
-#         AGE: [MessageHandler(Filters.regex('^(Less than 18|Between 18 and 30|More than 30)$'), age)],
-#         GENDER: [MessageHandler(Filters.regex('^(Male|Female|Other)$'), gender)]
-#     },
-#     fallbacks=[CommandHandler('انهاء', cancel)]
-# )
+    send_official_marks_doc_conv = ConversationHandler(
+                                        entry_points=[CommandHandler('official_marks', init_official_marks)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , send_official_marks_doc)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                )
 
     # send_students_absent_doc_conv = ConversationHandler(
         
@@ -144,7 +159,7 @@ if __name__ == '__main__':
         
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_side_marks_note_doc_conv)
-
+    dp.add_handler(send_official_marks_doc_conv)
  
     # Run the bot
     updater.start_polling(1.0)
