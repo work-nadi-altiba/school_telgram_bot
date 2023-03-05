@@ -2,3 +2,6 @@ geckodriver.log
 test.py
 /test_files
 /jupyter
+test1.py
+test_files/
+jupyter/
