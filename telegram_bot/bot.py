@@ -102,17 +102,10 @@ if __name__ == '__main__':
     dp = updater.dispatcher
 
     bot = Bot(token=keys.token)
-    # chat_id = update.message.chat.id
-    # files = ['file1.txt', 'file2.txt', 'file3.txt']
-    # send_files(bot, chat_id, files)
     
     # Commands
     dp.add_handler(CommandHandler('help', help_command))
     dp.add_handler(CommandHandler('start', start))
-    
-    # Messages
-    # dp.add_handler(MessageHandler(Filters.text, handle_message))
-    # dp.add_handler(MessageHandler(Filters.text, send_document))
 
     # Log all errors
     dp.add_error_handler(error)
@@ -164,3 +157,7 @@ if __name__ == '__main__':
     # Run the bot
     updater.start_polling(1.0)
     updater.idle()
+    
+    
+    
+    

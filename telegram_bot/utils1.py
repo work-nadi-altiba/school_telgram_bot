@@ -21,20 +21,81 @@ import fitz
 import webcolors
 import ezodf
 import shutil
+import PyPDF2
+import PyPDF4
 import os
 
-import os
+def split_A3_pages(input_file, outdir):
+    # Open the A3 PDF file in read-binary mode
+    with open(input_file, 'rb') as pdf_file:
+        # Create a PDF reader object
+        pdf_reader = PyPDF4.PdfFileReader(pdf_file)
 
-def delete_files_except(filename, dir_path):
+        # Create a new PDF writer object
+        pdf_writer = PyPDF4.PdfFileWriter()
+
+        # Iterate through each page of the PDF file
+        for page_num in range(pdf_reader.getNumPages()):
+            # Get the current page of the PDF file
+            page = pdf_reader.getPage(page_num)
+
+            # Create a new page with A4 size by splitting the A3 page into two A4 pages
+            x1, y1, x2, y2 = page.mediaBox.lowerLeft + page.mediaBox.upperRight
+            x_mid = (x1 + x2) / 2
+            a4_size = (100, -25)
+            page1 = PyPDF4.pdf.PageObject.createBlankPage(None, a4_size[0], a4_size[1])
+            page1.mergeTranslatedPage(page, -x1, -y1)
+            page1.mediaBox.upperRight = (x2 - x_mid + 50, y2 - a4_size[1])
+            page2 = PyPDF4.pdf.PageObject.createBlankPage(None, a4_size[0], a4_size[1])
+            page2.mergeTranslatedPage(page, -x_mid, -y1)
+            page2.mediaBox.upperRight = (x2 - x_mid , y2 - a4_size[1])
+
+            # Add the two A4 pages to the PDF writer object
+            pdf_writer.addPage(page1)
+            pdf_writer.addPage(page2)
+
+        # Save the new A4 pages to a new PDF file
+        with open(f'{outdir}/output.pdf', 'wb') as output_file:
+            pdf_writer.write(output_file)
+
+def reorder_official_marks_to_A4(input_file, out_file):
+    # Load the PDF document
+    with open(input_file, 'rb') as file:
+        pdf_reader = PyPDF2.PdfFileReader(file)
+
+        # List of page locations in the new order
+        new_order_list = ["1=1","52=2","51=3","2=4","3=5","50=6","49=7","3=8","4=9","46=10","45=11","4=12","5=13","44=14","43=15","6=16","7=17","42=18","41=19","8=20","9=21","40=22","39=23","10=24","11=25","38=26","37=27","12=28","13=29","36=30","35=31","14=32","15=33","34=34","33=35","16=36","17=37","32=38","31=39","18=40","19=41","30=42","29=43","20=44","21=45","28=46","27=47","22=48","23=49","26=50","25=51","24=52"]
+
+        # Create a dictionary from the new order list
+        new_order_dict = {}
+        for item in new_order_list:
+            location, page_number = item.split('=')
+            new_order_dict[int(page_number)] = int(location)
+
+        # Sort the dictionary by values
+        sorted_dict = dict(sorted(new_order_dict.items(), key=lambda x: x[1]))
+
+    #     print(len(sorted_dict))
+        # Create a new PDF document object
+        pdf_writer = PyPDF2.PdfFileWriter()
+
+        # Iterate over the sorted dictionary's keys and add the corresponding page to the new PDF document
+        for page_number in sorted_dict.keys():
+            pdf_writer.addPage(pdf_reader.getPage(page_number - 1))
+
+    #     Save the new PDF document with the reordered pages
+        with open(out_file, 'wb') as file:
+            pdf_writer.write(file)
+            
+def delete_files_except(filenames, dir_path):
     """
-    Deletes every ODS or PDF file in the specified directory except for the file with the specified name.
+    Deletes every ODS or PDF file in the specified directory except for the files with the specified names.
     """
     for file in os.listdir(dir_path):
-        if file != filename and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
+        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
             os.remove(os.path.join(dir_path, file))
 
 def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1):
-    
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
     
@@ -44,7 +105,14 @@ def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outd
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
     add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=27, bottom_rec=50, left_rec=90, right_rec=120)
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=90, right_rec=120)
-    delete_files_except(f"{custom_shapes['teacher']}.pdf", outdir)
+    split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
+    reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
+
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=90, right_rec=20)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=60)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
+    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf"], outdir)
 
 def delete_file(file_path):
     """Delete a file"""
@@ -904,7 +972,5 @@ def main():
     # outdir = '.'
     fill_official_marks_doc_wrapper(9971055725,9971055725 )
     
-
-
 if __name__ == "__main__":
     main()
