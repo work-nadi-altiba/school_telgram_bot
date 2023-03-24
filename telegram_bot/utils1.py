@@ -28,6 +28,115 @@ import PyPDF2
 import PyPDF4
 import os
 
+from openpyxl import load_workbook
+from openpyxl.styles import Font
+
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    userInfo = user_info(auth , username)['data'][0]
+    user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
+    years = get_curr_period(auth)
+    # ما بعرف كيف سويتها لكن زبطت 
+    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+    classes_id_3 = []  
+
+    # load the existing workbook
+    existing_wb = load_workbook(template)
+
+    # Select the worksheet
+    existing_ws = existing_wb.active
+
+    for class_info in classes_id_2:
+        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name']}])
+
+    for v in range(len(classes_id_1)):
+        # id
+        print (classes_id_3[v][0]['institution_class_id'])
+        # subject name 
+        print (classes_id_3[v][0]['sub_name'])
+        # class name
+        print (classes_id_3[v][0]['class_name'])
+
+        # copy the worksheet
+        new_ws = existing_wb.copy_worksheet(existing_ws)
+
+        # rename the new worksheet
+        new_ws.title = classes_id_3[v][0]['class_name']+'-'+str(classes_id_3[v][0]['institution_class_id'])
+        new_ws.sheet_view.rightToLeft = True    
+        existing_ws.sheet_view.rightToLeft = True   
+
+
+        students = get_class_students(auth
+                                    ,period_id
+                                    ,classes_id_1[v]
+                                    ,classes_id_3[v][0]['institution_class_id']
+                                    ,inst_id)
+        students_names = sorted([i['user']['name'] for i in students['data']])
+        print(students_names)
+        students_id_and_names = []
+        for IdAndName in students['data']:
+            students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id=4&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+
+        marks_and_name = []
+        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+        for i in students_id_and_names:   
+            for v in assessments_json['data']:
+                if v['student_id'] == i['student_id'] :  
+                    dic['id'] = i['student_id'] 
+                    dic['name'] = i['student_name'] 
+                    if v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                        dic['term1']['assessment1'] = v["marks"]     
+                    elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                        dic['term1']['assessment2']  = v["marks"]             
+                    elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                        dic['term1']['assessment3']  = v["marks"]           
+                    elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                        dic['term1']['assessment4']  = v["marks"]
+                    elif v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        dic['term2']['assessment1']  = v["marks"]     
+                    elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        dic['term2']['assessment2']  = v["marks"]             
+                    elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        dic['term2']['assessment3']  = v["marks"]           
+                    elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        dic['term2']['assessment4']  = v["marks"]
+            marks_and_name.append(dic)
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+        # Set the font for the data rows
+        data_font = Font(name='Arial', size=16, bold=False)
+
+        marks_and_name = [d for d in marks_and_name if d['name'] != '']
+        marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
+
+        # Write data to the worksheet and calculate the sum of some columns in each row
+        for row_number, dataFrame in enumerate(marks_and_name, start=3):
+            new_ws.cell(row=row_number, column=1).value = row_number-2
+            new_ws.cell(row=row_number, column=2).value = dataFrame['id']
+            new_ws.cell(row=row_number, column=3).value = dataFrame['name']
+            new_ws.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
+            new_ws.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
+            new_ws.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
+            new_ws.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
+            new_ws.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
+            new_ws.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
+            new_ws.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
+            new_ws.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
+            new_ws.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
+            new_ws.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
+
+            # Set the font for the data rows
+            for cell in new_ws[row_number]:
+                cell.font = data_font
+    existing_wb.remove(existing_wb['Sheet1'])
+
+    # save the modified workbook
+    existing_wb.save(f'{outdir}/{user_name}.xlsx')
+
 def split_A3_pages(input_file, outdir):
     # Open the A3 PDF file in read-binary mode
     with open(input_file, 'rb') as pdf_file:
@@ -271,10 +380,10 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
                 sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
             if 'term2' in student_info:
                 row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
-                sheet[f"D{row_idx2}"].set_value(student_info['term1']['assessment1']) 
-                sheet[f"E{row_idx2}"].set_value(student_info['term1']['assessment2']) 
-                sheet[f"F{row_idx2}"].set_value(student_info['term1']['assessment3'])
-                sheet[f"G{row_idx2}"].set_value(student_info['term1']['assessment4'])                
+                sheet[f"D{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                sheet[f"E{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                sheet[f"F{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                sheet[f"G{row_idx2}"].set_value(student_info['term2']['assessment4'])                
             name_counter += 1 
         name_counter = 1
         page += 2
@@ -974,7 +1083,8 @@ def main():
     # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
     # outdir = '.'
     # fill_official_marks_doc_wrapper(9971055725,9971055725 )
-    create_excel_sheets_marks(9971055725,9971055725 )
+    # create_excel_sheets_marks(9971055725,9971055725 )
+    create_e_side_marks_doc(9971055725,9971055725)
     
 if __name__ == "__main__":
     main()
