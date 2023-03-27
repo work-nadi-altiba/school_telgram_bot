@@ -42,10 +42,10 @@ def get_all_assessments_periods_data(auth , assessment_id):
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : ''}
     min_max=[]
     for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
-        min_max2.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
+        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
     for term in terms:
         for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary for dictionary in min_max2 if dictionary.get('id') == 623][0]['pass_mark'] , 'max_mark' : [dictionary for dictionary in min_max2 if dictionary.get('id') == 623][0]['max_mark'] , 'editable':asses['editable']}
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['pass_mark'] , 'max_mark' : [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['max_mark'] , 'editable':asses['editable']}
             season_assessments.append(dic)
     return season_assessments
 
