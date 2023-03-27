@@ -24,9 +24,110 @@ import shutil
 import PyPDF2
 import PyPDF4
 import os
-
 from openpyxl import load_workbook
 from openpyxl.styles import Font
+import random
+
+def get_all_assessments_periods_data(auth , assessment_id):
+    '''
+         استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
+        عوامل الدالة تعريفي السنة الدراسية و التوكن
+        تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
+    '''
+    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
+    season_assessments = []
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : ''}
+    min_max=[]
+    for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
+        min_max2.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
+    for term in terms:
+        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary for dictionary in min_max2 if dictionary.get('id') == 623][0]['pass_mark'] , 'max_mark' : [dictionary for dictionary in min_max2 if dictionary.get('id') == 623][0]['max_mark'] , 'editable':asses['editable']}
+            season_assessments.append(dic)
+    return season_assessments
+
+def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
+    '''
+         استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
+        عوامل الدالة تعريفي السنة الدراسية و التوكن
+        تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
+    '''
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
+    return make_request(url,auth)
+
+def get_all_assessments_periods2(auth , assessment_id):
+    '''
+         استعلام عن تعريفات التقويمات في السنة الدراسية 
+        عوامل الدالة تعريفي السنة الدراسية و التوكن
+        تعود بمعلومات عن كل تقيمات الصفوف في السنة الدراسية  
+    '''
+    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
+    season_assessments = []
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' }
+    for term in terms:
+        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"]}
+            season_assessments.append(dic)
+    return season_assessments
+
+def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,range2):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    
+    required_data_list = get_required_data_to_enter_marks(auth , username)
+    for item in required_data_list : 
+        for Student_id in item['students_ids']:
+            enter_mark(auth 
+                ,marks= random.randint(range1, range2)
+                ,assessment_grading_option_id= 8
+                ,assessment_id= item['assessment_id']
+                ,education_subject_id= item['education_subject_id']
+                ,education_grade_id= item['education_grade_id']
+                ,institution_id= inst_id
+                ,academic_period_id= period_id
+                ,institution_classes_id= item['institution_classes_id']
+                ,student_status_id= 1
+                ,student_id= Student_id
+                ,assessment_period_id= assessment_period_id)
+
+def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id):
+    '''
+    استدعاء معلومات عن الطلاب في الصف
+    عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
+    تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
+    '''
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    student_ids = [student['student_id'] for student in make_request(url,auth)['data']]
+    return student_ids
+
+def get_required_data_to_enter_marks(auth ,username):
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    user_id = user_info(auth , username)['data'][0]['id']
+    years = get_curr_period(auth)
+    # ما بعرف كيف سويتها لكن زبطت 
+    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    required_data_to_enter_marks = []
+    
+    for class_id in classes_id_1 : 
+        class_info = get_teacher_classes2( auth , class_id)['data']
+        dic = {'assessment_id':'','education_subject_id':'' ,'education_grade_id':'','institution_classes_id':'','students_ids':[] }
+        dic['assessment_id'] = get_grade_id_from_assessment_id(auth , class_info[0]['institution_subject']['education_grade_id'])
+        dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
+        dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
+        dic['institution_classes_id'] = class_info[0]['institution_class_id']
+        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id)
+
+        required_data_to_enter_marks.append(dic)
+    
+    return required_data_to_enter_marks
+
+def get_grade_id_from_assessment_id(auth , grade_id):
+    
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+
+    return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
 def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ):
     auth = get_auth(username , password)
@@ -468,14 +569,14 @@ def get_all_assessments_periods(auth , assessment_id):
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن كل تقيمات الصفوف في السنة الدراسية  
     '''
-    terms = get_AcademicTerms(auth=get_auth() , assessment_id=assessment_id)['data']
+    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' }
     for term in terms:
-        for asses in get_assessments_periods(get_auth(), term['name'], assessment_id=188)['data']:
+        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
             dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"]}
             season_assessments.append(dic)
-        return season_assessments
+    return season_assessments
     
 def get_assessments_id( auth ,education_grade_id ):
     '''
@@ -1081,7 +1182,8 @@ def main():
     # outdir = '.'
     # fill_official_marks_doc_wrapper(9971055725,9971055725 )
     # create_excel_sheets_marks(9971055725,9971055725 )
-    create_e_side_marks_doc(9971055725,9971055725)
+    # create_e_side_marks_doc(9971055725,9971055725)
+    enter_marks_arbitrary(9991014194,9991014194,659,10,17)
     
 if __name__ == "__main__":
     main()
