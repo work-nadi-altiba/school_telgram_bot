@@ -1186,7 +1186,7 @@ def main():
     # fill_official_marks_doc_wrapper(9971055725,9971055725 )
     # create_excel_sheets_marks(9971055725,9971055725 )
     # create_e_side_marks_doc(9971055725,9971055725)
-    enter_marks_arbitrary(9991014194,9991014194,659,10,17)
+    # enter_marks_arbitrary(9991014194,9991014194,659,10,17)
     
 if __name__ == "__main__":
     main()
