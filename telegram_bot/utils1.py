@@ -469,6 +469,12 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
                         sheet[f"E{row_idx}"].set_value(student_info['term1']['assessment2']) 
                         sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
                         sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
+                    if 'term2' in student_info:
+                        row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                        sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                        sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                        sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                        sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                       
                     counter += 1
                     name_counter += 1              
                 break                    
@@ -482,10 +488,10 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
                 sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
             if 'term2' in student_info:
                 row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
-                sheet[f"D{row_idx2}"].set_value(student_info['term2']['assessment1']) 
-                sheet[f"E{row_idx2}"].set_value(student_info['term2']['assessment2']) 
-                sheet[f"F{row_idx2}"].set_value(student_info['term2']['assessment3'])
-                sheet[f"G{row_idx2}"].set_value(student_info['term2']['assessment4'])                
+                sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                
             name_counter += 1 
         name_counter = 1
         page += 2
