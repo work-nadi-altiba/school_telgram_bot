@@ -67,24 +67,28 @@ def send_students_certs(update, context):
     # code
     pass
 def init_official_marks(update, context):
-    update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n قم باعطائي اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
 def send_official_marks_doc(update, context):
-    user = update.message.from_user
-    context.user_data['creds'] = update.message.text.split('/')
-    username = context.user_data['creds'][0]
-    password = context.user_data['creds'][1]
-    # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
-    print(username, password)
-    if get_auth(username, password) == False:
-        update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+    if update.message.text == '/cancel':
+        return cancel(update, context)
     else:
-        fill_official_marks_doc_wrapper(username, password)
-        files = count_files()
-        chat_id = update.message.chat.id
-        send_files(bot, chat_id, files)
-        delete_send_folder()
-        return ConversationHandler.END
+        user = update.message.from_user
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            update.message.reply_text("انتظر لحظة لو سمحت") 
+            fill_official_marks_doc_wrapper(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
 
 # # fill assess arbitrary marks conversation handler stats
 INIT_F , RESPOND = range(2)
