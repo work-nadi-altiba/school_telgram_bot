@@ -430,7 +430,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
             student_marks = {
                 'id': int(student_data['student_id']), 
                 'name': student_data['student_name'],
-                'term1': {}
+                'term1': {},
+                'term2': {}
             }
             for mark_data in all_marks['data']:
                 if mark_data['student_id'] == student_data['student_id']:
