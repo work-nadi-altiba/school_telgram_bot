@@ -31,7 +31,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font
 import random
 
-def get_all_assessments_periods_data(auth , assessment_id):
+def get_all_assessments_periods_data2(auth , assessment_id):
     '''
          استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
@@ -39,13 +39,13 @@ def get_all_assessments_periods_data(auth , assessment_id):
     '''
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : ''}
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':''}
     min_max=[]
     for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
         min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
     for term in terms:
         for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['pass_mark'] , 'max_mark' : [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['max_mark'] , 'editable':asses['editable']}
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code':re.search('S.*' , asses['code']).group() }
             season_assessments.append(dic)
     return season_assessments
 
