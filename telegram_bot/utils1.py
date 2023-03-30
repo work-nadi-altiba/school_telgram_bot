@@ -28,7 +28,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font
 import random
 
-def get_all_assessments_periods_data(auth , assessment_id):
+def get_all_assessments_periods_data2(auth , assessment_id):
     '''
          استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
@@ -36,13 +36,13 @@ def get_all_assessments_periods_data(auth , assessment_id):
     '''
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : ''}
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':''}
     min_max=[]
     for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
         min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
     for term in terms:
         for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['pass_mark'] , 'max_mark' : [dictionary for dictionary in min_max if dictionary.get('id') == 623][0]['max_mark'] , 'editable':asses['editable']}
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code':re.search('S.*' , asses['code']).group() }
             season_assessments.append(dic)
     return season_assessments
 
@@ -406,7 +406,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
         mark_data =  {'Sid':'' ,'Sname': '','S1':{ 'ass1': '' ,'ass2': '' , 'ass3': '' , 'ass4': ''} ,'S2':{ 'ass1': '' ,'ass2': '' , 'ass3': '' , 'ass4': ''} }
         term_mapping = {
             "الفصل الأول": "term1",
-            "الفصل الثاني": "terms2"
+            "الفصل الثاني": "term2"
             # add more mappings here
         }
 
@@ -427,7 +427,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
             student_marks = {
                 'id': int(student_data['student_id']), 
                 'name': student_data['student_name'],
-                'term1': {}
+                'term1': {'assessment1': '', 'assessment2': '', 'assessment3': '', 'assessment4': ''},
+                'term2': {'assessment1': '', 'assessment2': '', 'assessment3': '', 'assessment4': ''}
             }
             for mark_data in all_marks['data']:
                 if mark_data['student_id'] == student_data['student_id']:
@@ -465,6 +466,12 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
                         sheet[f"E{row_idx}"].set_value(student_info['term1']['assessment2']) 
                         sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
                         sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
+                    if 'term2' in student_info:
+                        row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                        sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                        sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                        sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                        sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                       
                     counter += 1
                     name_counter += 1              
                 break                    
@@ -478,10 +485,10 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
                 sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
             if 'term2' in student_info:
                 row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
-                sheet[f"D{row_idx2}"].set_value(student_info['term2']['assessment1']) 
-                sheet[f"E{row_idx2}"].set_value(student_info['term2']['assessment2']) 
-                sheet[f"F{row_idx2}"].set_value(student_info['term2']['assessment3'])
-                sheet[f"G{row_idx2}"].set_value(student_info['term2']['assessment4'])                
+                sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                
             name_counter += 1 
         name_counter = 1
         page += 2
@@ -1180,10 +1187,10 @@ def main():
     # ods_file = 'send1.ods'
     # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
     # outdir = '.'
-    # fill_official_marks_doc_wrapper(9971055725,9971055725 )
+    fill_official_marks_doc_wrapper(9971055725,9971055725 )
     # create_excel_sheets_marks(9971055725,9971055725 )
     # create_e_side_marks_doc(9971055725,9971055725)
-    # enter_marks_arbitrary(9991014194,9991014194,659,10,17)
+    # enter_marks_arbitrary(9981054126,123456,665,10,17)
     
 if __name__ == "__main__":
     main()
