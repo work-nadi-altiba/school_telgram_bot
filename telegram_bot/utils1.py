@@ -1,6 +1,3 @@
-# from selenium import webdriver
-# from selenium.webdriver.common.by import By
-# import geckodriver_autoinstaller
 import requests
 import json
 from pygments import highlight

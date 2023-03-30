@@ -1,5 +1,5 @@
-from selenium import webdriver
-import geckodriver_autoinstaller
+# from selenium import webdriver
+# import geckodriver_autoinstaller
 import utils
 
 
