@@ -6,6 +6,7 @@ from telegram.ext import *
 from telegram import Bot
 from utils1 import *
 import keys
+import io
 
 print('Starting up bot...')
 
@@ -86,8 +87,30 @@ def fill_assess_arbitrary(update, context):
         wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
         enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['pass_mark'],assess_data['max_mark'])    
         # End of conversation
-        update.message.reply_text("تمام انتهيت")
+        update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
+
+def receive_file(update, context):
+    ''''
+    use the function in the main function and add 
+    
+    dp.add_handler(MessageHandler(Filters.document, receive_file))
+    '''
+    # Check if the message contains a document
+    if not update.message.document:
+        update.message.reply_text('Please send a text file.')
+        return
+    file_obj = context.bot.get_file(update.message.document.file_id)
+    file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+
+    # modify the file content by adding some string
+    file_content = file_bytes.read()
+    modified_content = file_content + b"\nAdded some string to the file!"
+
+    # send the modified file back to the user
+    modified_file = io.BytesIO(modified_content)
+    modified_file.name = "modified_file.txt"
+    update.message.reply_document(document=modified_file)
     
 def init_side_marks(update, context):
     update.message.reply_text("بدك اعطيك كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
