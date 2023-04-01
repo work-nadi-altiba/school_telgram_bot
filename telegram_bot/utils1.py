@@ -15,6 +15,7 @@ from odf.table import Table ,TableCell ,TableRow
 from odf.namespaces import DRAWNS, STYLENS, SVGNS, TEXTNS
 from odf.draw import CustomShape
 from odf.style import Style, TextProperties
+from num2words import num2words
 from odf.text import P, Span
 import hijri_converter
 import fitz
@@ -27,24 +28,57 @@ import os
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 import random
+import re
 
-def get_all_assessments_periods_data2(auth , assessment_id):
-    '''
-         استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
-        عوامل الدالة تعريفي السنة الدراسية و التوكن
-        تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
-    '''
-    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
-    season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':''}
-    min_max=[]
-    for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
-        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
-    for term in terms:
-        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code':re.search('S.*' , asses['code']).group() }
-            season_assessments.append(dic)
-    return season_assessments
+def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,range1 ,range2):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    
+    for item in required_data_list : 
+        for Student_id in item['students_ids']:
+            enter_mark(auth 
+                ,marks= random.randint(range1, range2)
+                ,assessment_grading_option_id= 8
+                ,assessment_id= item['assessment_id']
+                ,education_subject_id= item['education_subject_id']
+                ,education_grade_id= item['education_grade_id']
+                ,institution_id= inst_id
+                ,academic_period_id= period_id
+                ,institution_classes_id= item['institution_classes_id']
+                ,student_status_id= 1
+                ,student_id= Student_id
+                ,assessment_period_id= item['assessment_id'])
+                        
+def assessments_commands_text(lst):
+    S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
+    S2 = [i for i in lst if i.get('SEname') =='الفصل الثاني']    
+    text = ""
+
+    if S1:
+        text = 'الفصل الاول\n'
+        for item in S1:
+            text += '/' + item['code'] + ' الصف ال' + num2words(int(re.match('G\d{1,}', item['code']).group()[1:]), lang='ar', to='ordinal') + ' ' + item['AssesName'] + ' ' + ' علامة النجاح ' + str(item['pass_mark']) + ' و العلامة القصوى ' + str(item['max_mark']) + '\n'
+
+    if S2:
+        text += 'الفصل الثاني\n'
+        for item in S2:
+            text += '/' + item['code'] + ' الصف ال' + num2words(int(re.match('G\d{1,}', item['code']).group()[1:]), lang='ar', to='ordinal') + ' ' + item['AssesName'] + ' ' + ' علامة النجاح ' + str(item['pass_mark']) + ' و العلامة القصوى ' + str(item['max_mark']) + '\n'
+
+    if not S1 and not S2:
+        # change this to send message for user that there is no assessement to fill now
+        print("Both S1 and S2 lists are empty.")
+    else:
+        return text
+    
+def get_editable_assessments( auth , username):
+    required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
+    ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
+    ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
+    # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
+    unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
+    sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
+    return sorted_dict
 
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
     '''
@@ -55,18 +89,21 @@ def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
     return make_request(url,auth)
 
-def get_all_assessments_periods2(auth , assessment_id):
+def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id):
     '''
-         استعلام عن تعريفات التقويمات في السنة الدراسية 
+         استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
-        تعود بمعلومات عن كل تقيمات الصفوف في السنة الدراسية  
+        تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
     '''
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' }
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
+    min_max=[]
+    for i in assessments_periods_min_max_mark(auth , assessment_id, education_subject_id)['data']:
+        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
     for term in terms:
         for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"]}
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code': asses['code'], 'gradeId':asses['assessment_id']}
             season_assessments.append(dic)
     return season_assessments
 
@@ -1188,9 +1225,7 @@ def main():
     # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
     # outdir = '.'
     fill_official_marks_doc_wrapper(9971055725,9971055725 )
-    # create_excel_sheets_marks(9971055725,9971055725 )
-    # create_e_side_marks_doc(9971055725,9971055725)
-    # enter_marks_arbitrary(9981054126,123456,665,10,17)
+
     
 if __name__ == "__main__":
     main()
