@@ -15,6 +15,7 @@ from odf.table import Table ,TableCell ,TableRow
 from odf.namespaces import DRAWNS, STYLENS, SVGNS, TEXTNS
 from odf.draw import CustomShape
 from odf.style import Style, TextProperties
+from num2words import num2words
 from odf.text import P, Span
 import hijri_converter
 import fitz
@@ -27,24 +28,238 @@ import os
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 import random
+import re
 
-def get_all_assessments_periods_data2(auth , assessment_id):
+def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,students_data_lists, ods_file ):
     '''
-         استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
-        عوامل الدالة تعريفي السنة الدراسية و التوكن
-        تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
+    doc is the copy that you want to send 
     '''
-    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
-    season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':''}
-    min_max=[]
-    for i in assessments_periods_min_max_mark(get_auth(9991014194,9991014194) , 187, 3)['data']:
-        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
-    for term in terms:
-        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code':re.search('S.*' , asses['code']).group() }
-            season_assessments.append(dic)
-    return season_assessments
+    context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+    
+    page = 4
+    name_counter = 1
+    name_counter = 1
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    user_id = user_info(auth , username)['data'][0]['id']
+    
+    user = user_info(auth , username)
+    school_name = inst_name(auth)['data'][0]['Institutions']['name']
+    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+    school_year = get_curr_period(auth)['data']
+    hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
+    hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
+    melady1 = str(school_year[0]['start_year'])
+    melady2 = str(school_year[0]['end_year'])
+    teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+    
+    classes=[]
+    mawad=[]
+    modified_classes=[]
+    
+    # Open the ODS file and load the sheet you want to fill
+    doc = ezodf.opendoc(ods_file) 
+       
+    sheet_name = 'sheet'
+    sheet = doc.sheets[sheet_name]
+
+
+    for students_data_list in students_data_lists:
+        
+#         ['الصف السابع', 'أ', 'اللغة الانجليزية', '786118']
+        
+        class_data = students_data_list['class_name'].split('-')
+        mawad.append(class_data[2])
+        classes.append('-'.join([class_data[0],class_data[1]]))
+        class_name = class_data[0].replace('الصف ' , '')
+        class_char = class_data[1]
+        sub_name = class_data[2]   
+
+        
+        sheet[f"D{int(context[str(page)].split(':')[0][1:])-5 }"].set_value(f' الصف: {class_name}')
+        sheet[f"I{int(context[str(page)].split(':')[0][1:])-5 }"].set_value(f'الشعبة (   {class_char}    )')    
+        sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
+              
+        for counter,student_info in enumerate(students_data_list['sdtudent_data'], start=1):
+            if counter >= 26:
+                page += 2
+                counter = 1
+                
+                sheet[f"D{int(context[str(page)].split(':')[0][1:])-5}"].set_value(f' الصف: {class_name}')
+                sheet[f"I{int(context[str(page)].split(':')[0][1:])-5}"].set_value(f'الشعبة (   {class_char}    )')  
+                sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
+                #    المادة الدراسية     
+                
+                # {'id': 3824166, 'name': 'نورالدين محمود راضي الدغيمات', 'term1': {'assessment1': 9, 'assessment2': 10, 'assessment3': 11, 'assessment4': 20}}
+                
+                for student_info in students_data_list['sdtudent_data'][25:] :
+                    row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
+                    sheet[f"A{row_idx}"].set_value(name_counter)
+                    sheet[f"B{row_idx}"].set_value(student_info['name'])
+                    if 'term1' in student_info and 'assessment1' in student_info['term1'] and 'assessment2' in student_info['term1'] and 'assessment3' in student_info['term1'] and 'assessment4' in student_info['term1']:
+                        sheet[f"D{row_idx}"].set_value(student_info['term1']['assessment1']) 
+                        sheet[f"E{row_idx}"].set_value(student_info['term1']['assessment2']) 
+                        sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
+                        sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
+                    if 'term2' in student_info:
+                        row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                        sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                        sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                        sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                        sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                       
+                    counter += 1
+                    name_counter += 1              
+                break                    
+            row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
+            sheet[f"A{row_idx}"].set_value(name_counter)
+            sheet[f"B{row_idx}"].set_value(student_info['name']) 
+            if 'term1' in student_info and 'assessment1' in student_info['term1'] and 'assessment2' in student_info['term1'] and 'assessment3' in student_info['term1'] and 'assessment4' in student_info['term1']:
+                sheet[f"D{row_idx}"].set_value(student_info['term1']['assessment1']) 
+                sheet[f"E{row_idx}"].set_value(student_info['term1']['assessment2']) 
+                sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
+                sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
+            if 'term2' in student_info:
+                row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                
+            name_counter += 1 
+        name_counter = 1
+        page += 2
+
+    
+    for i in classes: 
+        modified_classes.append(mawad_representations(i))
+        
+    modified_classes = ' ، '.join(modified_classes)
+    mawad = sorted(set(mawad))
+    mawad = ' ، '.join(mawad)
+
+    custom_shapes = {
+        'modeeriah': f'لواء {modeeriah}',
+        'hejri1': hejri1,
+        'hejri2': hejri2,
+        'melady1': melady1,
+        'melady2': melady2,
+        'baldah': baldah,
+        'school': school_name,
+        'classes': modified_classes,
+        'mawad': mawad,
+        'teacher' : teacher,
+        'modeeriah_20_2': f'لواء {modeeriah}',
+        'hejri_20_1': hejri1,
+        'hejri_20_2': hejri2,
+        'melady_20_1': melady1,
+        'melady_20_2': melady2,
+        'baldah_20_2': baldah,
+        'school_20_2': school_name,
+        'classes_20_2': modified_classes,
+        'mawad_20_2': mawad,
+        'teacher_20_2': teacher ,
+        'modeeriah_20_1': f'لواء {modeeriah}',
+        'hejri1': hejri1,
+        'hejri2': hejri2,
+        'melady1': melady1,
+        'melady2': melady2,
+        'baldah_20_1': baldah,
+        'school_20_1': school_name,
+        'classes_20_1': modified_classes,
+        'mawad_20_1': mawad,
+        'teacher_20_1': teacher
+    }
+    # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
+    # Iterate through the cells of the sheet and fill in the values you want
+    doc.save()
+            
+    return custom_shapes 
+
+def Read_E_Side_Note_Marks(file_path=None , file_content=None):
+    if file_content is None:
+        # Load the workbook
+        wb = load_workbook(file_path)
+    else:
+        wb = load_workbook(filename=file_content)
+        
+    sheets = wb.sheetnames
+    sheet = wb[wb.sheetnames[0]]
+
+    read_file_output_lists = []
+
+    for sheet in sheets :
+        rows = []
+        data = []
+        # Loop over the rows in each sheet
+        for row in wb[sheet].iter_rows(min_row=3, values_only=True):
+            row = [cell if cell is not None else '' for cell in row]
+            # Append the row data to the list
+            rows.append(list(row))    
+
+        for row in rows:
+            dic = {
+                'id': row[1], 
+                'name':  row[2],
+                'term1': {'assessment1':  row[3], 'assessment2':row[4], 'assessment3': row[5], 'assessment4': row[6]},
+                'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
+                    }
+            data.append(dic)
+        temp_dic = {'class_name':sheet ,"sdtudent_data": data}
+        read_file_output_lists.append(temp_dic)
+
+    return read_file_output_lists
+
+def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,range1 ,range2):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    
+    for item in required_data_list : 
+        for Student_id in item['students_ids']:
+            enter_mark(auth 
+                ,marks= random.randint(range1, range2)
+                ,assessment_grading_option_id= 8
+                ,assessment_id= item['assessment_id']
+                ,education_subject_id= item['education_subject_id']
+                ,education_grade_id= item['education_grade_id']
+                ,institution_id= inst_id
+                ,academic_period_id= period_id
+                ,institution_classes_id= item['institution_classes_id']
+                ,student_status_id= 1
+                ,student_id= Student_id
+                ,assessment_period_id= item['assessment_id'])
+                        
+def assessments_commands_text(lst):
+    S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
+    S2 = [i for i in lst if i.get('SEname') =='الفصل الثاني']    
+    text = ""
+
+    if S1:
+        text = 'الفصل الاول\n'
+        for item in S1:
+            text += '/' + item['code'] + ' الصف ال' + num2words(int(re.match('G\d{1,}', item['code']).group()[1:]), lang='ar', to='ordinal') + ' ' + item['AssesName'] + ' ' + ' علامة النجاح ' + str(item['pass_mark']) + ' و العلامة القصوى ' + str(item['max_mark']) + '\n'
+
+    if S2:
+        text += 'الفصل الثاني\n'
+        for item in S2:
+            text += '/' + item['code'] + ' الصف ال' + num2words(int(re.match('G\d{1,}', item['code']).group()[1:]), lang='ar', to='ordinal') + ' ' + item['AssesName'] + ' ' + ' علامة النجاح ' + str(item['pass_mark']) + ' و العلامة القصوى ' + str(item['max_mark']) + '\n'
+
+    if not S1 and not S2:
+        # change this to send message for user that there is no assessement to fill now
+        print("Both S1 and S2 lists are empty.")
+    else:
+        return text
+    
+def get_editable_assessments( auth , username):
+    required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
+    ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
+    ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
+    # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
+    unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
+    sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
+    return sorted_dict
 
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
     '''
@@ -55,18 +270,21 @@ def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
     return make_request(url,auth)
 
-def get_all_assessments_periods2(auth , assessment_id):
+def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id):
     '''
-         استعلام عن تعريفات التقويمات في السنة الدراسية 
+         استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
-        تعود بمعلومات عن كل تقيمات الصفوف في السنة الدراسية  
+        تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
     '''
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
-    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' }
+    dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
+    min_max=[]
+    for i in assessments_periods_min_max_mark(auth , assessment_id, education_subject_id)['data']:
+        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
     for term in terms:
         for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"]}
+            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code': asses['code'], 'gradeId':asses['assessment_id']}
             season_assessments.append(dic)
     return season_assessments
 
@@ -162,7 +380,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name']+'-'+str(classes_id_3[v][0]['institution_class_id'])
+        new_ws.title = classes_id_3[v][0]['class_name']+'-'+classes_id_3[v][0]['sub_name']+'-'+str(classes_id_3[v][0]['institution_class_id'])
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -305,6 +523,25 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
             os.remove(os.path.join(dir_path, file))
 
+def fill_official_marks_doc_wrapper_offline(usnername , password ,lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
+    ods_file = f'{ods_name}{ods_num}.ods'
+    copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
+    custom_shapes = fill_official_marks_a3_two_face_doc2_offline_version(username= usnername, password= password ,students_data_lists=lst, ods_file=f'{outdir}/{ods_file}')
+    
+    fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
+    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
+    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
+    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120)
+    split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
+    reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
+
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
+    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf"], outdir)
+    
 def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
@@ -684,7 +921,7 @@ def mawad(string):
 
 def get_basic_info (username , password):
     auth = get_auth(username ,password )
-    user = user_info(auth , 9971055725)
+    user = user_info(auth , username)
     school_name = inst_name(auth)['data'][0]['Institutions']['name']
     baldah = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id=2600&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
     grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
@@ -830,19 +1067,17 @@ def my_jq(data):
     json_str = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False).encode('utf8')
     return highlight(json_str.decode('utf8'), JsonLexer(), TerminalFormatter())
 
-def make_request(url,auth):
-    headers = {"Authorization": auth}
-    response = requests.request("GET", url, headers=headers)
-    if "403 Forbidden" in response.text :
-        headers["ControllerAction"] = "Results"        
-        response = requests.request("GET", url, headers=headers)        
-    elif "403 Forbidden" in  response.text :
-        headers["ControllerAction"] = "SubjectStudents"        
-        response = requests.request("GET", url, headers=headers)                   
-    else :
-        headers["ControllerAction"] = "Staff"            
-        response = requests.request("GET", url, headers=headers)             
-    return response.json()
+def make_request(url, auth):
+    headers = {"Authorization": auth, "ControllerAction": "Results"}
+    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances']
+    
+    for controller_action in controller_actions:
+        headers["ControllerAction"] = controller_action
+        response = requests.request("GET", url, headers=headers)
+        if "403 Forbidden" not in response.text :
+            return response.json()
+        
+    return None
 
 def get_auth(username , password):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
@@ -1187,10 +1422,16 @@ def main():
     # ods_file = 'send1.ods'
     # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
     # outdir = '.'
-    fill_official_marks_doc_wrapper(9971055725,9971055725 )
-    # create_excel_sheets_marks(9971055725,9971055725 )
+    # path = '/opt/programming/school_programms1/telegram_bot/send_folder/انس الجعافره-9971055725.xlsx'
+    # lst = Read_E_Side_Note_Marks(path)
+    auth=get_auth(9971055725,9971055725)
+    
+    output = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id=2600&academic_period_id=13&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id')
+    print(output)
+
+    # fill_official_marks_a3_two_face_doc2_offline_version(9971055725,9971055725,lst)
+    # fill_official_marks_doc_wrapper_offline(9971055725,9971055725,lst)
     # create_e_side_marks_doc(9971055725,9971055725)
-    # enter_marks_arbitrary(9981054126,123456,665,10,17)
     
 if __name__ == "__main__":
     main()
