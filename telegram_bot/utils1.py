@@ -177,14 +177,17 @@ def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,stu
             
     return custom_shapes 
 
-def Read_E_Side_Note_Marks(file_path):
-    # Load the workbook
-    wb = load_workbook(file_path)
-
+def Read_E_Side_Note_Marks(file_path=None , file_content=None):
+    if file_content is None:
+        # Load the workbook
+        wb = load_workbook(file_path)
+    else:
+        wb = load_workbook(filename=file_content)
+        
     sheets = wb.sheetnames
     sheet = wb[wb.sheetnames[0]]
 
-    read_file_output = []
+    read_file_output_lists = []
 
     for sheet in sheets :
         rows = []
@@ -204,9 +207,9 @@ def Read_E_Side_Note_Marks(file_path):
                     }
             data.append(dic)
         temp_dic = {'class_name':sheet ,"sdtudent_data": data}
-        read_file_output.append(temp_dic)
+        read_file_output_lists.append(temp_dic)
 
-    return read_file_output
+    return read_file_output_lists
 
 def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,range1 ,range2):
     auth = get_auth(username , password)
@@ -918,7 +921,7 @@ def mawad(string):
 
 def get_basic_info (username , password):
     auth = get_auth(username ,password )
-    user = user_info(auth , 9971055725)
+    user = user_info(auth , username)
     school_name = inst_name(auth)['data'][0]['Institutions']['name']
     baldah = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id=2600&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
     grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
@@ -1064,19 +1067,17 @@ def my_jq(data):
     json_str = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False).encode('utf8')
     return highlight(json_str.decode('utf8'), JsonLexer(), TerminalFormatter())
 
-def make_request(url,auth):
-    headers = {"Authorization": auth}
-    response = requests.request("GET", url, headers=headers)
-    if "403 Forbidden" in response.text :
-        headers["ControllerAction"] = "Results"        
-        response = requests.request("GET", url, headers=headers)        
-    elif "403 Forbidden" in  response.text :
-        headers["ControllerAction"] = "SubjectStudents"        
-        response = requests.request("GET", url, headers=headers)                   
-    else :
-        headers["ControllerAction"] = "Staff"            
-        response = requests.request("GET", url, headers=headers)             
-    return response.json()
+def make_request(url, auth):
+    headers = {"Authorization": auth, "ControllerAction": "Results"}
+    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances']
+    
+    for controller_action in controller_actions:
+        headers["ControllerAction"] = controller_action
+        response = requests.request("GET", url, headers=headers)
+        if "403 Forbidden" not in response.text :
+            return response.json()
+        
+    return None
 
 def get_auth(username , password):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
@@ -1421,11 +1422,15 @@ def main():
     # ods_file = 'send1.ods'
     # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
     # outdir = '.'
-    path = '/opt/programming/school_programms1/telegram_bot/send_folder/انس الجعافره-9971055725.xlsx'
-    lst = Read_E_Side_Note_Marks(path)
+    # path = '/opt/programming/school_programms1/telegram_bot/send_folder/انس الجعافره-9971055725.xlsx'
+    # lst = Read_E_Side_Note_Marks(path)
+    auth=get_auth(9971055725,9971055725)
     
+    output = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id=2600&academic_period_id=13&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id')
+    print(output)
+
     # fill_official_marks_a3_two_face_doc2_offline_version(9971055725,9971055725,lst)
-    fill_official_marks_doc_wrapper_offline(9971055725,9971055725,lst)
+    # fill_official_marks_doc_wrapper_offline(9971055725,9971055725,lst)
     # create_e_side_marks_doc(9971055725,9971055725)
     
 if __name__ == "__main__":

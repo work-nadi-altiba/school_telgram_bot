@@ -20,7 +20,32 @@ INIT_F , RESPOND = range(2)
 # INIT_OM , SEND_OM = range(1)
 # CREDS = range(1)
 CREDS, AVAILABLE_ASS  = range(2)
+CREDS, FILE = range(2)
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
+
+# Define a function to handle incoming files
+
+def receive_file(update, context ):
+    '''
+        dispatcher.add_handler(MessageHandler(Filters.document, receive_file))
+    '''
+    
+    # Check if the message contains a document
+    if not update.message.document:
+        update.message.reply_text('Please send an Excel file.')
+        return
+
+    # Get the file object and read its content
+    file_obj = context.bot.get_file(update.message.document.file_id)
+    file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+    # file_content = file_bytes.read()
+    fill_official_marks_doc_wrapper_offline(9971055725,9971055725,Read_E_Side_Note_Marks(file_content=file_bytes))
+    files = count_files()
+    chat_id = update.message.chat.id
+    send_files(bot, chat_id, files)
+    delete_send_folder()
+
+    update.message.reply_text('تم بنجاح')
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية' \n /cancel لألغاء العملية")
@@ -90,28 +115,28 @@ def fill_assess_arbitrary(update, context):
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
 
-def receive_file(update, context):
-    ''''
-    use the function in the main function and add 
-    
-    dp.add_handler(MessageHandler(Filters.document, receive_file))
-    '''
-    # Check if the message contains a document
-    if not update.message.document:
-        update.message.reply_text('Please send a text file.')
-        return
-    file_obj = context.bot.get_file(update.message.document.file_id)
-    file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+def init_receive(update, context):
+    update.message.reply_text("هل تريد تفريغ العلامات على المنظومة و تعبئة سجل العلامات الرسمي من السجل الالكتروني ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
 
-    # modify the file content by adding some string
-    file_content = file_bytes.read()
-    modified_content = file_content + b"\nAdded some string to the file!"
-
-    # send the modified file back to the user
-    modified_file = io.BytesIO(modified_content)
-    modified_file.name = "modified_file.txt"
-    update.message.reply_document(document=modified_file)
-    
+def check_creds(update, context):
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        user = update.message.from_user
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+            return CREDS                                    
+        else:
+            print('moving to next function')
+            update.message.reply_text('0000ارسل ملف العلامات الجانبي الالكتروني؟')            
+            return FILE
+        
 def init_side_marks(update, context):
     update.message.reply_text("بدك اعطيك كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
@@ -218,8 +243,16 @@ if __name__ == '__main__':
                                             CREDS : [MessageHandler(Filters.text , send_official_marks_doc)]
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
-                                )
+                                                        )
 
+    send_official_marks_doc_conv_offline = ConversationHandler(
+                                        entry_points=[CommandHandler('official_marks_offline', init_receive)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , check_creds )],
+                                            FILE : [MessageHandler(Filters.text ,receive_file)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
     # send_students_absent_doc_conv = ConversationHandler(
         
         
@@ -228,6 +261,9 @@ if __name__ == '__main__':
     dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(send_official_marks_doc_conv)
     dp.add_handler(fill_assess_arbitrary_marks_conv)
+    dp.add_handler(send_official_marks_doc_conv_offline)
+    dp.add_handler(MessageHandler(Filters.document, receive_file))
+
     # Run the bot
     updater.start_polling(1.0)
     updater.idle()
