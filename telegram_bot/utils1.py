@@ -30,6 +30,92 @@ from openpyxl.styles import Font
 import random
 import re
 
+def get_grade_info(auth):
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    return my_list
+
+def get_school_students_ids(auth):
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    curr_year = get_curr_period(auth)['data'][0]['id']
+    return make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')
+
+def get_students_info_subjectsMarks(username,password):
+    '''
+    دالة لاستخراج معلومات و علامات الطلاب لاستخدامها لاحقا في انشاء الجداول و العلامات
+    '''
+    auth=get_auth(username,password)
+    dic_list=[]
+    target_student_marks=[]
+    school_name = inst_name(auth=auth)['data'][0]['Institutions']['name']
+    edu_directory = inst_area(auth=auth)['data'][0]['Areas']['name']
+    curr_year = get_curr_period(auth)['data'][0]['id']
+    for i in get_school_students_ids(auth=auth)['data']:
+        dic_list.append({'student_id':i['student_id'],'student__full_name':i['user']['name'],'student_nat':i['user']['nationality_id'],'student_birth_place':i['user']['birthplace_area_id'] if i['user']['birthplace_area_id'] is not None and i['user']['birthplace_area_id'] != 'None' else '' ,'student_birth_date' : i['user']['date_of_birth'] ,'student_nat_id':i['user']['identity_number'],'student_grade_id':i['education_grade_id'], 'student_grade_name' : i['education_grade_id'] ,'student_class_name_letter':'','student_edu_place' : edu_directory ,'student_directory':edu_directory,'student_school_name':school_name,'subjects_assessments_info':[] })
+            
+    sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
+    subjects_assessments_info=[]
+    target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
+
+    for i in range(0, len(dic_list), 8):
+        start = i
+        end = i+7 if i+7 < len(dic_list) else i+(len(dic_list)-i)-1
+        student_ids = [i for i in [i['student_id'] for i in dic_list[start:end]]]
+        joined_string = ','.join(str(i) for i in [f'student_id:{i}' for i in student_ids])
+        marks = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&_limit=0&_orWhere='+joined_string)['data']
+        for student_id in student_ids:
+            sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
+            for mark in marks:
+                if student_id in mark.values():
+                    target_student_marks.append(mark)
+            target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
+
+            for subject in target_student_subjects:
+                dictionaries = [assessments for assessments in target_student_marks if subject in assessments.values()]
+                sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
+                sub_dic['subject_number']= dictionaries[0]['education_subject_id']
+                sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if 'S2A4' in assessments['assessment_period']['code']] [0] if [assessments['marks'] for assessments in dictionaries if 'S2A3' in mark['assessment_period']['code']] else ''                                         
+                subjects_assessments_info.append(sub_dic)   
+                sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
+                # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
+            target_index = next((i for i, dic in enumerate(dic_list) if dic['student_id'] == student_id), None)
+            if target_index is not None and len(target_student_subjects) != 0:
+                dic_list[target_index]['subjects_assessments_info'].append(subjects_assessments_info)
+                dic_list[target_index]['student_class_name_letter'] = dictionaries[0]['institution_classes_id']             
+                # print(dic_list[target_index])
+                subjects_assessments_info=[]
+                target_student_marks = []
+
+    class_name_letter = list(set([i['student_class_name_letter'] for i in dic_list if i['student_class_name_letter'] != '' ]))
+    joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in class_name_letter])
+    classes_data = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']            
+    class_list = []
+    for i in classes_data:
+        class_list.append({'class_id': i['institution_class_id'] , 'class_name': i['institution_class']['name'] })
+        class_dict = {i['class_id']: i['class_name'] for i in class_list if i['class_id'] != ''}
+    for i in dic_list:
+        class_id = i['student_class_name_letter']
+        if class_id != '':
+            i['student_class_name_letter'] = class_dict.get(class_id, class_id)
+    grade_id = list(set([i['student_grade_id'] for i in dic_list if i['student_grade_id'] != '' ]))
+    grade_data = get_grade_info(auth)
+    grade_list = []
+    for i in grade_data:
+        grade_list.append({'grade_id': i['education_grade_id'] , 'grade_name': re.sub('.*للصف','الصف', i['name']) })
+        grade_dict = {i['grade_id']: i['grade_name'] for i in grade_list if i['grade_name'] != ''}
+    for i in dic_list:
+        grade_id = i['student_grade_id']
+        if grade_id != '':
+            i['student_grade_name'] = grade_dict.get(grade_id, grade_id)
+            
+    return dic_list
+
 def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,students_data_lists, ods_file ):
     '''
     doc is the copy that you want to send 
@@ -341,7 +427,18 @@ def get_required_data_to_enter_marks(auth ,username):
     
     return required_data_to_enter_marks
 
-def get_grade_id_from_assessment_id(auth , grade_id):
+def get_grade_info(auth):
+    
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    return my_list
+   
+def get_grade_name_from_grade_id(auth , grade_id):
+    
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+
+    return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
+
+def get_assessment_id_from_grade_id(auth , grade_id):
     
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
 
@@ -1077,7 +1174,7 @@ def make_request(url, auth):
         if "403 Forbidden" not in response.text :
             return response.json()
         
-    return None
+    return ['Some Thing Wrong']
 
 def get_auth(username , password):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
@@ -1108,7 +1205,8 @@ def inst_area(auth):
     عوامل الدالة الرابط و التوكن
     تعود باسم البلدية و اسم المنطقة و اللواء 
     '''
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Institutions.json?id=2600&_contain=AreaAdministratives,Areas&_fields=AreaAdministratives.name,Areas.name"
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Institutions.json?id={inst_id}&_contain=AreaAdministratives,Areas&_fields=AreaAdministratives.name,Areas.name"
     return make_request(url,auth)
 
 def user_info(auth,username):
@@ -1199,15 +1297,6 @@ def enter_mark(auth
     print(response.status_code)
     if response.status_code != 200:
         raise(Exception("couldn't enter the mark for some reason")) 
-
-def get_AcademicTerms(auth,assessment_id):
-    '''
-    دالة لاستدعاء اسم الفصل 
-    و عواملها التوكن و رقم تقيم الصف 
-    و تعود باسماء الفصول على شكل جيسن
-    '''
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth)
 
 def get_curr_period(auth):
     '''
@@ -1425,9 +1514,9 @@ def main():
     # path = '/opt/programming/school_programms1/telegram_bot/send_folder/انس الجعافره-9971055725.xlsx'
     # lst = Read_E_Side_Note_Marks(path)
     auth=get_auth(9971055725,9971055725)
-    
-    output = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id=2600&academic_period_id=13&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id')
-    print(output)
+    # print(make_request(auth=auth,url='://emis.moe.gov.jo/openemis-core​/restful​/v2​/Area-AreaAdministratives.json'))
+    # output = make_request(auth=auth,url='://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id=2600&academic_period_id=13&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id')
+    # print(output)
 
     # fill_official_marks_a3_two_face_doc2_offline_version(9971055725,9971055725,lst)
     # fill_official_marks_doc_wrapper_offline(9971055725,9971055725,lst)
