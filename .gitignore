@@ -6,3 +6,4 @@ test1.py
 test_files/
 jupyter/
 logic.txt
+/telegram_bot/api_urls.py
