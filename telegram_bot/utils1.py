@@ -32,12 +32,174 @@ import re
 import itertools
 import openpyxl
 
+def create_tables(auth , grouped_list):
+    template_file = openpyxl.load_workbook('tamplete.xlsx')
+    # auth = get_auth(username , password)
+    institution_area_data = inst_area(auth)
+    institution_data = inst_name(auth)
+    curr_year_code = get_curr_period(auth)['data'][0]['code']
+
+    marks_sheet = template_file.worksheets[2]
+    first_table_sheet = template_file.worksheets[0]
+    second_table_sheet = template_file.worksheets[1]
+
+
+    for group in grouped_list:
+
+        for row_number, dataFrame in enumerate(group, start=4):
+            islam_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'سلامية' in key] # التربية الاسلامية
+            arabic_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'عربية' in key] # اللغة العربية
+            english_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'جليزية' in key]   # اللغة الانجليزية 
+            math_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضيات' in key] # الرياضيات 
+            social_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'اجتماعية و الوطنية' in key]   # التربية الاجتماعية و الوطنية 
+            science_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'العلوم' in key]  # العلوم
+            art_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الفنية والموس' in key]    # التربية الفنية والموسيقية
+            sport_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضية' in key] # التربية الرياضية
+            vocational_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مهنية' in key] # التربية المهنية 
+            computer_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'حاسوب' in key]   # الحاسوب
+            financial_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مالية' in key]  # الثقافة المالية
+            franch_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'فرنسية' in key]    # اللغة الفرنسية 
+            christian_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الدين المسيحي' in key]  # الدين المسيحي
+
+            marks_sheet.cell(row=row_number, column=1).value = row_number-3
+            marks_sheet.cell(row=row_number, column=2).value = dataFrame['student__full_name']
+            marks_sheet.cell(row=row_number, column=3).value = dataFrame['student_nat']
+            marks_sheet.cell(row=row_number, column=4).value = dataFrame['student_birth_place']
+            marks_sheet.cell(row=row_number, column=5).value = dataFrame['student_birth_date'].split('/')[0]
+            marks_sheet.cell(row=row_number, column=6).value = dataFrame['student_birth_date'].split('/')[1]
+            marks_sheet.cell(row=row_number, column=7).value = dataFrame['student_birth_date'].split('/')[2]
+            marks_sheet.cell(row=row_number, column=8).value = islam_subject[0][0] if islam_subject and len(islam_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=9).value = islam_subject[0][1] if islam_subject and len(islam_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=10).value = islam_subject[0][0]+islam_subject[0][1] if islam_subject and len(islam_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=11).value = arabic_subject[0][0] if arabic_subject and len(arabic_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=12).value = arabic_subject[0][1] if arabic_subject and len(arabic_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=13).value = arabic_subject[0][0]+arabic_subject[0][1] if arabic_subject and len(arabic_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=14).value = english_subject[0][0] if english_subject and len(english_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=15).value = english_subject[0][1] if english_subject and len(english_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=16).value = english_subject[0][0]+english_subject[0][1] if english_subject and len(english_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=17).value = math_subject[0][0] if math_subject and len(math_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=18).value = math_subject[0][1] if math_subject and len(math_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=19).value = math_subject[0][0]+math_subject[0][1] if math_subject and len(math_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=20).value = social_subjects[0][0] if social_subjects and len(social_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=21).value = social_subjects[0][1] if social_subjects and len(social_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=22).value = social_subjects[0][0]+social_subjects[0][1] if social_subjects and len(social_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=23).value = science_subjects[0][0] if science_subjects and len(science_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=24).value = science_subjects[0][1] if science_subjects and len(science_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=25).value = science_subjects[0][0]+science_subjects[0][1] if science_subjects and len(science_subjects[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=26).value = art_subject[0][0] if art_subject and len(art_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=27).value = art_subject[0][1] if art_subject and len(art_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=28).value = art_subject[0][0]+art_subject[0][1] if art_subject and len(art_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=29).value = sport_subject[0][0] if sport_subject and len(sport_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=30).value = sport_subject[0][1] if sport_subject and len(sport_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=31).value = sport_subject[0][0]+sport_subject[0][1] if sport_subject and len(sport_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=32).value = financial_subject[0][0] if financial_subject and len(financial_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=33).value = financial_subject[0][1] if financial_subject and len(financial_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=34).value = financial_subject[0][0]+financial_subject[0][1] if financial_subject and len(financial_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=35).value = vocational_subject[0][0] if vocational_subject and len(vocational_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=36).value = vocational_subject[0][1] if vocational_subject and len(vocational_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=37).value = vocational_subject[0][0]+vocational_subject[0][1] if vocational_subject and len(vocational_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=38).value = computer_subject[0][0] if computer_subject and len(computer_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=39).value = computer_subject[0][1] if computer_subject and len(computer_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=40).value = computer_subject[0][0]+computer_subject[0][1] if computer_subject and len(computer_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=41).value = franch_subject[0][0] if franch_subject and len(franch_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=42).value = franch_subject[0][1] if franch_subject and len(franch_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=43).value = franch_subject[0][0]+franch_subject[0][1] if franch_subject and len(franch_subject[0]) > 0 else ''
+            # marks_sheet.cell(row=row_number, column=44).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+            # marks_sheet.cell(row=row_number, column=45).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+            # marks_sheet.cell(row=row_number, column=46).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=47).value = christian_subject[0][0] if christian_subject and len(christian_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=48).value = christian_subject[0][1] if christian_subject and len(christian_subject[0]) > 0 else ''
+            marks_sheet.cell(row=row_number, column=49).value = christian_subject[0][0]+christian_subject[0][1] if christian_subject and len(christian_subject[0]) > 0 else ''
+        if 'الثامن' in group[0]['student_grade_name']:
+            marks_sheet['a1'] = 1800
+            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف الثامن الأساسي للعام الدراسي ( {curr_year_code} )'
+            # اسلامية
+            # h/i/j
+            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+            # عربية 
+            # k/l/m
+            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+            # انجليزية 
+            # n/o/p
+            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+            # رياضيات
+            # q/r/s
+            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+            # اجتماعيات 
+            # t/u/v
+            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+            # علوم
+            # w/x/y
+            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [200]*3
+            
+        elif 'التاسع' in group[0]['student_grade_name']:
+            marks_sheet['a1'] = 2000
+            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف التاسع  الأساسي للعام الدراسي ( {curr_year_code} )'
+            # اسلامية
+            # h/i/j
+            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+            # عربية 
+            # k/l/m
+            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+            # انجليزية 
+            # n/o/p
+            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+            # رياضيات
+            # q/r/s
+            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+            # اجتماعيات 
+            # t/u/v
+            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+            # علوم
+            # w/x/y
+            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3
+                    
+        elif 'العاشر' in group[0]['student_grade_name']:
+            marks_sheet['a1'] = 2000
+            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف العاشر الأساسي للعام الدراسي ( {curr_year_code} )'
+            # اسلامية
+            # h/i/j
+            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+            # عربية 
+            # k/l/m
+            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+            # انجليزية 
+            # n/o/p
+            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+            # رياضيات
+            # q/r/s
+            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+            # اجتماعيات 
+            # t/u/v
+            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+            # علوم
+            # w/x/y
+            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3        
+        else:
+            marks_sheet['a3'] = f'جدول العلامات الدراسية للصفوف من الأول الى السابع الأساسي ( {curr_year_code} )'
+            if 'سابع' in group[0]['student_grade_name']:
+                marks_sheet['a1'] = 1100
+            elif 'سادس' in group[0]['student_grade_name']:
+                marks_sheet['a1'] = 900
+            else:
+                marks_sheet['a1'] = 800
+            
+        marks_sheet['b3'] = institution_area_data['data'][0]['Areas']['name']
+        marks_sheet['c3'] = ''
+        marks_sheet['d3'] = institution_data['data'][0]['Institutions']['code_name']
+        marks_sheet['e3'] = institution_area_data['data'][0]['AreaAdministratives']['name']
+        marks_sheet['f3'] = group[0]['student_grade_name']
+        marks_sheet['g3'] = group[0]['student_class_name_letter']
+        
+        template_file.save(' جدول '+group[0]['student_class_name_letter']+'.xlsx')
+        group.clear()
+        
 def create_certs(grouped_list):
     for group in grouped_list:
         
         template_file = load_workbook('a4_gray_cert.xlsx')
         sheet1 = template_file.worksheets[0]
-            
+        
         names_averages =  sort_dictionary_list_based_on(group)
 
         group = sort_dictionary_list_based_on(group ,simple=False)
@@ -1684,13 +1846,14 @@ def inst_name(auth):
     url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
     return make_request(url,auth)
 
-def inst_area(auth):
+def inst_area(auth , inst_id = None ):
     '''
     استدعاء لواء المدرسة و المنطقة
     عوامل الدالة الرابط و التوكن
     تعود باسم البلدية و اسم المنطقة و اللواء 
     '''
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    if inst_id is None:
+        inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Institutions.json?id={inst_id}&_contain=AreaAdministratives,Areas&_fields=AreaAdministratives.name,Areas.name"
     return make_request(url,auth)
 
