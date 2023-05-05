@@ -33,18 +33,16 @@ import itertools
 import openpyxl
 
 def create_tables(auth , grouped_list):
-    template_file = openpyxl.load_workbook('tamplete.xlsx')
     # auth = get_auth(username , password)
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
     curr_year_code = get_curr_period(auth)['data'][0]['code']
 
-    marks_sheet = template_file.worksheets[2]
-    first_table_sheet = template_file.worksheets[0]
-    second_table_sheet = template_file.worksheets[1]
-
 
     for group in grouped_list:
+        
+        template_file = openpyxl.load_workbook('tamplete.xlsx')
+        marks_sheet = template_file.worksheets[2]
 
         for row_number, dataFrame in enumerate(group, start=4):
             islam_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'سلامية' in key] # التربية الاسلامية
@@ -110,6 +108,7 @@ def create_tables(auth , grouped_list):
             marks_sheet.cell(row=row_number, column=47).value = christian_subject[0][0] if christian_subject and len(christian_subject[0]) > 0 else ''
             marks_sheet.cell(row=row_number, column=48).value = christian_subject[0][1] if christian_subject and len(christian_subject[0]) > 0 else ''
             marks_sheet.cell(row=row_number, column=49).value = christian_subject[0][0]+christian_subject[0][1] if christian_subject and len(christian_subject[0]) > 0 else ''
+
         if 'الثامن' in group[0]['student_grade_name']:
             marks_sheet['a1'] = 1800
             marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف الثامن الأساسي للعام الدراسي ( {curr_year_code} )'
@@ -131,7 +130,6 @@ def create_tables(auth , grouped_list):
             # علوم
             # w/x/y
             marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [200]*3
-            
         elif 'التاسع' in group[0]['student_grade_name']:
             marks_sheet['a1'] = 2000
             marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف التاسع  الأساسي للعام الدراسي ( {curr_year_code} )'
@@ -153,7 +151,6 @@ def create_tables(auth , grouped_list):
             # علوم
             # w/x/y
             marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3
-                    
         elif 'العاشر' in group[0]['student_grade_name']:
             marks_sheet['a1'] = 2000
             marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف العاشر الأساسي للعام الدراسي ( {curr_year_code} )'
@@ -192,7 +189,6 @@ def create_tables(auth , grouped_list):
         marks_sheet['g3'] = group[0]['student_class_name_letter']
         
         template_file.save(' جدول '+group[0]['student_class_name_letter']+'.xlsx')
-        group.clear()
         
 def create_certs(grouped_list):
     for group in grouped_list:
