@@ -48,7 +48,7 @@ def receive_file(update, context ):
     update.message.reply_text('تم بنجاح')
 
 def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية' \n /cancel لألغاء العملية")
+    context.bot.send_message(chat_id=update.effective_chat.id, text="/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /cancel لألغاء العملية")
 
 def send_files(bot, chat_id, files):
     for file in files:
@@ -56,7 +56,7 @@ def send_files(bot, chat_id, files):
 
 # Lets us use the /help command
 def help_command(update, context):
-    update.message.reply_text('/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية')
+    update.message.reply_text('/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /cancel لألغاء العملية')
 
 # Log errors
 def error(update, context):
@@ -162,12 +162,61 @@ def send_side_marks_note_doc(update, context):
             return ConversationHandler.END
 
 def init_certs (update, context): 
-    # code
-    pass
+    update.message.reply_text("هل تريد طباعة شهادات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
 
 def send_students_certs(update, context):
-    # code
-    pass
+    user = update.message.from_user
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            update.message.reply_text("هل تريد استخراج نتائج الفصل الثاني؟ نعم|لا")
+            if update.message.text == 'نعم':            
+                create_certs_wrapper(username, password , term2=True)
+            else:
+                create_certs_wrapper(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
+
+def init_tables (update, context): 
+    update.message.reply_text("هل تريد طباعة جداول علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
+
+def send_students_tables(update, context):
+    user = update.message.from_user
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            update.message.reply_text("هل تريد استخراج نتائج الفصل الثاني؟ نعم|لا")
+            if update.message.text == 'نعم':
+                create_tables_wrapper(username, password, term2=True)
+            else:
+                create_tables_wrapper(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
+
 
 def init_official_marks(update, context):
     update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n قم باعطائي اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
@@ -227,16 +276,22 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
-#     send_students_certs_conv = ConversationHandler(
-#     entry_points=[CommandHandler('شهادات', start)],
-#     states={
-#         NAME: [MessageHandler(Filters.text, name)],
-#         AGE: [MessageHandler(Filters.regex('^(Less than 18|Between 18 and 30|More than 30)$'), age)],
-#         GENDER: [MessageHandler(Filters.regex('^(Male|Female|Other)$'), gender)]
-#     },
-#     fallbacks=[CommandHandler('انهاء', cancel)]
-# )
+    send_students_certs_conv = ConversationHandler(
+                                        entry_points=[CommandHandler('certs', init_certs)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , send_students_certs)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
 
+    send_students_tables_conv = ConversationHandler(
+                                        entry_points=[CommandHandler('tables', init_tables)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , send_students_tables)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
+    
     send_official_marks_doc_conv = ConversationHandler(
                                         entry_points=[CommandHandler('official_marks', init_official_marks)],
                                         states={
@@ -263,6 +318,7 @@ if __name__ == '__main__':
     dp.add_handler(fill_assess_arbitrary_marks_conv)
     dp.add_handler(send_official_marks_doc_conv_offline)
     dp.add_handler(MessageHandler(Filters.document, receive_file))
+    dp.add_handler(send_students_certs_conv)
 
     # Run the bot
     updater.start_polling(1.0)

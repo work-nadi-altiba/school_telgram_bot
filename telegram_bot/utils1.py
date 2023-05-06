@@ -32,16 +32,346 @@ import re
 import itertools
 import openpyxl
 
-def create_tables(auth , grouped_list ,term2=False):
+def create_tables_wrapper(username , password ,term2=False): 
+    auth = get_auth(username, password)
+    student_info_marks = get_students_info_subjectsMarks( username , password )
+    dic_list4 = student_info_marks
+    def group_students(dic_list , i = None):
+        # sort the list based on the 'class_name' key
+        sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
+
+        # group the sorted list by the 'class_name' key
+        grouped_list = []
+        for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
+            group_list = list(group)
+            if all(x.get('student_class_name_letter') for x in group_list):
+                grouped_list.append(group_list)
+        if i :
+            for i in grouped_list:
+                print(len(i),i[0]['student_class_name_letter'])
+            return 0
+        else : 
+            return grouped_list
+    grouped_list = group_students(dic_list4 )
+    def add_subject_sum_dictionary (grouped_dict_list):
+        subject_sums = {}
+        for group in grouped_dict_list:
+            for items in group:
+                science_sum ,social_sum ,subject_sum ,science_sum_t2 ,social_sum_t2 ,subject_sum_t2 =  [0] * 6
+                for i in items['subjects_assessments_info'][0]:
+                    if "علوم الأرض" in i['subject_name'] or 'الكيمياء' in i['subject_name'] or 'الحياتية' in i['subject_name'] or 'الفيزياء' in i['subject_name'] or 'العلوم' in i['subject_name']:
+                        # compute sum for science subjects
+                        science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'التاريخ' in i['subject_name']:
+                        # compute sum for social subjects
+                        social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                    else:
+                        # compute sum for other subjects
+                        subject_sum = sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        subject_sum_t2 = sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                        # update dictionary with other subject sum
+                        subject_sums[i['subject_name']] = [subject_sum,subject_sum_t2]
+                if science_sum != 0:
+                    # update dictionary with science subject sum
+                    subject_sums['العلوم'] = [science_sum ,science_sum_t2]
+                if social_sum != 0 :
+                    # update dictionary with social subject sum
+                    subject_sums['التربية الاجتماعية و الوطنية'] = [social_sum,social_sum_t2]
+                # print (items['student__full_name'],items['student_class_name_letter'],subject_sums)
+                items['subject_sums'] = subject_sums
+                subject_sums={}
+    add_subject_sum_dictionary(grouped_list)
+    def add_averages_to_group_list(grouped_list , skip_art_sport=True):
+        for group in grouped_list:
+            for item in group:
+                term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
+                if 'سادس' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_2_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'سابع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_1_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'ثامن' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'تاسع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'عاشر' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                else:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    
+    create_tables(auth , grouped_list ,term2=term2 )
+        
+def create_certs_wrapper(username , password ,term2=False):
+    student_info_marks = get_students_info_subjectsMarks( username , password )
+    dic_list4 = student_info_marks
+    def group_students(dic_list , i = None):
+        # sort the list based on the 'class_name' key
+        sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
+
+        # group the sorted list by the 'class_name' key
+        grouped_list = []
+        for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
+            group_list = list(group)
+            if all(x.get('student_class_name_letter') for x in group_list):
+                grouped_list.append(group_list)
+        if i :
+            for i in grouped_list:
+                print(len(i),i[0]['student_class_name_letter'])
+            return 0
+        else : 
+            return grouped_list
+    grouped_list = group_students(dic_list4 )
+    def add_subject_sum_dictionary (grouped_dict_list):
+        subject_sums = {}
+        for group in grouped_dict_list:
+            for items in group:
+                science_sum ,social_sum ,subject_sum ,science_sum_t2 ,social_sum_t2 ,subject_sum_t2 =  [0] * 6
+                for i in items['subjects_assessments_info'][0]:
+                    if "علوم الأرض" in i['subject_name'] or 'الكيمياء' in i['subject_name'] or 'الحياتية' in i['subject_name'] or 'الفيزياء' in i['subject_name'] or 'العلوم' in i['subject_name']:
+                        # compute sum for science subjects
+                        science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'التاريخ' in i['subject_name']:
+                        # compute sum for social subjects
+                        social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                    else:
+                        # compute sum for other subjects
+                        subject_sum = sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
+                        subject_sum_t2 = sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
+                        # update dictionary with other subject sum
+                        subject_sums[i['subject_name']] = [subject_sum,subject_sum_t2]
+                if science_sum != 0:
+                    # update dictionary with science subject sum
+                    subject_sums['العلوم'] = [science_sum ,science_sum_t2]
+                if social_sum != 0 :
+                    # update dictionary with social subject sum
+                    subject_sums['التربية الاجتماعية و الوطنية'] = [social_sum,social_sum_t2]
+                # print (items['student__full_name'],items['student_class_name_letter'],subject_sums)
+                items['subject_sums'] = subject_sums
+                subject_sums={}
+    add_subject_sum_dictionary(grouped_list)
+    def add_averages_to_group_list(grouped_list , skip_art_sport=True):
+        for group in grouped_list:
+            for item in group:
+                term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
+                if 'سادس' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_2_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'سابع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_1_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'ثامن' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'تاسع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'عاشر' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                else:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    
+    create_certs(grouped_list , term2=term2)
+
+def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx.xlsx'  , outdir='./send_folder/'):
     # auth = get_auth(username , password)
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
     curr_year_code = get_curr_period(auth)['data'][0]['code']
 
-
     for group in grouped_list:
         
-        template_file = openpyxl.load_workbook('tamplete.xlsx')
+        template_file = openpyxl.load_workbook(template)
         marks_sheet = template_file.worksheets[2]
 
         for row_number, dataFrame in enumerate(sort_dictionary_list_based_on(group ,key='student__full_name',simple=False,reverse=False), start=4):
@@ -188,12 +518,12 @@ def create_tables(auth , grouped_list ,term2=False):
         marks_sheet['f3'] = group[0]['student_grade_name']
         marks_sheet['g3'] = group[0]['student_class_name_letter']
         
-        template_file.save(' جدول '+group[0]['student_class_name_letter']+'.xlsx')
+        template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
         
-def create_certs(grouped_list , term2=False):
+def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_cert.xlsx' ,image='./templet_files/Pasted image.png' , outdir='./send_folder/'):
     for group in grouped_list:
         
-        template_file = load_workbook('a4_gray_cert.xlsx')
+        template_file = load_workbook(template)
         sheet1 = template_file.worksheets[0]
         
         names_averages =  sort_dictionary_list_based_on(group)
@@ -213,7 +543,7 @@ def create_certs(grouped_list , term2=False):
             sheet2.sheet_view.rightToLeft = True    
             sheet2.sheet_view.rightToLeft = True   
 
-            img = openpyxl.drawing.image.Image('Pasted image.png')
+            img = openpyxl.drawing.image.Image(image)
             img.anchor = 'e2'
             sheet2.add_image(img)
 
@@ -481,7 +811,7 @@ def create_certs(grouped_list , term2=False):
             #اسم و توقيع مدير المدرسة
             sheet2['i36']= ''
         template_file.remove(template_file['sheet'])
-        template_file.save(group[0]['student_class_name_letter']+'.xlsx')
+        template_file.save(outdir+group[0]['student_class_name_letter']+'.xlsx')
 
 def sort_dictionary_list_based_on(dictionary_list , key='t1+t2+year_avarage',item=0, reverse=True , simple=True):
     if simple :
