@@ -32,6 +32,66 @@ import re
 import itertools
 import openpyxl
 
+def get_school_load():
+    student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={academic_period_id}&_limit=0&_contain=Users.Genders')['data']
+    institution_class_ids = list(set([i['institution_class_id'] for i in student_classess]))
+    joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in institution_class_ids])
+    classes_data = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
+    class_list = []
+    for i in classes_data:
+        class_list.append({'class_id': i['institution_class_id'] , 'class_name': i['institution_class']['name'] })
+        class_dict = {i['class_id']: i['class_name'] for i in class_list if i['class_id'] != ''}
+        classes = [key for value,key in class_dict.items()]
+
+    arabic_class_sum = 0
+    english_class_sum = 0
+    math_class_sum = 0
+
+    for school_class in classes:
+        if 'اول' in school_class or 'ثاني' in school_class or 'ثالث'in school_class or  'رابع' in school_class or 'عشر' in school_class:
+            if 'دبي' in school_class:
+                math_class_sum+=3
+            else:
+                math_class_sum+=5
+            english_class_sum += 4
+        else: 
+            english_class_sum+= 5
+            math_class_sum += 5
+
+    for school_class in classes:
+        if 'سابع' in school_class or 'ثامن' in school_class or 'تاسع' in school_class or  'عاشر' in school_class :
+            arabic_class_sum += 6
+        else:
+            if 'عشر' in school_class:
+                if 'دبي' in school_class:
+                    if  'حادي' in school_class:
+                        arabic_class_sum+=9
+                    elif 'ثاني' in school_class:
+                        arabic_class_sum+=8
+                else:
+                    arabic_class_sum+=4
+            else:
+                arabic_class_sum+=7    
+
+def get_school_teachers_load(auth , inst_id , academic_period_id=13):
+    school_load = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&_contain=Users,InstitutionSubjects&academic_period_id={academic_period_id}&_limit=0')['data']
+
+    grade_data = get_grade_info(auth)
+    grade_list = []
+    for i in grade_data:
+        grade_list.append({'grade_id': i['education_grade_id'] , 'grade_name': re.sub('.*للصف','الصف', i['name']) })
+        grade_dict = {i['grade_id']: i['grade_name'] for i in grade_list if i['grade_name'] != ''}
+    grade_dict
+
+    school_load_dictionary = []
+    for load in school_load:
+        try:
+            school_load_dictionary.append({load['user']['name'],load['institution_subject']['name'],grade_dict[load['institution_subject']['education_grade_id']]})
+        except:
+            school_load_dictionary.append({load['user']['name'],load['institution_subject']['name'],load['institution_subject']['education_grade_id']})
+    
+    return school_load_dictionary   
+
 def create_tables_wrapper(username , password ,term2=False): 
     auth = get_auth(username, password)
     student_info_marks = get_students_info_subjectsMarks( username , password )
@@ -1333,7 +1393,7 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
 
     return read_file_output_lists
 
-def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,range1 ,range2):
+def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId, range1='' , range2=''):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -1341,7 +1401,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     for item in required_data_list : 
         for Student_id in item['students_ids']:
             enter_mark(auth 
-                ,marks= random.randint(range1, range2)
+                ,marks= random.randint(range1, range2) if range1 !='' and range2 !=''  else ''
                 ,assessment_grading_option_id= 8
                 ,assessment_id= item['assessment_id']
                 ,education_subject_id= item['education_subject_id']
@@ -1351,7 +1411,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
                 ,institution_classes_id= item['institution_classes_id']
                 ,student_status_id= 1
                 ,student_id= Student_id
-                ,assessment_period_id= item['assessment_id'])
+                ,assessment_period_id= AssessId)
                         
 def assessments_commands_text(lst):
     S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
@@ -1372,7 +1432,7 @@ def assessments_commands_text(lst):
         # change this to send message for user that there is no assessement to fill now
         print("Both S1 and S2 lists are empty.")
     else:
-        return text
+        return text + '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
     
 def get_editable_assessments( auth , username):
     required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
@@ -2333,9 +2393,10 @@ def enter_mark(auth
     }
 
     response = requests.post(url,headers=headers,json=json_data,)
-    print(response.status_code)
     if response.status_code != 200:
         raise(Exception("couldn't enter the mark for some reason")) 
+    else:
+        print(response.status_code)
 
 def get_curr_period(auth):
     '''

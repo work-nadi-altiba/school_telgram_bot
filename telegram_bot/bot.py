@@ -1,7 +1,8 @@
 # pip install python-telegram-bot
 # pip install python-telegram-bot==13.7
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters,ConversationHandler
+from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
@@ -19,12 +20,101 @@ INIT_F , RESPOND = range(2)
 # #send official marks document conversation handler stats
 # INIT_OM , SEND_OM = range(1)
 # CREDS = range(1)
-CREDS, AVAILABLE_ASS  = range(2)
+CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
 
 # Define a function to handle incoming files
+def init_empty_fill(update, context):
+    update.message.reply_text("هل تريد مسح علامات صف ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
 
+def print_available_assessments(update, context):
+    user = update.message.from_user
+    context.user_data['creds'] = update.message.text.split('/')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    print(username, password)
+    if get_auth(username, password) == False:
+        update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+    else:
+        update.message.reply_text("انتظر لحظة لو سمحت") 
+        auth = get_auth(username,password)
+        # TODO: handle empty editable_assessments list
+        editable_assessments = get_editable_assessments(auth ,username)
+        data_to_enter_marks = get_required_data_to_enter_marks(auth ,username)
+        string = assessments_commands_text(editable_assessments)
+        update.message.reply_text(string)
+        context.user_data['assessments'] = editable_assessments
+        context.user_data['data_to_enter_marks'] = data_to_enter_marks
+        return  AVAILABLE_ASS
+  
+# def fill_assess_empty(update, context):
+#     user = update.message.from_user
+#     code = None
+#     while code is None:
+#         if update.message.text == '/cancel':
+#             return cancel(update, context)
+#         else:
+#             code = update.message.text.replace('/','')
+#             update.message.reply_text("انتظر لحظة لو سمحت")         
+#             editable_assessments = context.user_data['assessments'] 
+#             data_to_enter_marks = context.user_data['data_to_enter_marks']  
+#             username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
+#             if code == 'All_asses':
+#                 assess_data = [i for i in editable_assessments]
+#                 for assessment in assess_data:
+#                     wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
+#                     enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+#             else:
+#                 assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+#                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+#                 assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+#                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+#                 enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'])
+#                 answer = update.message.reply_text("هل تريد مسح علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
+#                 if answer == 'لا':
+#                     # End of conversation
+#                     update.message.reply_text("تمام انتهينا")
+#                     return ConversationHandler.END
+#     return fill_assess_empty(update, context)
+
+    
+def fill_assess_empty(update, context):
+    user = update.message.from_user
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        code = update.message.text.replace('/','')
+        update.message.reply_text("انتظر لحظة لو سمحت")         
+        editable_assessments = context.user_data['assessments'] 
+        data_to_enter_marks = context.user_data['data_to_enter_marks']  
+        username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
+        if code == 'All_asses':
+            assess_data = [i for i in editable_assessments]
+            for assessment in assess_data:
+                wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
+                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+        else:
+            assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+            wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+            assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+            wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'])
+            update.message.reply_text("هل تريد مسح علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
+            return WAITING_FOR_RESPONSE
+        # End of conversation
+        update.message.reply_text("تمام انتهينا")
+        return ConversationHandler.END
+
+def handle_response(update, context):
+    response = update.message.text
+    if response == 'نعم':
+        return AVAILABLE_ASS
+    else:
+        update.message.reply_text("تمام انتهينا")
+        return ConversationHandler.END
+    
 def receive_file(update, context ):
     '''
         dispatcher.add_handler(MessageHandler(Filters.document, receive_file))
@@ -48,7 +138,7 @@ def receive_file(update, context ):
     update.message.reply_text('تم بنجاح')
 
 def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /cancel لألغاء العملية")
+    context.bot.send_message(chat_id=update.effective_chat.id, text='/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /empty_assess لمسح علامات الصف \n /cancel لألغاء العملية')
 
 def send_files(bot, chat_id, files):
     for file in files:
@@ -56,7 +146,7 @@ def send_files(bot, chat_id, files):
 
 # Lets us use the /help command
 def help_command(update, context):
-    update.message.reply_text('/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /cancel لألغاء العملية')
+    update.message.reply_text('/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /empty_assess لمسح علامات الصف \n /cancel لألغاء العملية')
 
 # Log errors
 def error(update, context):
@@ -105,12 +195,23 @@ def fill_assess_arbitrary(update, context):
         return cancel(update, context)
     else:
         code = update.message.text.replace('/','')
+        update.message.reply_text("انتظر لحظة لو سمحت")         
         editable_assessments = context.user_data['assessments'] 
         data_to_enter_marks = context.user_data['data_to_enter_marks']  
         username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
-        assess_data = [i for i in editable_assessments if i.get('code') == code][0]
-        wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
-        enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['pass_mark'],assess_data['max_mark'])    
+        if code == 'All_asses':
+            assess_data = [i for i in editable_assessments]
+            for assessment in assess_data:
+                wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
+                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'],int(assessment['max_mark']*.75),assessment['max_mark'])
+        else:
+            assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+            wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+            assess_data = [i for i in editable_assessments if i.get('code') == code][0]
+            wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
+            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['pass_mark'],assess_data['max_mark'])
+            update.message.reply_text("هل تريد مسح علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
+            return WAITING_FOR_RESPONSE            
         # End of conversation
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
@@ -217,7 +318,6 @@ def send_students_tables(update, context):
             delete_send_folder()
             return ConversationHandler.END
 
-
 def init_official_marks(update, context):
     update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n قم باعطائي اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
@@ -263,6 +363,18 @@ if __name__ == '__main__':
                                         states={
                                             CREDS: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
                                             AVAILABLE_ASS: [MessageHandler(Filters.text , fill_assess_arbitrary)],
+                                            WAITING_FOR_RESPONSE: [MessageHandler(Filters.text, handle_response)],                                            
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)],
+                                        allow_reentry=True  # To allow restarting the conversation while it's in progress
+                                                        ) 
+
+    fill_assess_arbitrary_empty_marks_conv = ConversationHandler(
+        entry_points=[CommandHandler('empty_assess', init_empty_fill)],
+                                        states={
+                                            CREDS: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
+                                            AVAILABLE_ASS: [MessageHandler(Filters.text , fill_assess_empty)],
+                                            WAITING_FOR_RESPONSE: [MessageHandler(Filters.text, handle_response)],
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)],
                                         allow_reentry=True  # To allow restarting the conversation while it's in progress
@@ -316,6 +428,7 @@ if __name__ == '__main__':
     dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(send_official_marks_doc_conv)
     dp.add_handler(fill_assess_arbitrary_marks_conv)
+    dp.add_handler(fill_assess_arbitrary_empty_marks_conv)
     dp.add_handler(send_official_marks_doc_conv_offline)
     dp.add_handler(MessageHandler(Filters.document, receive_file))
     dp.add_handler(send_students_certs_conv)
