@@ -32,7 +32,7 @@ import re
 import itertools
 import openpyxl
 
-def get_school_load():
+def get_school_load(auth , inst_id ,academic_period_id=13):
     student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={academic_period_id}&_limit=0&_contain=Users.Genders')['data']
     institution_class_ids = list(set([i['institution_class_id'] for i in student_classess]))
     joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in institution_class_ids])
@@ -71,11 +71,39 @@ def get_school_load():
                 else:
                     arabic_class_sum+=4
             else:
-                arabic_class_sum+=7    
+                arabic_class_sum+=7
+    return {'english_school_sum' : english_class_sum , 'arabic_school_sum' : arabic_class_sum , 'math_school_sum' :  math_class_sum , 'classes' :  classes}
+
+def get_school_teachers(auth ,id=None , nat_school=None ):
+    if id == None:
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:{nat_school}&_contain=Staff.Users,Staff.Positions')
+    else:
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={id}&_contain=Staff.Users,Staff.Positions')
+    dic_list=[]
+    for teacher in teachers['data'][0]['staff'] : 
+        if teacher['staff_status_id'] == 1:
+        # print(counter ,'-' , each['staff_name'])
+            # dic_list.append(teacher['staff_name'])
+            dic_list.append({'staffId':teacher['staff_id'],'name':teacher['name'] ,'position':teacher['position']['name'],'birthDate':teacher['user']['date_of_birth'], 'nat_id':teacher['user']['identity_number'],'default_nat_id':teacher['user']['default_identity_type'],'staff_type':teacher['staff_type_id'] , 'staff_status': teacher['staff_status_id']})
+    return dic_list
 
 def get_school_teachers_load(auth , inst_id , academic_period_id=13):
     school_load = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&_contain=Users,InstitutionSubjects&academic_period_id={academic_period_id}&_limit=0')['data']
+    
+    institution_class_ids = list(set([i['institution_subject_id'] for i in school_load]))
+    class_list = []
 
+    for i in range(0, len(institution_class_ids), 20):
+        start = i
+        end = i+19 if i+19 < len(institution_class_ids) else i+(len(institution_class_ids)-i)-1
+        class_ids = [i for i in  institution_class_ids[start:end]]
+        joined_string = ','.join(str(i) for i in [f'institution_subject_id:{i}' for i in class_ids])
+        classes_data = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
+        for i in classes_data:
+            class_list.append({'class_id': i['institution_subject_id'] , 'class_name': i['institution_class']['name'] })
+            class_dict = {i['class_id']: i['class_name'] for i in class_list if i['class_id'] != ''}
+            classes = [key for value,key in class_dict.items()]
+            
     grade_data = get_grade_info(auth)
     grade_list = []
     for i in grade_data:
@@ -86,11 +114,86 @@ def get_school_teachers_load(auth , inst_id , academic_period_id=13):
     school_load_dictionary = []
     for load in school_load:
         try:
-            school_load_dictionary.append({load['user']['name'],load['institution_subject']['name'],grade_dict[load['institution_subject']['education_grade_id']]})
+            school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':class_dict[load['institution_subject_id']]})
         except:
-            school_load_dictionary.append({load['user']['name'],load['institution_subject']['name'],load['institution_subject']['education_grade_id']})
-    
+            try:
+                school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':grade_dict[load['institution_subject']['education_grade_id']]})
+            except:
+                school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':load['institution_subject_id']})
     return school_load_dictionary   
+
+def get_grade_info(auth):
+    
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    return my_list
+
+def count_teachers_grades(teachers_load):
+    english_teachers = [item for item in teachers_load if 'الانجليزية' in item['subject']]
+    arabic_teachers = [item for item in teachers_load if 'العربية' in item['subject']]
+    math_teachers = [item for item in teachers_load if 'رياضيات' in item['subject']]
+
+    unique_english_teachers = set(item['name'] for item in english_teachers )
+    unique_arabic_teachers = set(item['name'] for item in arabic_teachers)
+    unique_math_teachers = set(item['name'] for item in math_teachers)
+    
+    loads = {'english': [], 'arabic': [], 'math': []}
+    teachers = {'english': english_teachers, 'arabic': arabic_teachers, 'math': math_teachers}
+    unique_teachers = {'english': unique_english_teachers, 'arabic': unique_arabic_teachers, 'math': unique_math_teachers}
+
+    for subject in loads.keys():
+        for u_name in list(unique_teachers[subject]):
+            load = [teacher for teacher in teachers[subject] if teacher['name'] == u_name]
+            loads[subject].append(load)
+    return loads
+
+def count_teacher_load(classes):
+    
+    arabic_class_sum = 0
+    english_class_sum = 0
+    math_class_sum = 0
+
+    for school_class in classes:
+        if 'اول' in school_class or 'ثاني' in school_class or 'ثالث'in school_class or  'رابع' in school_class or 'عشر' in school_class:
+            if 'دبي' in school_class:
+                math_class_sum+=3
+            else:
+                math_class_sum+=5
+            english_class_sum += 4
+        else: 
+            english_class_sum+= 5
+            math_class_sum += 5
+
+    for school_class in classes:
+        if 'سابع' in school_class or 'ثامن' in school_class or 'تاسع' in school_class or  'عاشر' in school_class :
+            arabic_class_sum += 6
+        else:
+            if 'عشر' in school_class:
+                if 'دبي' in school_class and 'خصص' in school_class:
+                    if  'حادي' in school_class:
+                        arabic_class_sum+=5
+                    elif 'ثاني' in school_class:
+                        arabic_class_sum+=4
+                else:
+                    arabic_class_sum+=4
+            else:
+                arabic_class_sum+=7
+    return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
+
+def get_teacher_load_with_name(teachers_load , subject):
+    if subject == 1 :
+        subject = 'english'
+        subject_sum = 'english_class_sum'
+    elif subject == 2 :
+        subject = 'arabic'
+        subject_sum = 'arabic_class_sum'
+    elif subject == 3 :
+        subject = 'math'
+        subject_sum = 'math_class_sum'
+    teachers = []
+    for group in count_teachers_grades(teachers_load)[subject]:
+        grades = [grade['grade'] for grade in group ] 
+        teachers.append((group[0]['name'],count_teacher_load(grades)[subject_sum],count_teacher_load(grades)['classes']))
+    return teachers
 
 def create_tables_wrapper(username , password ,term2=False): 
     auth = get_auth(username, password)
