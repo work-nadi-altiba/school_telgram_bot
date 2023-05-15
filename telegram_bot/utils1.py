@@ -31,42 +31,65 @@ import random
 import re
 import itertools
 import openpyxl
+def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
+    dic_list = []
+    for page in range(1,pages):
+        auth = get_auth(username,password)
+        institutions = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit={limit}&institution_sector_id={sector}&_page={page}&_fields=name,code,address,institution_sector_id,area_id,area_administrative_id,longitude,latitude')
+        if len(institutions['data']) == 0:
+            break
+        else:
+            dic_list.append(institutions['data'])
+    return dic_list
 
-def Vacancies (auth , schools_nats):
+def Vacancies (username , password , schools_nats):
     dic_list=[]
-    for school_nat in schools_nats:
-        school_name_staff = get_school_teachers(auth,nat_school=school_nat)
-        teachers = school_name_staff['staff']
-        school_name = school_name_staff['school_code_name']
-        school_id = school_name_staff['school_id']
-        school_load = get_school_load(auth, school_id)
-        teachers_load = get_school_teachers_load(auth , school_id)
+    faulty_inst_nat = []
+    school_name_code = []
+    error = []
+    try:
+        for school_nat in schools_nats:
+            auth = get_auth(username,password)
+            school_name_staff = get_school_teachers(auth,nat_school=school_nat)
+            teachers = school_name_staff['staff']
+            school_name = school_name_staff['school_code_name']
+            school_id = school_name_staff['school_id']
+            school_load = get_school_load(auth, school_id)
+            teachers_load = get_school_teachers_load(auth , school_id)
 
 
-        working_teachers = [teacher['name'] for teacher in teachers if teacher['staff_status'] == 1]
-        sub_teachers = [teacher['name'] for teacher in teachers if teacher['staff_type'] == 197605]
-        english_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 1)] if name[0] in working_teachers]
-        arabic_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 2)] if name[0] in working_teachers]
-        math_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 3)] if name[0] in working_teachers]
-        english_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in english_teachers]
-        arabic_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in arabic_teachers]
-        math_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in math_teachers]
+            working_teachers = [teacher['name'] for teacher in teachers if teacher['staff_status'] == 1]
+            sub_teachers = [teacher['name'] for teacher in teachers if teacher['staff_type'] == 197605]
+            english_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 1)] if name[0] in working_teachers]
+            arabic_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 2)] if name[0] in working_teachers]
+            math_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 3)] if name[0] in working_teachers]
+            english_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in english_teachers]
+            arabic_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in arabic_teachers]
+            math_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in math_teachers]
 
-        string = str(school_load['english_school_sum'])+' <== نصاب الانجليزي \n'+str(school_load['arabic_school_sum'])+' <== نصاب العربي \n'+str(school_load['math_school_sum'])+' <== نصاب الرياضيات \n'
-        classes = ' ,\n'.join(str(i).replace('الصف', '') for i in school_load['classes'])
+            string = str(school_load['english_school_sum'])+' <== نصاب الانجليزي \n'+str(school_load['arabic_school_sum'])+' <== نصاب العربي \n'+str(school_load['math_school_sum'])+' <== نصاب الرياضيات \n'
+            classes = ' ,\n'.join(str(i).replace('الصف', '') for i in school_load['classes'])
 
-        long_string = '--------------معلمين الانجليزي--------------\n'
-        for item in english_teachers_final:
-            long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
-        long_string += '--------------معلمين العربي--------------\n'
-        for item in arabic_teachers_final:
-            long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
-        long_string += '--------------معلمين الرياضيات--------------\n'
-        for item in math_teachers_final:
-            long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+            long_string = '--------------معلمين الانجليزي--------------\n'
+            for item in english_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+            long_string += '--------------معلمين العربي--------------\n'
+            for item in arabic_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+            long_string += '--------------معلمين الرياضيات--------------\n'
+            for item in math_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
 
-        dic = { 'school_name' :school_name , 'school_load' : string , 'teachers' : long_string , 'classes': classes }
-        dic_list.append(dic)
+            dic = { 'school_name' :school_name , 'school_load' : string , 'teachers' : long_string , 'classes': classes }
+            dic_list.append(dic)
+            
+    except Exception as e : 
+        faulty_inst_nat.append(school_nat)
+        error.append(e)
+        try:
+            school_name_code.append(school_name_staff['school_code_name'])
+        except:
+            pass
     return dic_list
 
 def get_school_load(auth , inst_id ,academic_period_id=13):
