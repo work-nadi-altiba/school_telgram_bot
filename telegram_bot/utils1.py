@@ -31,6 +31,7 @@ import random
 import re
 import itertools
 import openpyxl
+
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
     for page in range(1,pages):
