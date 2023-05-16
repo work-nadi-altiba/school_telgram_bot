@@ -1565,7 +1565,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     for item in required_data_list : 
         for Student_id in item['students_ids']:
             enter_mark(auth 
-                ,marks= random.randint(range1, range2) if range1 !='' and range2 !=''  else ''
+                ,marks= str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else ''
                 ,assessment_grading_option_id= 8
                 ,assessment_id= item['assessment_id']
                 ,education_subject_id= item['education_subject_id']

@@ -48,37 +48,6 @@ def print_available_assessments(update, context):
         context.user_data['assessments'] = editable_assessments
         context.user_data['data_to_enter_marks'] = data_to_enter_marks
         return  AVAILABLE_ASS
-  
-# def fill_assess_empty(update, context):
-#     user = update.message.from_user
-#     code = None
-#     while code is None:
-#         if update.message.text == '/cancel':
-#             return cancel(update, context)
-#         else:
-#             code = update.message.text.replace('/','')
-#             update.message.reply_text("انتظر لحظة لو سمحت")         
-#             editable_assessments = context.user_data['assessments'] 
-#             data_to_enter_marks = context.user_data['data_to_enter_marks']  
-#             username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
-#             if code == 'All_asses':
-#                 assess_data = [i for i in editable_assessments]
-#                 for assessment in assess_data:
-#                     wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
-#                     enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
-#             else:
-#                 assess_data = [i for i in editable_assessments if i.get('code') == code][0]
-#                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
-#                 assess_data = [i for i in editable_assessments if i.get('code') == code][0]
-#                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
-#                 enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'])
-#                 answer = update.message.reply_text("هل تريد مسح علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
-#                 if answer == 'لا':
-#                     # End of conversation
-#                     update.message.reply_text("تمام انتهينا")
-#                     return ConversationHandler.END
-#     return fill_assess_empty(update, context)
-
     
 def fill_assess_empty(update, context):
     user = update.message.from_user
@@ -209,8 +178,8 @@ def fill_assess_arbitrary(update, context):
             wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
             assess_data = [i for i in editable_assessments if i.get('code') == code][0]
             wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
-            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['pass_mark'],assess_data['max_mark'])
-            update.message.reply_text("هل تريد مسح علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
+            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'],assess_data['pass_mark'],assess_data['max_mark'])
+            update.message.reply_text("هل تريد تعبئة علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
             return WAITING_FOR_RESPONSE            
         # End of conversation
         update.message.reply_text("تمام انتهينا")
