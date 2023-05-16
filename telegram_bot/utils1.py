@@ -1596,7 +1596,8 @@ def assessments_commands_text(lst):
         # change this to send message for user that there is no assessement to fill now
         print("Both S1 and S2 lists are empty.")
     else:
-        return text + '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
+        text += '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
+        return text
     
 def get_editable_assessments( auth , username):
     required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
