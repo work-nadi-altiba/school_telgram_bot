@@ -32,6 +32,230 @@ import re
 import itertools
 import openpyxl
 
+def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
+    dic_list = []
+    for page in range(1,pages):
+        auth = get_auth(username,password)
+        institutions = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit={limit}&institution_sector_id={sector}&_page={page}&_fields=name,code,address,institution_sector_id,area_id,area_administrative_id,longitude,latitude')
+        if len(institutions['data']) == 0:
+            break
+        else:
+            dic_list.append(institutions['data'])
+    return dic_list
+
+def Vacancies (username , password , schools_nats):
+    dic_list=[]
+    faulty_inst_nat = []
+    school_name_code = []
+    error = []
+    try:
+        for school_nat in schools_nats:
+            auth = get_auth(username,password)
+            school_name_staff = get_school_teachers(auth,nat_school=school_nat)
+            teachers = school_name_staff['staff']
+            school_name = school_name_staff['school_code_name']
+            school_id = school_name_staff['school_id']
+            school_load = get_school_load(auth, school_id)
+            teachers_load = get_school_teachers_load(auth , school_id)
+
+
+            working_teachers = [teacher['name'] for teacher in teachers if teacher['staff_status'] == 1]
+            sub_teachers = [teacher['name'] for teacher in teachers if teacher['staff_type'] == 197605]
+            english_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 1)] if name[0] in working_teachers]
+            arabic_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 2)] if name[0] in working_teachers]
+            math_teachers = [name for name in [ i for i in get_teacher_load_with_name(teachers_load , 3)] if name[0] in working_teachers]
+            english_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in english_teachers]
+            arabic_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in arabic_teachers]
+            math_teachers_final = [[name[0]+'**',name[1],name[2]] if name[0] in sub_teachers else name for name in math_teachers]
+
+            string = str(school_load['english_school_sum'])+' <== نصاب الانجليزي \n'+str(school_load['arabic_school_sum'])+' <== نصاب العربي \n'+str(school_load['math_school_sum'])+' <== نصاب الرياضيات \n'
+            classes = ' ,\n'.join(str(i).replace('الصف', '') for i in school_load['classes'])
+
+            long_string = '--------------معلمين الانجليزي--------------\n'
+            for item in english_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+            long_string += '--------------معلمين العربي--------------\n'
+            for item in arabic_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+            long_string += '--------------معلمين الرياضيات--------------\n'
+            for item in math_teachers_final:
+                long_string += item[0]+' =======>> '+ str(item[1]) + ' =======>> ' +  ' , '.join(str(i).replace('الصف', '') for i in item[2])+'\n'
+
+            dic = { 'school_name' :school_name , 'school_load' : string , 'teachers' : long_string , 'classes': classes }
+            dic_list.append(dic)
+            
+    except Exception as e : 
+        faulty_inst_nat.append(school_nat)
+        error.append(e)
+        try:
+            school_name_code.append(school_name_staff['school_code_name'])
+        except:
+            pass
+    return dic_list
+
+def get_school_load(auth , inst_id ,academic_period_id=13):
+    student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={academic_period_id}&_limit=0&_contain=Users.Genders')['data']
+    institution_class_ids = list(set([i['institution_class_id'] for i in student_classess]))
+    joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in institution_class_ids])
+    classes_data = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
+    class_list = []
+    for i in classes_data:
+        class_list.append({'class_id': i['institution_class_id'] , 'class_name': i['institution_class']['name'] })
+        class_dict = {i['class_id']: i['class_name'] for i in class_list if i['class_id'] != ''}
+        classes = [key for value,key in class_dict.items()]
+
+    arabic_class_sum = 0
+    english_class_sum = 0
+    math_class_sum = 0
+
+    for school_class in classes:
+        if 'اول' in school_class or 'ثاني' in school_class or 'ثالث'in school_class or  'رابع' in school_class or 'عشر' in school_class:
+            if 'دبي' in school_class:
+                math_class_sum+=3
+            else:
+                math_class_sum+=5
+            english_class_sum += 4
+        else: 
+            english_class_sum+= 5
+            math_class_sum += 5
+
+    for school_class in classes:
+        if 'سابع' in school_class or 'ثامن' in school_class or 'تاسع' in school_class or  'عاشر' in school_class :
+            arabic_class_sum += 6
+        else:
+            if 'عشر' in school_class:
+                if 'دبي' in school_class:
+                    if  'حادي' in school_class:
+                        arabic_class_sum+=5
+                    elif 'ثاني' in school_class:
+                        arabic_class_sum+=4
+                else:
+                    arabic_class_sum+=4
+            else:
+                arabic_class_sum+=7
+    return {'english_school_sum' : english_class_sum , 'arabic_school_sum' : arabic_class_sum , 'math_school_sum' :  math_class_sum , 'classes' :  classes}
+
+def get_school_teachers(auth ,id=None , nat_school=None ):
+    if id == None:
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:{nat_school}&_contain=Staff.Users,Staff.Positions')
+    else:
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={id}&_contain=Staff.Users,Staff.Positions')
+    dic_list=[]
+    for teacher in teachers['data'][0]['staff'] : 
+        if teacher['staff_status_id'] == 1:
+        # print(counter ,'-' , each['staff_name'])
+            # dic_list.append(teacher['staff_name'])
+            dic_list.append({'staffId':teacher['staff_id'],'name':teacher['name'] ,'position':teacher['position']['name'],'birthDate':teacher['user']['date_of_birth'], 'nat_id':teacher['user']['identity_number'],'default_nat_id':teacher['user']['default_identity_type'],'staff_type':teacher['staff_type_id'] , 'staff_status': teacher['staff_status_id']})
+    return {'school_code_name' : teachers['data'][0]['code_name'], 'staff' : dic_list}
+
+def get_school_teachers_load(auth , inst_id , academic_period_id=13):
+    school_load = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&_contain=Users,InstitutionSubjects&academic_period_id={academic_period_id}&_limit=0')['data']
+    
+    institution_class_ids = list(set([i['institution_subject_id'] for i in school_load]))
+    class_list = []
+
+    for i in range(0, len(institution_class_ids), 20):
+        start = i
+        end = i+19 if i+19 < len(institution_class_ids) else i+(len(institution_class_ids)-i)-1
+        class_ids = [i for i in  institution_class_ids[start:end]]
+        joined_string = ','.join(str(i) for i in [f'institution_subject_id:{i}' for i in class_ids])
+        classes_data = make_request(auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
+        for i in classes_data:
+            class_list.append({'class_id': i['institution_subject_id'] , 'class_name': i['institution_class']['name'] })
+            class_dict = {i['class_id']: i['class_name'] for i in class_list if i['class_id'] != ''}
+            classes = [key for value,key in class_dict.items()]
+            
+    grade_data = get_grade_info(auth)
+    grade_list = []
+    for i in grade_data:
+        grade_list.append({'grade_id': i['education_grade_id'] , 'grade_name': re.sub('.*للصف','الصف', i['name']) })
+        grade_dict = {i['grade_id']: i['grade_name'] for i in grade_list if i['grade_name'] != ''}
+    grade_dict
+
+    school_load_dictionary = []
+    for load in school_load:
+        try:
+            school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':class_dict[load['institution_subject_id']]})
+        except:
+            try:
+                school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':grade_dict[load['institution_subject']['education_grade_id']]})
+            except:
+                school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':load['institution_subject_id']})
+    return school_load_dictionary   
+
+def get_grade_info(auth):
+    
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    return my_list
+
+def count_teachers_grades(teachers_load):
+    english_teachers = [item for item in teachers_load if 'الانجليزية' in item['subject']]
+    arabic_teachers = [item for item in teachers_load if 'العربية' in item['subject']]
+    math_teachers = [item for item in teachers_load if 'رياضيات' in item['subject']]
+
+    unique_english_teachers = set(item['name'] for item in english_teachers )
+    unique_arabic_teachers = set(item['name'] for item in arabic_teachers)
+    unique_math_teachers = set(item['name'] for item in math_teachers)
+    
+    loads = {'english': [], 'arabic': [], 'math': []}
+    teachers = {'english': english_teachers, 'arabic': arabic_teachers, 'math': math_teachers}
+    unique_teachers = {'english': unique_english_teachers, 'arabic': unique_arabic_teachers, 'math': unique_math_teachers}
+
+    for subject in loads.keys():
+        for u_name in list(unique_teachers[subject]):
+            load = [teacher for teacher in teachers[subject] if teacher['name'] == u_name]
+            loads[subject].append(load)
+    return loads
+
+def get_teacher_load_with_name(teachers_load , subject):
+    if subject == 1 :
+        subject = 'english'
+        subject_sum = 'english_class_sum'
+    elif subject == 2 :
+        subject = 'arabic'
+        subject_sum = 'arabic_class_sum'
+    elif subject == 3 :
+        subject = 'math'
+        subject_sum = 'math_class_sum'
+    teachers = []
+    for group in count_teachers_grades(teachers_load)[subject]:
+        grades = [grade['grade'] for grade in group ] 
+        teachers.append((group[0]['name'],count_teacher_load(grades)[subject_sum],count_teacher_load(grades)['classes']))
+    return teachers
+
+def count_teacher_load(classes):
+    
+    arabic_class_sum = 0
+    english_class_sum = 0
+    math_class_sum = 0
+
+    for school_class in classes:
+        if 'اول' in school_class or 'ثاني' in school_class or 'ثالث'in school_class or  'رابع' in school_class or 'عشر' in school_class:
+            if 'دبي' in school_class:
+                math_class_sum+=3
+            else:
+                math_class_sum+=5
+            english_class_sum += 4
+        else: 
+            english_class_sum+= 5
+            math_class_sum += 5
+
+    for school_class in classes:
+        if 'سابع' in school_class or 'ثامن' in school_class or 'تاسع' in school_class or  'عاشر' in school_class :
+            arabic_class_sum += 6
+        else:
+            if 'عشر' in school_class:
+                if 'دبي' in school_class and 'خصص' in school_class:
+                    if  'حادي' in school_class:
+                        arabic_class_sum+=5
+                    elif 'ثاني' in school_class:
+                        arabic_class_sum+=4
+                else:
+                    arabic_class_sum+=4
+            else:
+                arabic_class_sum+=7
+    return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
+
 def create_tables_wrapper(username , password ,term2=False): 
     auth = get_auth(username, password)
     student_info_marks = get_students_info_subjectsMarks( username , password )
@@ -1333,7 +1557,7 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
 
     return read_file_output_lists
 
-def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,range1 ,range2):
+def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId, range1='' , range2=''):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -1341,7 +1565,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     for item in required_data_list : 
         for Student_id in item['students_ids']:
             enter_mark(auth 
-                ,marks= random.randint(range1, range2)
+                ,marks= random.randint(range1, range2) if range1 !='' and range2 !=''  else ''
                 ,assessment_grading_option_id= 8
                 ,assessment_id= item['assessment_id']
                 ,education_subject_id= item['education_subject_id']
@@ -1351,7 +1575,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
                 ,institution_classes_id= item['institution_classes_id']
                 ,student_status_id= 1
                 ,student_id= Student_id
-                ,assessment_period_id= item['assessment_id'])
+                ,assessment_period_id= AssessId)
                         
 def assessments_commands_text(lst):
     S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
@@ -1372,6 +1596,7 @@ def assessments_commands_text(lst):
         # change this to send message for user that there is no assessement to fill now
         print("Both S1 and S2 lists are empty.")
     else:
+        text += '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
         return text
     
 def get_editable_assessments( auth , username):
@@ -2333,9 +2558,10 @@ def enter_mark(auth
     }
 
     response = requests.post(url,headers=headers,json=json_data,)
-    print(response.status_code)
     if response.status_code != 200:
         raise(Exception("couldn't enter the mark for some reason")) 
+    else:
+        print(response.status_code)
 
 def get_curr_period(auth):
     '''
