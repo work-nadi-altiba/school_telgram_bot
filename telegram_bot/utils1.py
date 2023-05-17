@@ -32,11 +32,13 @@ import re
 import itertools
 import openpyxl
 
-def upload_marks(classess_data , assessment_periods):
+def upload_marks(username , password , classess_data , assessment_periods):
         # assessment_periods = get_editable_assessments(auth,9971055725)
         period_id = classess_data['custom_shapes']['period_id']
         school_id = classess_data['custom_shapes']['school_id']
         assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4', 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+        assessments_periods_data = classess_data['required_data_for_mrks_enter']
+        auth = get_auth(username, password)
 
         for class_data in classess_data['file_data']:
                 class_id = class_data['class_name'].split('=')[2] 
@@ -49,21 +51,21 @@ def upload_marks(classess_data , assessment_periods):
                 for student_info in students_marks_ids:
                         # print(student_info)
                         for code in assessment_codes:
-                        if len([i for i in assessment_periods if code in i['code']]) != 0:
-                                enter_mark(
-                                        auth,
-                                        marks=str("{:.2f}".format(float(student_info['term1']['assessment1']))),
-                                        assessment_grading_option_id=8,
-                                        assessment_id=assessment_grade_id,
-                                        education_subject_id=class_subject,
-                                        education_grade_id=grade_id,
-                                        institution_id=school_id,
-                                        academic_period_id=period_id,
-                                        institution_classes_id=class_id,
-                                        student_status_id=1,
-                                        student_id=student_info['id'],
-                                        assessment_period_id=[i for i in assessment_periods if code in i['code']][0]['AssesId']
-                                )
+                            if len([i for i in assessment_periods if code in i['code']]) != 0:
+                                    enter_mark(
+                                            auth,
+                                            marks=str("{:.2f}".format(float(student_info['term1']['assessment1']))),
+                                            assessment_grading_option_id=8,
+                                            assessment_id=assessment_grade_id,
+                                            education_subject_id=class_subject,
+                                            education_grade_id=grade_id,
+                                            institution_id=school_id,
+                                            academic_period_id=period_id,
+                                            institution_classes_id=class_id,
+                                            student_status_id=1,
+                                            student_id=student_info['id'],
+                                            assessment_period_id=[i for i in assessment_periods if code in i['code']][0]['AssesId']
+                                    )
 
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
