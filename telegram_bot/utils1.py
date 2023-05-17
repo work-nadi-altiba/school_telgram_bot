@@ -1376,7 +1376,7 @@ def get_school_students_ids(auth):
     curr_year = get_curr_period(auth)['data'][0]['id']
     return make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')
 
-def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,students_data_lists, ods_file ):
+def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, ods_file ):
     '''
     doc is the copy that you want to send 
     '''
@@ -1385,22 +1385,22 @@ def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,stu
     page = 4
     name_counter = 1
     name_counter = 1
-    auth = get_auth(username , password)
-    period_id = get_curr_period(auth)['data'][0]['id']
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    user_id = user_info(auth , username)['data'][0]['id']
+    # auth = get_auth(username , password)
+    # period_id = get_curr_period(auth)['data'][0]['id']
+    # inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    # user_id = user_info(auth , username)['data'][0]['id']
     
-    user = user_info(auth , username)
-    school_name = inst_name(auth)['data'][0]['Institutions']['name']
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
-    school_year = get_curr_period(auth)['data']
-    hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
-    hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
-    melady1 = str(school_year[0]['start_year'])
-    melady2 = str(school_year[0]['end_year'])
-    teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+    # user = user_info(auth , username)
+    # school_name = inst_name(auth)['data'][0]['Institutions']['name']
+    # baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+    # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+    # school_year = get_curr_period(auth)['data']
+    # hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
+    # hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
+    # melady1 = str(school_year[0]['start_year'])
+    # melady2 = str(school_year[0]['end_year'])
+    # teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
     classes=[]
     mawad=[]
@@ -1478,50 +1478,51 @@ def fill_official_marks_a3_two_face_doc2_offline_version(username, password ,stu
         page += 2
 
     
-    for i in classes: 
-        modified_classes.append(mawad_representations(i))
+    # for i in classes: 
+    #     modified_classes.append(mawad_representations(i))
         
-    modified_classes = ' ، '.join(modified_classes)
-    mawad = sorted(set(mawad))
-    mawad = ' ، '.join(mawad)
+    # modified_classes = ' ، '.join(modified_classes)
+    # mawad = sorted(set(mawad))
+    # mawad = ' ، '.join(mawad)
 
-    custom_shapes = {
-        'modeeriah': f'لواء {modeeriah}',
-        'hejri1': hejri1,
-        'hejri2': hejri2,
-        'melady1': melady1,
-        'melady2': melady2,
-        'baldah': baldah,
-        'school': school_name,
-        'classes': modified_classes,
-        'mawad': mawad,
-        'teacher' : teacher,
-        'modeeriah_20_2': f'لواء {modeeriah}',
-        'hejri_20_1': hejri1,
-        'hejri_20_2': hejri2,
-        'melady_20_1': melady1,
-        'melady_20_2': melady2,
-        'baldah_20_2': baldah,
-        'school_20_2': school_name,
-        'classes_20_2': modified_classes,
-        'mawad_20_2': mawad,
-        'teacher_20_2': teacher ,
-        'modeeriah_20_1': f'لواء {modeeriah}',
-        'hejri1': hejri1,
-        'hejri2': hejri2,
-        'melady1': melady1,
-        'melady2': melady2,
-        'baldah_20_1': baldah,
-        'school_20_1': school_name,
-        'classes_20_1': modified_classes,
-        'mawad_20_1': mawad,
-        'teacher_20_1': teacher
-    }
+    # custom_shapes = {
+    #     'modeeriah': f'لواء {modeeriah}',
+    #     'hejri1': hejri1,
+    #     'hejri2': hejri2,
+    #     'melady1': melady1,
+    #     'melady2': melady2,
+    #     'baldah': baldah,
+    #     'school': school_name,
+    #     'classes': modified_classes,
+    #     'mawad': mawad,
+    #     'teacher' : teacher,
+    #     'modeeriah_20_2': f'لواء {modeeriah}',
+    #     'hejri_20_1': hejri1,
+    #     'hejri_20_2': hejri2,
+    #     'melady_20_1': melady1,
+    #     'melady_20_2': melady2,
+    #     'baldah_20_2': baldah,
+    #     'school_20_2': school_name,
+    #     'classes_20_2': modified_classes,
+    #     'mawad_20_2': mawad,
+    #     'teacher_20_2': teacher ,
+    #     'modeeriah_20_1': f'لواء {modeeriah}',
+    #     'hejri1': hejri1,
+    #     'hejri2': hejri2,
+    #     'melady1': melady1,
+    #     'melady2': melady2,
+    #     'baldah_20_1': baldah,
+    #     'school_20_1': school_name,
+    #     'classes_20_1': modified_classes,
+    #     'mawad_20_1': mawad,
+    #     'teacher_20_1': teacher
+    # }
     # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
     # Iterate through the cells of the sheet and fill in the values you want
     doc.save()
-            
-    return custom_shapes 
+      
+    return 0            
+    # return custom_shapes 
 
 def Read_E_Side_Note_Marks(file_path=None , file_content=None):
     if file_content is None:
@@ -1530,9 +1531,9 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
     else:
         wb = load_workbook(filename=file_content)
         
-    sheets = wb.sheetnames
-    sheet = wb[wb.sheetnames[0]]
-
+    sheets = wb.sheetnames[:-1]
+    # sheet = wb[wb.sheetnames[0]]
+    info_sheet = wb[wb.sheetnames[-1]]
     read_file_output_lists = []
 
     for sheet in sheets :
@@ -1554,8 +1555,75 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
             data.append(dic)
         temp_dic = {'class_name':sheet ,"sdtudent_data": data}
         read_file_output_lists.append(temp_dic)
+    
+    modified_classes = []
 
-    return read_file_output_lists
+    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
+    for i in classes: 
+        modified_classes.append(mawad_representations(i))
+        
+    school_name = info_sheet['A1'].value
+    modeeriah = info_sheet['A2'].value
+    hejri1 = info_sheet['A3'].value
+    hejri2 = info_sheet['A4'].value
+    melady1 = info_sheet['A5'].value
+    melady2 = info_sheet['A6'].value
+    baldah = info_sheet['A7'].value
+    modified_classes = ' ، '.join(modified_classes)
+    mawad = sorted(set(mawad))
+    mawad = ' ، '.join(mawad)
+    teacher = info_sheet['A8'].value
+    required_data_mrks_text = info_sheet['A9'].value
+    custom_shapes = {
+    'modeeriah': f'لواء {modeeriah}',
+    'hejri1': hejri1,
+    'hejri2': hejri2,
+    'melady1': melady1,
+    'melady2': melady2,
+    'baldah': baldah,
+    'school': school_name,
+    'classes': modified_classes,
+    'mawad': mawad,
+    'teacher' : teacher,
+    'modeeriah_20_2': f'لواء {modeeriah}',
+    'hejri_20_1': hejri1,
+    'hejri_20_2': hejri2,
+    'melady_20_1': melady1,
+    'melady_20_2': melady2,
+    'baldah_20_2': baldah,
+    'school_20_2': school_name,
+    'classes_20_2': modified_classes,
+    'mawad_20_2': mawad,
+    'teacher_20_2': teacher ,
+    'modeeriah_20_1': f'لواء {modeeriah}',
+    'hejri1': hejri1,
+    'hejri2': hejri2,
+    'melady1': melady1,
+    'melady2': melady2,
+    'baldah_20_1': baldah,
+    'school_20_1': school_name,
+    'classes_20_1': modified_classes,
+    'mawad_20_1': mawad,
+    'teacher_20_1': teacher
+    }
+    required_data_mrks_dic_list = [
+                                    {
+                                    int(item.split('-')[0]): 
+                                        {
+                                            'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
+                                            'grade_id': int(item.split(',')[0].split('-')[2]), 
+                                            'assessments_period_ids': item.split(',')[1:]
+                                        }
+                                    } 
+                                    for item in required_data_mrks_text.split('\\\\')
+                                ]
+
+    read_file_output_dict = {'file_data': read_file_output_lists ,
+                            'custom_shapes' : custom_shapes ,
+                            'required_data_for_mrks_enter' : required_data_mrks_dic_list }
+    
+    return read_file_output_dict
 
 def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId, range1='' , range2=''):
     auth = get_auth(username , password)
@@ -1712,11 +1780,24 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     userInfo = user_info(auth , username)['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
     years = get_curr_period(auth)
+    user = user_info(auth , username)
+    school_name = inst_name(auth)['data'][0]['Institutions']['name']
+    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+    grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+    school_year = get_curr_period(auth)['data']
+    hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
+    hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
+    melady1 = str(school_year[0]['start_year'])
+    melady2 = str(school_year[0]['end_year'])
+    teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+    
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []  
-
+    assessments_period_data = []
+    
     # load the existing workbook
     existing_wb = load_workbook(template)
 
@@ -1724,21 +1805,25 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     existing_ws = existing_wb.active
 
     for class_info in classes_id_2:
-        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name']}])
+        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
 
     for v in range(len(classes_id_1)):
         # id
         print (classes_id_3[v][0]['institution_class_id'])
+        id = classes_id_3[v][0]['institution_class_id']
+        
         # subject name 
         print (classes_id_3[v][0]['sub_name'])
         # class name
         print (classes_id_3[v][0]['class_name'])
-
+        # class name
+        print (classes_id_3[v][0]['subject_id'])
+        
         # copy the worksheet
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name']+'-'+classes_id_3[v][0]['sub_name']+'-'+str(classes_id_3[v][0]['institution_class_id'])
+        new_ws.title = classes_id_3[v][0]['class_name']+'='+classes_id_3[v][0]['sub_name']+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -1757,36 +1842,45 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id=4&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
 
         marks_and_name = []
-        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+
+        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
         for i in students_id_and_names:   
             for v in assessments_json['data']:
                 if v['student_id'] == i['student_id'] :  
-                    dic['id'] = i['student_id'] 
-                    dic['name'] = i['student_name'] 
-                    if v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                        dic['term1']['assessment1'] = v["marks"]     
-                    elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                        dic['term1']['assessment2']  = v["marks"]             
-                    elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                        dic['term1']['assessment3']  = v["marks"]           
-                    elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                        dic['term1']['assessment4']  = v["marks"]
-                    elif v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                        dic['term2']['assessment1']  = v["marks"]     
-                    elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                        dic['term2']['assessment2']  = v["marks"]             
-                    elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                        dic['term2']['assessment3']  = v["marks"]           
-                    elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                        dic['term2']['assessment4']  = v["marks"]
+                    if v["marks"] is not None :
+                        dic['id'] = i['student_id'] 
+                        dic['name'] = i['student_name'] 
+                        dic['assessments_periods_ides'].append(v['assessment_period_id'] )
+                        if v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment1'] = v["marks"] 
+                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment2']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment3']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment4']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment1']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment2']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment3']  = v["marks"]
+                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment4']  = v["marks"]
             marks_and_name.append(dic)
-            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
         # Set the font for the data rows
         data_font = Font(name='Arial', size=16, bold=False)
 
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
-
+        assessment_data = assessments_json['data'][0]
+        assessment_id = assessment_data['assessment_id']
+        education_grade_id = assessment_data['education_grade_id']
+        
+        assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : marks_and_name[0]['assessments_periods_ides']})
+        assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
+        
         # Write data to the worksheet and calculate the sum of some columns in each row
         for row_number, dataFrame in enumerate(marks_and_name, start=3):
             new_ws.cell(row=row_number, column=1).value = row_number-2
@@ -1807,6 +1901,25 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
             for cell in new_ws[row_number]:
                 cell.font = data_font
     existing_wb.remove(existing_wb['Sheet1'])
+
+    # Create a new sheet
+    new_sheet = existing_wb.create_sheet("info_sheet")
+    new_sheet.sheet_view.rightToLeft = True    
+    # existing_ws.sheet_view.rightToLeft = True  
+    
+    # Access the new sheet by name
+    info_sheet = existing_wb["info_sheet"]
+
+    # Write data to the new sheet
+    info_sheet["A1"] = school_name
+    info_sheet["A2"] = modeeriah
+    info_sheet["A3"] = hejri1
+    info_sheet["A4"] = hejri2
+    info_sheet["A5"] = melady1
+    info_sheet["A6"] = melady2
+    info_sheet["A7"] = baldah
+    info_sheet["A8"] = teacher
+    info_sheet["A9"] = assessments_period_data_text
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
@@ -1884,7 +1997,8 @@ def delete_files_except(filenames, dir_path):
 def fill_official_marks_doc_wrapper_offline(usnername , password ,lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
-    custom_shapes = fill_official_marks_a3_two_face_doc2_offline_version(username= usnername, password= password ,students_data_lists=lst, ods_file=f'{outdir}/{ods_file}')
+    fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
+    custom_shapes = lst['custom_shapes']
     
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
