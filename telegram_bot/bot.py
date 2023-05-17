@@ -16,16 +16,14 @@ INIT_F , RESPOND = range(2)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
 
-help_text = '''
-/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
+help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
 /side_marks_note لطباعة كشف العلامات الجانبي 
 /fill_assess_arbitrary لتسجيل العلامات العشوائية 
 /empty_assess لمسح علامات الصف 
 /official_marks لطباعة ملف العلامات الرسمية 
 /certs لطباعة ملف الشهادات 
 /tables لطباعة ملفات الجداول 
-/cancel لألغاء العملية
-'''
+/cancel لألغاء العملية'''
 
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
 
