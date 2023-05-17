@@ -6,22 +6,25 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-import keys
+from keys import test_bot as token
 import io
 
 print('Starting up bot...')
 
 # # fill assess arbitrary marks conversation handler stats
 INIT_F , RESPOND = range(2)
-# # send side marks document conversation handler stats
-# INIT_SM , SEND_SN = range(1)
-# # send students certs conversation handler stats
-# INIT_C , SEND_SC = range(1)
-# #send official marks document conversation handler stats
-# INIT_OM , SEND_OM = range(1)
-# CREDS = range(1)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
+
+help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
+/side_marks_note لطباعة كشف العلامات الجانبي 
+/fill_assess_arbitrary لتسجيل العلامات العشوائية 
+/empty_assess لمسح علامات الصف 
+/official_marks لطباعة ملف العلامات الرسمية 
+/certs لطباعة ملف الشهادات 
+/tables لطباعة ملفات الجداول 
+/cancel لألغاء العملية'''
+
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
 
 # Define a function to handle incoming files
@@ -97,8 +100,8 @@ def receive_file(update, context ):
     # Get the file object and read its content
     file_obj = context.bot.get_file(update.message.document.file_id)
     file_bytes = io.BytesIO(file_obj.download_as_bytearray())
-    # file_content = file_bytes.read()
-    fill_official_marks_doc_wrapper_offline(9971055725,9971055725,Read_E_Side_Note_Marks(file_content=file_bytes))
+    update.message.reply_text("انتظر لحظة لو سمحت")     
+    fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
     files = count_files()
     chat_id = update.message.chat.id
     send_files(bot, chat_id, files)
@@ -107,7 +110,7 @@ def receive_file(update, context ):
     update.message.reply_text('تم بنجاح')
 
 def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text='/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /empty_assess لمسح علامات الصف \n /cancel لألغاء العملية')
+    context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
 def send_files(bot, chat_id, files):
     for file in files:
@@ -115,7 +118,7 @@ def send_files(bot, chat_id, files):
 
 # Lets us use the /help command
 def help_command(update, context):
-    update.message.reply_text('/side_marks_note لطباعة ملف العلامات الجانبي \n /certs لطباعة ملف الشهادات \n /tables لطباعة ملفات الجداول \n /official_marks لطباعة ملف العلامات الرسمية \n /fill_assess_arbitrary لتسجيل العلامات العشوائية \n /empty_assess لمسح علامات الصف \n /cancel لألغاء العملية')
+    update.message.reply_text(help_text)
 
 # Log errors
 def error(update, context):
@@ -208,7 +211,7 @@ def check_creds(update, context):
             return FILE
         
 def init_side_marks(update, context):
-    update.message.reply_text("بدك اعطيك كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    update.message.reply_text("هل تريد كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
 
 def send_side_marks_note_doc(update, context):
@@ -216,10 +219,10 @@ def send_side_marks_note_doc(update, context):
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
+        update.message.reply_text("انتظر لحظة لو سمحت")         
         context.user_data['creds'] = update.message.text.split('/')
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
-        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
         print(username, password)
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
@@ -312,13 +315,37 @@ def send_official_marks_doc(update, context):
             delete_send_folder()
             return ConversationHandler.END
 
+def init_e_side_marks(update, context):
+    update.message.reply_text("هل تريد كشف علامات جانبي الكتروني ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
+
+def send_e_side_marks_note_doc(update, context):
+    user = update.message.from_user
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        update.message.reply_text("انتظر لحظة لو سمحت")         
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            create_e_side_marks_doc(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
+
 
 # Run the program
 if __name__ == '__main__':
-    updater = Updater(keys.token, use_context=True)
+    updater = Updater(token, use_context=True)
     dp = updater.dispatcher
 
-    bot = Bot(token=keys.token)
+    bot = Bot(token=token)
     
     # Commands
     dp.add_handler(CommandHandler('help', help_command))
@@ -390,6 +417,15 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
     # send_students_absent_doc_conv = ConversationHandler(
+    
+    send_side_marks_note_doc_conv = ConversationHandler(
+                                    entry_points=[CommandHandler('e_side_marks_note', init_e_side_marks)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text , send_e_side_marks_note_doc)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
+
         
         
 
