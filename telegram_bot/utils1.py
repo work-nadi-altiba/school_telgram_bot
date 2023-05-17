@@ -32,6 +32,39 @@ import re
 import itertools
 import openpyxl
 
+def upload_marks(classess_data , assessment_periods):
+        # assessment_periods = get_editable_assessments(auth,9971055725)
+        period_id = classess_data['custom_shapes']['period_id']
+        school_id = classess_data['custom_shapes']['school_id']
+        assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4', 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+
+        for class_data in classess_data['file_data']:
+                class_id = class_data['class_name'].split('=')[2] 
+                class_subject = class_data['class_name'].split('=')[3]
+                students_marks_ids = class_data['students_data']
+                assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+                grade_id = assessments_periods_data[int(class_id)]['grade_id']
+                assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+                s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+                for student_info in students_marks_ids:
+                        # print(student_info)
+                        for code in assessment_codes:
+                        if len([i for i in assessment_periods if code in i['code']]) != 0:
+                                enter_mark(
+                                        auth,
+                                        marks=str("{:.2f}".format(float(student_info['term1']['assessment1']))),
+                                        assessment_grading_option_id=8,
+                                        assessment_id=assessment_grade_id,
+                                        education_subject_id=class_subject,
+                                        education_grade_id=grade_id,
+                                        institution_id=school_id,
+                                        academic_period_id=period_id,
+                                        institution_classes_id=class_id,
+                                        student_status_id=1,
+                                        student_id=student_info['id'],
+                                        assessment_period_id=[i for i in assessment_periods if code in i['code']][0]['AssesId']
+                                )
+
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
     for page in range(1,pages):
@@ -1385,26 +1418,10 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
     page = 4
     name_counter = 1
     name_counter = 1
-    # auth = get_auth(username , password)
-    # period_id = get_curr_period(auth)['data'][0]['id']
-    # inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    # user_id = user_info(auth , username)['data'][0]['id']
     
-    # user = user_info(auth , username)
-    # school_name = inst_name(auth)['data'][0]['Institutions']['name']
-    # baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-    # modeeriah = inst_area(auth)['data'][0]['Areas']['name']
-    # school_year = get_curr_period(auth)['data']
-    # hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
-    # hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
-    # melady1 = str(school_year[0]['start_year'])
-    # melady2 = str(school_year[0]['end_year'])
-    # teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
-    
-    classes=[]
-    mawad=[]
-    modified_classes=[]
+    # classes=[]
+    # mawad=[]
+    # modified_classes=[]
     
     # Open the ODS file and load the sheet you want to fill
     doc = ezodf.opendoc(ods_file) 
@@ -1417,12 +1434,12 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
         
 #         ['الصف السابع', 'أ', 'اللغة الانجليزية', '786118']
         
-        class_data = students_data_list['class_name'].split('-')
-        mawad.append(class_data[2])
-        classes.append('-'.join([class_data[0],class_data[1]]))
-        class_name = class_data[0].replace('الصف ' , '')
-        class_char = class_data[1]
-        sub_name = class_data[2]   
+        class_data = students_data_list['class_name'].split('=')
+        # mawad.append(class_data[2])
+        # classes.append('-'.join([class_data[0],class_data[1]]))
+        class_name = class_data[0].replace('الصف ' , '').split('-')[0]
+        class_char = class_data[0].split('-')[1]
+        sub_name = class_data[1]
 
         
         sheet[f"D{int(context[str(page)].split(':')[0][1:])-5 }"].set_value(f' الصف: {class_name}')
@@ -1477,46 +1494,6 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
         name_counter = 1
         page += 2
 
-    
-    # for i in classes: 
-    #     modified_classes.append(mawad_representations(i))
-        
-    # modified_classes = ' ، '.join(modified_classes)
-    # mawad = sorted(set(mawad))
-    # mawad = ' ، '.join(mawad)
-
-    # custom_shapes = {
-    #     'modeeriah': f'لواء {modeeriah}',
-    #     'hejri1': hejri1,
-    #     'hejri2': hejri2,
-    #     'melady1': melady1,
-    #     'melady2': melady2,
-    #     'baldah': baldah,
-    #     'school': school_name,
-    #     'classes': modified_classes,
-    #     'mawad': mawad,
-    #     'teacher' : teacher,
-    #     'modeeriah_20_2': f'لواء {modeeriah}',
-    #     'hejri_20_1': hejri1,
-    #     'hejri_20_2': hejri2,
-    #     'melady_20_1': melady1,
-    #     'melady_20_2': melady2,
-    #     'baldah_20_2': baldah,
-    #     'school_20_2': school_name,
-    #     'classes_20_2': modified_classes,
-    #     'mawad_20_2': mawad,
-    #     'teacher_20_2': teacher ,
-    #     'modeeriah_20_1': f'لواء {modeeriah}',
-    #     'hejri1': hejri1,
-    #     'hejri2': hejri2,
-    #     'melady1': melady1,
-    #     'melady2': melady2,
-    #     'baldah_20_1': baldah,
-    #     'school_20_1': school_name,
-    #     'classes_20_1': modified_classes,
-    #     'mawad_20_1': mawad,
-    #     'teacher_20_1': teacher
-    # }
     # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
     # Iterate through the cells of the sheet and fill in the values you want
     doc.save()
@@ -1553,7 +1530,7 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
                 'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
                     }
             data.append(dic)
-        temp_dic = {'class_name':sheet ,"sdtudent_data": data}
+        temp_dic = {'class_name':sheet ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
     modified_classes = []
@@ -1575,6 +1552,7 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
     mawad = ' ، '.join(mawad)
     teacher = info_sheet['A8'].value
     required_data_mrks_text = info_sheet['A9'].value
+    period_id = info_sheet['A10'].value
     custom_shapes = {
     'modeeriah': f'لواء {modeeriah}',
     'hejri1': hejri1,
@@ -1605,19 +1583,19 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
     'school_20_1': school_name,
     'classes_20_1': modified_classes,
     'mawad_20_1': mawad,
-    'teacher_20_1': teacher
+    'teacher_20_1': teacher,
+    'period_id': period_id
     }
-    required_data_mrks_dic_list = [
-                                    {
+    
+    required_data_mrks_dic_list = {
                                     int(item.split('-')[0]): 
                                         {
                                             'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
                                             'grade_id': int(item.split(',')[0].split('-')[2]), 
                                             'assessments_period_ids': item.split(',')[1:]
                                         }
-                                    } 
                                     for item in required_data_mrks_text.split('\\\\')
-                                ]
+                                }
 
     read_file_output_dict = {'file_data': read_file_output_lists ,
                             'custom_shapes' : custom_shapes ,
@@ -1920,6 +1898,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     info_sheet["A7"] = baldah
     info_sheet["A8"] = teacher
     info_sheet["A9"] = assessments_period_data_text
+    info_sheet["A10"] = period_id
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
@@ -1994,7 +1973,7 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
             os.remove(os.path.join(dir_path, file))
 
-def fill_official_marks_doc_wrapper_offline(usnername , password ,lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
+def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
