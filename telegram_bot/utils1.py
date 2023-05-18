@@ -1460,7 +1460,7 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
                 
                 # {'id': 3824166, 'name': 'نورالدين محمود راضي الدغيمات', 'term1': {'assessment1': 9, 'assessment2': 10, 'assessment3': 11, 'assessment4': 20}}
                 
-                for student_info in students_data_list['sdtudent_data'][25:] :
+                for student_info in students_data_list['students_data'][25:] :
                     row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
                     sheet[f"A{row_idx}"].set_value(name_counter)
                     sheet[f"B{row_idx}"].set_value(student_info['name'])
