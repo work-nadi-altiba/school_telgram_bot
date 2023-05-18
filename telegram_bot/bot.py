@@ -6,7 +6,7 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import test_bot as token
+from keys import production_bot as token
 import io
 
 print('Starting up bot...')
@@ -430,6 +430,7 @@ if __name__ == '__main__':
         
 
     # Add the conversation handler to the dispatcher
+    dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(send_official_marks_doc_conv)
     dp.add_handler(fill_assess_arbitrary_marks_conv)
