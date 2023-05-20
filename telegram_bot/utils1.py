@@ -1460,7 +1460,7 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
                 
                 # {'id': 3824166, 'name': 'نورالدين محمود راضي الدغيمات', 'term1': {'assessment1': 9, 'assessment2': 10, 'assessment3': 11, 'assessment4': 20}}
                 
-                for student_info in students_data_list['sdtudent_data'][25:] :
+                for student_info in students_data_list['students_data'][25:] :
                     row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
                     sheet[f"A{row_idx}"].set_value(name_counter)
                     sheet[f"B{row_idx}"].set_value(student_info['name'])
@@ -1756,14 +1756,16 @@ def get_assessment_id_from_grade_id(auth , grade_id):
 def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     userInfo = user_info(auth , username)['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
-    years = get_curr_period(auth)
+    # years = get_curr_period(auth)
     user = user_info(auth , username)
-    school_name = inst_name(auth)['data'][0]['Institutions']['name']
+    school_data = inst_name(auth)['data'][0]
+    inst_id = school_data['Institutions']['id']
+    school_name = school_data['Institutions']['name']
+    school_name_id = f'{school_name}={inst_id}'
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -1791,12 +1793,11 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         # id
         print (classes_id_3[v][0]['institution_class_id'])
         id = classes_id_3[v][0]['institution_class_id']
-        
         # subject name 
         print (classes_id_3[v][0]['sub_name'])
         # class name
         print (classes_id_3[v][0]['class_name'])
-        # class name
+        # subject id 
         print (classes_id_3[v][0]['subject_id'])
         
         # copy the worksheet
@@ -1819,7 +1820,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         for IdAndName in students['data']:
             students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
 
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id=4&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
 
         marks_and_name = []
 
@@ -1891,7 +1892,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     info_sheet = existing_wb["info_sheet"]
 
     # Write data to the new sheet
-    info_sheet["A1"] = school_name
+    info_sheet["A1"] = school_name_id
     info_sheet["A2"] = modeeriah
     info_sheet["A3"] = hejri1
     info_sheet["A4"] = hejri2
@@ -1900,7 +1901,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     info_sheet["A7"] = baldah
     info_sheet["A8"] = teacher
     info_sheet["A9"] = assessments_period_data_text
-    info_sheet["A10"] = period_id
+    info_sheet["A10"] = str(period_id)
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
