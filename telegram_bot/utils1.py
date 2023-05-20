@@ -32,6 +32,108 @@ import re
 import itertools
 import openpyxl
 
+def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
+    if file_content is None:
+        doc = ezodf.opendoc(file_path)
+    else:
+        doc = ezodf.from_stream(file_content)
+
+    sheets = [sheet for sheet in doc.sheets][:-1]
+    info_sheet = [sheet for sheet in doc.sheets][-1]
+    read_file_output_lists = []
+
+    for sheet in sheets:
+        data = []
+
+        for i, row in enumerate(sheet.rows()):
+            if i < 2:
+                continue  # Skip the first two rows
+            row_data = [cell.value if cell.value is not None else '' for cell in row]
+            if row_data[1] != '':
+                dic = {
+                    'id': int(row_data[1]),
+                    'name': row_data[2],
+                    'term1': {'assessment1': int(row_data[3]) if row_data[3] != '' else '', 'assessment2': int(row_data[4]) if row_data[4] != '' else '', 'assessment3': int(row_data[5]) if row_data[5] != '' else '', 'assessment4': int(row_data[6]) if row_data[6] != '' else ''},
+                    'term2': {'assessment1': int(row_data[8]) if row_data[8] != '' else '', 'assessment2': int(row_data[9]) if row_data[9] != '' else '', 'assessment3': int(row_data[10]) if row_data[10] != '' else '', 'assessment4': int(row_data[11]) if row_data[11] != '' else ''}
+                }
+                data.append(dic)
+
+        temp_dic = {'class_name': sheet.name, "students_data": data}
+        read_file_output_lists.append(temp_dic)
+
+    modified_classes = []
+
+    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
+    for i in classes:
+        modified_classes.append(mawad_representations(i))
+
+    school_name = info_sheet['A1'].value.split('=')[0]
+    school_id = info_sheet['A1'].value.split('=')[1]
+    modeeriah = info_sheet['A2'].value
+    hejri1 = info_sheet['A3'].value
+    hejri2 = info_sheet['A4'].value
+    melady1 = info_sheet['A5'].value
+    melady2 = info_sheet['A6'].value
+    baldah = info_sheet['A7'].value
+    modified_classes = ' ، '.join(modified_classes)
+    mawad = sorted(set(mawad))
+    mawad = ' ، '.join(mawad)
+    teacher = info_sheet['A8'].value
+    required_data_mrks_text = info_sheet['A9'].value
+    period_id = info_sheet['A10'].value
+
+    custom_shapes = {
+        'modeeriah': f'لواء {modeeriah}',
+        'hejri1': hejri1,
+        'hejri2': hejri2,
+        'melady1': melady1,
+        'melady2': melady2,
+        'baldah': baldah,
+        'school': school_name,
+        'classes': modified_classes,
+        'mawad': mawad,
+        'teacher': teacher,
+        'modeeriah_20_2': f'لواء {modeeriah}',
+        'hejri_20_1': hejri1,
+        'hejri_20_2': hejri2,
+        'melady_20_1': melady1,
+        'melady_20_2': melady2,
+        'baldah_20_2': baldah,
+        'school_20_2': school_name,
+        'classes_20_2': modified_classes,
+        'mawad_20_2': mawad,
+        'teacher_20_2': teacher,
+        'modeeriah_20_1': f'لواء {modeeriah}',
+        'hejri1': hejri1,
+        'hejri2': hejri2,
+        'melady1': melady1,
+        'melady2': melady2,
+        'baldah_20_1': baldah,
+        'school_20_1': school_name,
+        'classes_20_1': modified_classes,
+        'mawad_20_1': mawad,
+        'teacher_20_1': teacher,
+        'period_id': period_id,
+        'school_id': school_id
+    }
+
+    required_data_mrks_dic_list = {
+        int(item.split('-')[0]):
+            {
+                'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
+                'grade_id': int(item.split(',')[0].split('-')[2]),
+                'assessments_period_ids': item.split(',')[1:]
+            }
+        for item in required_data_mrks_text.split('\\\\')
+    }
+
+    read_file_output_dict = {'file_data': read_file_output_lists,
+                             'custom_shapes': custom_shapes,
+                             'required_data_for_mrks_enter': required_data_mrks_dic_list}
+
+    return read_file_output_dict
+
 def upload_marks(username , password , classess_data , assessment_periods):
         # assessment_periods = get_editable_assessments(auth,9971055725)
         period_id = classess_data['custom_shapes']['period_id']
@@ -1542,7 +1644,7 @@ def Read_E_Side_Note_Marks(file_path=None , file_content=None):
     for i in classes: 
         modified_classes.append(mawad_representations(i))
         
-    school_name = info_sheet['A1'].value
+    school_name = info_sheet['A1'].value.split('=')[0]
     modeeriah = info_sheet['A2'].value
     hejri1 = info_sheet['A3'].value
     hejri2 = info_sheet['A4'].value

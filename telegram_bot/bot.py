@@ -6,7 +6,7 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import production_bot as token
+from keys import test_bot as token
 import io
 
 print('Starting up bot...')
@@ -15,6 +15,8 @@ print('Starting up bot...')
 INIT_F , RESPOND = range(2)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
+ASK_FILE, ASK_QUESTION ,AVAILABLE_ASS, WAITING_FOR_RESPONSE = range(4)
+
 
 help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
 /side_marks_note لطباعة كشف العلامات الجانبي 
@@ -92,22 +94,62 @@ def receive_file(update, context ):
         dispatcher.add_handler(MessageHandler(Filters.document, receive_file))
     '''
     
-    # Check if the message contains a document
-    if not update.message.document:
-        update.message.reply_text('Please send an Excel file.')
-        return
+    # # Check if the message contains a document
+    # if not update.message.document:
+    #     update.message.reply_text('Please send an Excel file.')
+    #     return
+    message = update.message
+    if message.document:
+        file_id = message.document.file_id
+        context.user_data['file'] = file_id
+        receive_file_massage = '''
+        /document_marks  طباعة سجل العلامات و ادخال العلامات معا
+        /document طباعة سجل العلامات الرسمي من الملف فقط
+        /marks ادخال العلامات من الملف فقط
+        '''
+        update.message.reply_text(receive_file_massage)  
+        return ASK_QUESTION
+    else:
+        update.message.reply_text('No document file received. Please send a document file.')
+        return ConversationHandler.END
+    
+ 
+    # # Get the file object and read its content
+    # file_obj = context.bot.get_file(update.message.document.file_id)
+    # file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+    # update.message.reply_text("انتظر لحظة لو سمحت")     
+    # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
+    # files = count_files()
+    # chat_id = update.message.chat.id
+    # send_files(bot, chat_id, files)
+    # delete_send_folder()
 
+    # update.message.reply_text('تم بنجاح')
+    return ASK_QUESTION
+
+def handle_question(update, context):
+    question = update.message.text.replace('/','')
+    file_id = context.user_data['file']
     # Get the file object and read its content
-    file_obj = context.bot.get_file(update.message.document.file_id)
+    file_obj = context.bot.get_file(file_id)
     file_bytes = io.BytesIO(file_obj.download_as_bytearray())
-    update.message.reply_text("انتظر لحظة لو سمحت")     
-    fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
-    files = count_files()
-    chat_id = update.message.chat.id
-    send_files(bot, chat_id, files)
-    delete_send_folder()
+    
+    if question == 'document_marks':
+        update.message.reply_text('انشاء سجل علامات و ادخال العلامات من الملف')
+    elif question == 'document':
+        update.message.reply_text("انتظر لحظة لو سمحت")     
+        fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
+        files = count_files()
+        chat_id = update.message.chat.id
+        send_files(bot, chat_id, files)
+        delete_send_folder()
+    elif question == 'marks':
+        update.message.reply_text('ادخال العلامات')
+    else:
+        update.message.reply_text('ادخال خاطيء')
+        return ASK_QUESTION
 
-    update.message.reply_text('تم بنجاح')
+    return ConversationHandler.END
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
@@ -425,7 +467,13 @@ if __name__ == '__main__':
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
-
+    receive_file_handler_conv = ConversationHandler(
+                                    entry_points=[MessageHandler(Filters.document, receive_file)],
+                                        states={
+                                            ASK_QUESTION: [MessageHandler(Filters.text, handle_question)]
+                                        },
+                                        fallbacks=[]
+                                                        )
         
         
 
@@ -436,7 +484,8 @@ if __name__ == '__main__':
     dp.add_handler(fill_assess_arbitrary_marks_conv)
     dp.add_handler(fill_assess_arbitrary_empty_marks_conv)
     dp.add_handler(send_official_marks_doc_conv_offline)
-    dp.add_handler(MessageHandler(Filters.document, receive_file))
+    # dp.add_handler(MessageHandler(Filters.document, receive_file))
+    dp.add_handler(receive_file_handler_conv)
     dp.add_handler(send_students_certs_conv)
 
     # Run the bot
