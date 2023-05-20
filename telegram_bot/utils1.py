@@ -31,12 +31,17 @@ import random
 import re
 import itertools
 import openpyxl
+import tempfile
 
 def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
     if file_content is None:
         doc = ezodf.opendoc(file_path)
     else:
-        doc = ezodf.from_stream(file_content)
+        # Save the file content to a temporary file
+        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+            temp_file.write(file_content.getvalue())
+            temp_file.flush()
+            doc = ezodf.opendoc(temp_file.name)
 
     sheets = [sheet for sheet in doc.sheets][:-1]
     info_sheet = [sheet for sheet in doc.sheets][-1]
@@ -134,40 +139,55 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
 
     return read_file_output_dict
 
-def upload_marks(username , password , classess_data , assessment_periods):
-        # assessment_periods = get_editable_assessments(auth,9971055725)
+def upload_marks(username , password , classess_data ):
+        auth = get_auth(username , password)
         period_id = classess_data['custom_shapes']['period_id']
         school_id = classess_data['custom_shapes']['school_id']
-        assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4', 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+        # term1_assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4']
+        # term2_assessment_codes = ['S2A1', 'S2A2', 'S2A3', 'S2A4']
+        assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4' , 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+        assessment_code_dic = {'S1A1': {'term' :'term1' , 'assess' : 'assessment1'},
+                                'S1A2': {'term' :'term1' , 'assess' : 'assessment2'},
+                                'S1A3': {'term' :'term1' , 'assess' : 'assessment3'},
+                                'S1A4': {'term' :'term1' , 'assess' : 'assessment4'},
+                                'S2A1': {'term' :'term2' , 'assess' : 'assessment1'},
+                                'S2A2': {'term' :'term2' , 'assess' : 'assessment2'},
+                                'S2A3': {'term' :'term2' , 'assess' : 'assessment3'},
+                                'S2A4': {'term' :'term2' , 'assess' : 'assessment4'}}
+        
         assessments_periods_data = classess_data['required_data_for_mrks_enter']
-        auth = get_auth(username, password)
-
         for class_data in classess_data['file_data']:
                 class_id = class_data['class_name'].split('=')[2] 
                 class_subject = class_data['class_name'].split('=')[3]
                 students_marks_ids = class_data['students_data']
                 assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
                 grade_id = assessments_periods_data[int(class_id)]['grade_id']
-                assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
-                s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+                assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
+                # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+                # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
                 for student_info in students_marks_ids:
-                        # print(student_info)
-                        for code in assessment_codes:
-                            if len([i for i in assessment_periods if code in i['code']]) != 0:
-                                    enter_mark(
-                                            auth,
-                                            marks=str("{:.2f}".format(float(student_info['term1']['assessment1']))),
-                                            assessment_grading_option_id=8,
-                                            assessment_id=assessment_grade_id,
-                                            education_subject_id=class_subject,
-                                            education_grade_id=grade_id,
-                                            institution_id=school_id,
-                                            academic_period_id=period_id,
-                                            institution_classes_id=class_id,
-                                            student_status_id=1,
-                                            student_id=student_info['id'],
-                                            assessment_period_id=[i for i in assessment_periods if code in i['code']][0]['AssesId']
-                                    )
+                    for code in assessment_codes:
+                        if len([i for i in assessment_periods if code in i['code']]) != 0:
+                            assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                            term = assessment_code_dic[code]['term']
+                            assess = assessment_code_dic[code]['assess']
+                            term_marks = student_info[term]
+                            mark = term_marks.get(assess)
+                            if mark != '':
+                                enter_mark(
+                                        auth,
+                                        marks=str("{:.2f}".format(float(mark))),
+                                        assessment_grading_option_id=8,
+                                        assessment_id=assessment_grade_id,
+                                        education_subject_id=class_subject,
+                                        education_grade_id=grade_id,
+                                        institution_id=school_id,
+                                        academic_period_id=period_id,
+                                        institution_classes_id=class_id,
+                                        student_status_id=1,
+                                        student_id=student_info['id'],
+                                        assessment_period_id=assessment_period_id
+                                        )                
 
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
@@ -1749,15 +1769,22 @@ def assessments_commands_text(lst):
         text += '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
         return text
     
-def get_editable_assessments( auth , username):
-    required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
-    ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
-    ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
-    # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
-    unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
-    sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
-    return sorted_dict
-
+def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None):
+    if assessment_grade_id is None or class_subject is None:
+        required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
+        ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
+        # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
+        unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
+        sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
+        return sorted_dict
+    else:
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, assessment_grade_id ,class_subject)] for item in sublist if item.get('editable')==True]
+        # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
+        unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
+        sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
+        return sorted_dict    
+       
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
     '''
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  

@@ -15,7 +15,7 @@ print('Starting up bot...')
 INIT_F , RESPOND = range(2)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
-ASK_FILE, ASK_QUESTION ,AVAILABLE_ASS, WAITING_FOR_RESPONSE = range(4)
+ASK_FILE, ASK_QUESTION ,CREDS ,AVAILABLE_ASS = range(4)
 
 
 help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
@@ -29,10 +29,60 @@ help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي ا
 
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
 
+def upload_marks_bot_version(update, context):
+    update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
+    file_id = context.user_data['file']
+    file_name =context.user_data['file_name'] 
+    file_extension = file_name.split('.')[-1].lower()
+    username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
+    
+    # Get the file object and read its content
+    file_obj = context.bot.get_file(file_id)
+    file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+    
+    editable_assessments = context.user_data['assessments'] 
+    data_to_enter_marks = context.user_data['data_to_enter_marks']  
+    assess_data = [i for i in editable_assessments]
+    for assessment in assess_data:
+        wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
+        enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+            
+    if file_extension == 'xlsx':           
+        upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+    elif file_extension == 'ods':    
+        upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+    
+    files = count_files()
+    chat_id = update.message.chat.id
+    context.user_data['chat_id'] = chat_id
+    send_files(bot, chat_id, files)
+    delete_send_folder()
+    
+    update.message.reply_text("تمام انتهينا")
+    return ConversationHandler.END
+
 # Define a function to handle incoming files
 def init_empty_fill(update, context):
     update.message.reply_text("هل تريد مسح علامات صف ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
+
+def print_available_assessments_light_version(update, context):
+    user = update.message.from_user
+    context.user_data['creds'] = update.message.text.split('/')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    print(username, password)
+    if get_auth(username, password) == False:
+        update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+    else:
+        update.message.reply_text("انتظر لحظة لو سمحت") 
+        auth = get_auth(username,password)
+        # TODO: handle empty editable_assessments list
+        editable_assessments = get_editable_assessments(auth ,username)
+        string = assessments_commands_text(editable_assessments)
+        update.message.reply_text(string)
+        context.user_data['assessments'] = editable_assessments
+        return  AVAILABLE_ASS
 
 def print_available_assessments(update, context):
     user = update.message.from_user
@@ -53,7 +103,7 @@ def print_available_assessments(update, context):
         context.user_data['assessments'] = editable_assessments
         context.user_data['data_to_enter_marks'] = data_to_enter_marks
         return  AVAILABLE_ASS
-    
+
 def fill_assess_empty(update, context):
     user = update.message.from_user
     if update.message.text == '/cancel':
@@ -88,7 +138,7 @@ def handle_response(update, context):
     else:
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
-    
+
 def receive_file(update, context ):
     '''
         dispatcher.add_handler(MessageHandler(Filters.document, receive_file))
@@ -101,12 +151,13 @@ def receive_file(update, context ):
     message = update.message
     if message.document:
         file_id = message.document.file_id
+        file_name = message.document.file_name
         context.user_data['file'] = file_id
-        receive_file_massage = '''
-        /document_marks  طباعة سجل العلامات و ادخال العلامات معا
+        context.user_data['file_name'] = file_name
+        
+        receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
         /document طباعة سجل العلامات الرسمي من الملف فقط
-        /marks ادخال العلامات من الملف فقط
-        '''
+        /marks ادخال العلامات من الملف فقط'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
     else:
@@ -125,31 +176,48 @@ def receive_file(update, context ):
     # delete_send_folder()
 
     # update.message.reply_text('تم بنجاح')
-    return ASK_QUESTION
+    # return ASK_QUESTION
 
 def handle_question(update, context):
     question = update.message.text.replace('/','')
     file_id = context.user_data['file']
+    file_name =context.user_data['file_name'] 
+    file_extension = file_name.split('.')[-1].lower()
+    
     # Get the file object and read its content
     file_obj = context.bot.get_file(file_id)
     file_bytes = io.BytesIO(file_obj.download_as_bytearray())
     
     if question == 'document_marks':
-        update.message.reply_text('انشاء سجل علامات و ادخال العلامات من الملف')
+        update.message.reply_text("انتظر لحظة لو سمحت")  
+        if file_extension == 'xlsx':           
+            fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+        elif file_extension == 'ods':
+            fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+        return CREDS
     elif question == 'document':
-        update.message.reply_text("انتظر لحظة لو سمحت")     
-        fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
+        update.message.reply_text("انتظر لحظة لو سمحت")  
+        if file_extension == 'xlsx':           
+            fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+        elif file_extension == 'ods':
+            fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
         files = count_files()
         chat_id = update.message.chat.id
+        context.user_data['chat_id'] = chat_id
         send_files(bot, chat_id, files)
         delete_send_folder()
     elif question == 'marks':
-        update.message.reply_text('ادخال العلامات')
+        update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+        return CREDS
+        # files = count_files()
+        # chat_id = update.message.chat.id
+        # context.user_data['chat_id'] = chat_id
+        # send_files(bot, chat_id, files)
+        # delete_send_folder()
     else:
         update.message.reply_text('ادخال خاطيء')
         return ASK_QUESTION
 
-    return ConversationHandler.END
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
@@ -172,8 +240,8 @@ def cancel(update, context):
     return ConversationHandler.END
 
 def get_user_creds(update, context):
-    # code
-    pass
+    update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return AVAILABLE_ASS
 
 def check_user_creds(update, context):
     # code
@@ -183,26 +251,6 @@ def init_fill(update, context):
     update.message.reply_text("هل تريد تسجل علامات عشوائي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
 
-def print_available_assessments(update, context):
-    user = update.message.from_user
-    context.user_data['creds'] = update.message.text.split('/')
-    username = context.user_data['creds'][0]
-    password = context.user_data['creds'][1]
-    print(username, password)
-    if get_auth(username, password) == False:
-        update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
-    else:
-        update.message.reply_text("انتظر لحظة لو سمحت") 
-        auth = get_auth(username,password)
-        # TODO: handle empty editable_assessments list
-        editable_assessments = get_editable_assessments(auth ,username)
-        data_to_enter_marks = get_required_data_to_enter_marks(auth ,username)
-        string = assessments_commands_text(editable_assessments)
-        update.message.reply_text(string)
-        context.user_data['assessments'] = editable_assessments
-        context.user_data['data_to_enter_marks'] = data_to_enter_marks
-        return  AVAILABLE_ASS
-    
 def fill_assess_arbitrary(update, context):
     user = update.message.from_user
     if update.message.text == '/cancel':
@@ -251,7 +299,7 @@ def check_creds(update, context):
             print('moving to next function')
             update.message.reply_text('0000ارسل ملف العلامات الجانبي الالكتروني؟')            
             return FILE
-        
+
 def init_side_marks(update, context):
     update.message.reply_text("هل تريد كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
@@ -467,15 +515,19 @@ if __name__ == '__main__':
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
+
     receive_file_handler_conv = ConversationHandler(
                                     entry_points=[MessageHandler(Filters.document, receive_file)],
                                         states={
-                                            ASK_QUESTION: [MessageHandler(Filters.text, handle_question)]
+                                            ASK_QUESTION: [MessageHandler(Filters.text, handle_question)], 
+                                            # CREDS: [MessageHandler(Filters.text & ~Filters.command, get_user_creds)],
+                                            CREDS: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
+                                            AVAILABLE_ASS: [MessageHandler(Filters.text & ~Filters.command, upload_marks_bot_version)],
                                         },
-                                        fallbacks=[]
+                                        fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
-        
-        
+
+# ASK_FILE, ASK_QUESTION ,CREDS ,AVAILABLE_ASS 
 
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_side_marks_note_doc_conv)
@@ -491,7 +543,3 @@ if __name__ == '__main__':
     # Run the bot
     updater.start_polling(1.0)
     updater.idle()
-    
-    
-    
-    
