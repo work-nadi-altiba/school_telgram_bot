@@ -1605,7 +1605,7 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
     return 0            
     # return custom_shapes 
 
-def Read_E_Side_Note_Marks(file_path=None , file_content=None):
+def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     if file_content is None:
         # Load the workbook
         wb = load_workbook(file_path)
