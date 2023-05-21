@@ -159,35 +159,37 @@ def upload_marks(username , password , classess_data ):
         for class_data in classess_data['file_data']:
                 class_id = class_data['class_name'].split('=')[2] 
                 class_subject = class_data['class_name'].split('=')[3]
-                students_marks_ids = class_data['students_data']
-                assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
-                grade_id = assessments_periods_data[int(class_id)]['grade_id']
-                assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
-                # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
-                # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
-                for student_info in students_marks_ids:
-                    for code in assessment_codes:
-                        if len([i for i in assessment_periods if code in i['code']]) != 0:
-                            assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
-                            term = assessment_code_dic[code]['term']
-                            assess = assessment_code_dic[code]['assess']
-                            term_marks = student_info[term]
-                            mark = term_marks.get(assess)
-                            if mark != '':
-                                enter_mark(
-                                        auth,
-                                        marks=str("{:.2f}".format(float(mark))),
-                                        assessment_grading_option_id=8,
-                                        assessment_id=assessment_grade_id,
-                                        education_subject_id=class_subject,
-                                        education_grade_id=grade_id,
-                                        institution_id=school_id,
-                                        academic_period_id=period_id,
-                                        institution_classes_id=class_id,
-                                        student_status_id=1,
-                                        student_id=student_info['id'],
-                                        assessment_period_id=assessment_period_id
-                                        )                
+                class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+                if 'عشر' in class_name : 
+                    students_marks_ids = class_data['students_data']
+                    assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+                    grade_id = assessments_periods_data[int(class_id)]['grade_id']
+                    assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
+                    # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+                    # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+                    for student_info in students_marks_ids:
+                        for code in assessment_codes:
+                            if len([i for i in assessment_periods if code in i['code']]) != 0:
+                                assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                                term = assessment_code_dic[code]['term']
+                                assess = assessment_code_dic[code]['assess']
+                                term_marks = student_info[term]
+                                mark = term_marks.get(assess)
+                                if mark != '':
+                                    enter_mark(
+                                            auth,
+                                            marks=str("{:.2f}".format(float(mark))),
+                                            assessment_grading_option_id=8,
+                                            assessment_id=assessment_grade_id,
+                                            education_subject_id=class_subject,
+                                            education_grade_id=grade_id,
+                                            institution_id=school_id,
+                                            academic_period_id=period_id,
+                                            institution_classes_id=class_id,
+                                            student_status_id=1,
+                                            student_id=student_info['id'],
+                                            assessment_period_id=assessment_period_id
+                                            )                   
 
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
@@ -1926,8 +1928,10 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         print (classes_id_3[v][0]['sub_name'])
         # class name
         print (classes_id_3[v][0]['class_name'])
+        class_name = classes_id_3[v][0]['class_name']
         # subject id 
         print (classes_id_3[v][0]['subject_id'])
+
         
         # copy the worksheet
         new_ws = existing_wb.copy_worksheet(existing_ws)
@@ -1984,32 +1988,39 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
-        assessment_data = assessments_json['data'][0]
-        assessment_id = assessment_data['assessment_id']
-        education_grade_id = assessment_data['education_grade_id']
-        
-        assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : marks_and_name[0]['assessments_periods_ides']})
-        assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
-        
-        # Write data to the worksheet and calculate the sum of some columns in each row
-        for row_number, dataFrame in enumerate(marks_and_name, start=3):
-            new_ws.cell(row=row_number, column=1).value = row_number-2
-            new_ws.cell(row=row_number, column=2).value = dataFrame['id']
-            new_ws.cell(row=row_number, column=3).value = dataFrame['name']
-            new_ws.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
-            new_ws.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
-            new_ws.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
-            new_ws.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
-            new_ws.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
-            new_ws.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
-            new_ws.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
-            new_ws.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
-            new_ws.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
-            new_ws.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
+        if 'عشر' in class_name :
+            students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
+            for row_number, dataFrame in enumerate(students_id_and_names, start=3):
+                new_ws.cell(row=row_number, column=1).value = row_number-2
+                new_ws.cell(row=row_number, column=2).value = dataFrame['student_id']
+                new_ws.cell(row=row_number, column=3).value = dataFrame['student_name']
+        else:
+            assessment_data = assessments_json['data'][0]
+            assessment_id = assessment_data['assessment_id']
+            education_grade_id = assessment_data['education_grade_id']
+            
+            assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : marks_and_name[0]['assessments_periods_ides']})
+            assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
+            
+            # Write data to the worksheet and calculate the sum of some columns in each row
+            for row_number, dataFrame in enumerate(marks_and_name, start=3):
+                new_ws.cell(row=row_number, column=1).value = row_number-2
+                new_ws.cell(row=row_number, column=2).value = dataFrame['id']
+                new_ws.cell(row=row_number, column=3).value = dataFrame['name']
+                new_ws.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
+                new_ws.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
+                new_ws.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
+                new_ws.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
+                new_ws.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
+                new_ws.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
+                new_ws.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
+                new_ws.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
+                new_ws.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
+                new_ws.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
 
-            # Set the font for the data rows
-            for cell in new_ws[row_number]:
-                cell.font = data_font
+                # Set the font for the data rows
+                for cell in new_ws[row_number]:
+                    cell.font = data_font
     existing_wb.remove(existing_wb['Sheet1'])
 
     # Create a new sheet

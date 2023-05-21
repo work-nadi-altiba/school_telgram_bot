@@ -225,7 +225,6 @@ def handle_question(update, context):
             update.message.reply_text('ادخال خاطيء')
             return ASK_QUESTION
 
-
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
