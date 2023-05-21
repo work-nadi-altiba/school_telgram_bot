@@ -514,7 +514,7 @@ if __name__ == '__main__':
                                                         )
     # send_students_absent_doc_conv = ConversationHandler(
     
-    send_side_marks_note_doc_conv = ConversationHandler(
+    send_e_side_marks_note_doc_conv = ConversationHandler(
                                     entry_points=[CommandHandler('e_side_marks_note', init_e_side_marks)],
                                         states={
                                             CREDS : [MessageHandler(Filters.text , send_e_side_marks_note_doc)]
@@ -536,9 +536,9 @@ if __name__ == '__main__':
 # ASK_FILE, ASK_QUESTION ,CREDS ,AVAILABLE_ASS 
 
     # Add the conversation handler to the dispatcher
-    dp.add_handler(send_side_marks_note_doc_conv)
-    dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(send_official_marks_doc_conv)
+    dp.add_handler(send_e_side_marks_note_doc_conv)
+    dp.add_handler(send_side_marks_note_doc_conv)
     dp.add_handler(fill_assess_arbitrary_marks_conv)
     dp.add_handler(fill_assess_arbitrary_empty_marks_conv)
     dp.add_handler(send_official_marks_doc_conv_offline)
