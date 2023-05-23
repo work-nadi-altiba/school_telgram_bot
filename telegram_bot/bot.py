@@ -243,9 +243,14 @@ def handle_question(update, context):
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
-def send_files(bot, chat_id, files):
-    for file in files:
-        bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
+def send_files(bot, chat_id, files , outdir='./send_folder'):
+    if len(files) >= 4:
+        create_zip(files)
+        delete_files_except('ملف مضغوط' , outdir)
+    else:
+        for file in files:
+            bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
+        return False
 
 # Lets us use the /help command
 def help_command(update, context):
