@@ -32,7 +32,13 @@ import re
 import itertools
 import openpyxl
 import tempfile
+import zipfile
 
+def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folder/'):
+    with zipfile.ZipFile(zip_path+zip_name, 'w') as zipf:
+        for file_path in file_paths:
+            zipf.write(file_path , arcname=os.path.basename(file_path))
+            
 def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
     if file_content is None:
         doc = ezodf.opendoc(file_path)
@@ -3009,19 +3015,8 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
 def main():
     print('starting script')
     
-    # ods_file = 'send1.ods'
-    # copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'./send_folder/{ods_file}')
-    # outdir = '.'
-    # path = '/opt/programming/school_programms1/telegram_bot/send_folder/انس الجعافره-9971055725.xlsx'
-    # lst = Read_E_Side_Note_Marks(path)
-    auth=get_auth(9971055725,9971055725)
-    # print(make_request(auth=auth,url='://emis.moe.gov.jo/openemis-core​/restful​/v2​/Area-AreaAdministratives.json'))
-    # output = make_request(auth=auth,url='://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id=2600&academic_period_id=13&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id')
-    # print(output)
-
-    # fill_official_marks_a3_two_face_doc2_offline_version(9971055725,9971055725,lst)
-    # fill_official_marks_doc_wrapper_offline(9971055725,9971055725,lst)
-    # create_e_side_marks_doc(9971055725,9971055725)
+    count_files()
+    breakpoint()
     
 if __name__ == "__main__":
     main()

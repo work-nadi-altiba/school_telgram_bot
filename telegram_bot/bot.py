@@ -13,9 +13,10 @@ print('Starting up bot...')
 
 # # fill assess arbitrary marks conversation handler stats
 INIT_F , RESPOND = range(2)
+WAITING_FOR_RESPONSE = range(1)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
-ASK_FILE, ASK_QUESTION ,CREDS ,AVAILABLE_ASS = range(4)
+ASK_QUESTION ,CREDS_2  = range(2)
 
 
 help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
@@ -30,38 +31,56 @@ help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي ا
 # TODO: make sure of every fallback function (cancle function)in the handler conversation 
 
 def upload_marks_bot_version(update, context):
-    update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
-    file_id = context.user_data['file']
-    file_name =context.user_data['file_name'] 
-    file_extension = file_name.split('.')[-1].lower()
-    username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
     
-    # Get the file object and read its content
-    file_obj = context.bot.get_file(file_id)
-    file_bytes = io.BytesIO(file_obj.download_as_bytearray())
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
-        editable_assessments = context.user_data['assessments'] 
-        data_to_enter_marks = context.user_data['data_to_enter_marks']  
-        assess_data = [i for i in editable_assessments]
-        for assessment in assess_data:
-            wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
-            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
-                
-        if file_extension == 'xlsx':           
-            upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
-        elif file_extension == 'ods':    
-            upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
-        
-        files = count_files()
-        chat_id = update.message.chat.id
-        context.user_data['chat_id'] = chat_id
-        send_files(bot, chat_id, files)
-        delete_send_folder()
-        
-    update.message.reply_text("تمام انتهينا")
-    return ConversationHandler.END
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        print(username, password)
+        auth = get_auth(username,password)
+        if auth == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+            return CREDS_2
+        else:
+            update.message.reply_text("انتظر لحظة لو سمحت") 
+            # TODO: handle empty editable_assessments list
+            editable_assessments = get_editable_assessments(auth ,username)
+            data_to_enter_marks = get_required_data_to_enter_marks(auth ,username)
+            string = assessments_commands_text(editable_assessments)
+            update.message.reply_text(string)
+            context.user_data['assessments'] = editable_assessments
+            context.user_data['data_to_enter_marks'] = data_to_enter_marks
+            
+            update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
+            file_id = context.user_data['file']
+            file_name =context.user_data['file_name'] 
+            file_extension = file_name.split('.')[-1].lower()
+            username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
+            
+            # Get the file object and read its content
+            file_obj = context.bot.get_file(file_id)
+            file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+
+            assess_data = [i for i in editable_assessments]
+            for assessment in assess_data:
+                wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
+                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+                    
+            if file_extension == 'xlsx':           
+                upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            elif file_extension == 'ods':    
+                upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+            
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            
+        update.message.reply_text("تمام انتهينا")
+        return ConversationHandler.END
 
 # Define a function to handle incoming files
 def init_empty_fill(update, context):
@@ -95,11 +114,11 @@ def print_available_assessments(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        if get_auth(username, password) == False:
+        auth = get_auth(username,password)
+        if auth == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
             update.message.reply_text("انتظر لحظة لو سمحت") 
-            auth = get_auth(username,password)
             # TODO: handle empty editable_assessments list
             editable_assessments = get_editable_assessments(auth ,username)
             data_to_enter_marks = get_required_data_to_enter_marks(auth ,username)
@@ -149,10 +168,6 @@ def receive_file(update, context ):
         dispatcher.add_handler(MessageHandler(Filters.document, receive_file))
     '''
     
-    # # Check if the message contains a document
-    # if not update.message.document:
-    #     update.message.reply_text('Please send an Excel file.')
-    #     return
     message = update.message
     if message.document:
         file_id = message.document.file_id
@@ -201,7 +216,7 @@ def handle_question(update, context):
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
             elif file_extension == 'ods':
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
-            return CREDS
+            return CREDS_2
         elif question == 'document':
             update.message.reply_text("انتظر لحظة لو سمحت")  
             if file_extension == 'xlsx':           
@@ -215,7 +230,7 @@ def handle_question(update, context):
             delete_send_folder()
         elif question == 'marks':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
-            return CREDS
+            return CREDS_2
             # files = count_files()
             # chat_id = update.message.chat.id
             # context.user_data['chat_id'] = chat_id
@@ -228,9 +243,14 @@ def handle_question(update, context):
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
-def send_files(bot, chat_id, files):
-    for file in files:
-        bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
+def send_files(bot, chat_id, files , outdir='./send_folder'):
+    if len(files) >= 4:
+        create_zip(files)
+        delete_files_except('ملف مضغوط' , outdir)
+    else:
+        for file in files:
+            bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
+        return False
 
 # Lets us use the /help command
 def help_command(update, context):
@@ -455,10 +475,10 @@ if __name__ == '__main__':
                                         states={
                                             CREDS: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
                                             AVAILABLE_ASS: [MessageHandler(Filters.text , fill_assess_arbitrary)],
-                                            WAITING_FOR_RESPONSE: [MessageHandler(Filters.text, handle_response)],                                            
+                                            WAITING_FOR_RESPONSE: [MessageHandler(Filters.text, handle_response)],
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)],
-                                        allow_reentry=True  # To allow restarting the conversation while it's in progress
+                                        # allow_reentry=True  # To allow restarting the conversation while it's in progress
                                                         ) 
 
     fill_assess_arbitrary_empty_marks_conv = ConversationHandler(
@@ -509,9 +529,10 @@ if __name__ == '__main__':
                                         states={
                                             CREDS : [MessageHandler(Filters.text , check_creds )],
                                             FILE : [MessageHandler(Filters.text ,receive_file)]
-                                        },
+                                                },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
+
     # send_students_absent_doc_conv = ConversationHandler(
     
     send_e_side_marks_note_doc_conv = ConversationHandler(
@@ -526,14 +547,12 @@ if __name__ == '__main__':
                                     entry_points=[MessageHandler(Filters.document, receive_file)],
                                         states={
                                             ASK_QUESTION: [MessageHandler(Filters.text, handle_question)], 
-                                            # CREDS: [MessageHandler(Filters.text & ~Filters.command, get_user_creds)],
-                                            CREDS: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
-                                            AVAILABLE_ASS: [MessageHandler(Filters.text & ~Filters.command, upload_marks_bot_version)],
-                                        },
+                                            CREDS_2: [MessageHandler(Filters.text & ~Filters.command, upload_marks_bot_version)],
+                                            # CREDS_2: [MessageHandler(Filters.text & ~Filters.command, print_available_assessments)],
+                                                },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
-# ASK_FILE, ASK_QUESTION ,CREDS ,AVAILABLE_ASS 
 
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_official_marks_doc_conv)
