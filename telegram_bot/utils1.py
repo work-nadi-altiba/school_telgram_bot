@@ -33,6 +33,220 @@ import itertools
 import openpyxl
 import tempfile
 import zipfile
+from PyPDF4 import PdfFileMerger
+
+
+def side_marks_document_with_marks(username , password ,template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='side_mark_first_page.docx', template_dir='./templet_files/',term=1 , names_only=False):
+    auth = get_auth(username , password)
+    period_id = get_curr_period(auth)['data'][0]['id']
+    user = user_info(auth , username)
+    userInfo = user['data'][0]
+    user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
+    # years = get_curr_period(auth)
+    school_data = inst_name(auth)['data'][0]
+    inst_id = school_data['Institutions']['id']
+    school_name = school_data['Institutions']['name']
+    school_name_id = f'{school_name}={inst_id}'
+    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+    school_year = get_curr_period(auth)['data']
+    melady1 = str(school_year[0]['start_year'])
+    melady2 = str(school_year[0]['end_year'])
+    teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+    
+    # ما بعرف كيف سويتها لكن زبطت 
+    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+    classes_id_3 = []  
+    classes=[]
+    mawad=[]
+    modified_classes=[]
+    context={}
+
+    for class_info in classes_id_2:
+        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
+
+    for v in range(len(classes_id_1)):
+        # id
+        print (classes_id_3[v][0]['institution_class_id'])
+        id = classes_id_3[v][0]['institution_class_id']
+        # subject name 
+        print (classes_id_3[v][0]['sub_name'])
+        # class name
+        print (classes_id_3[v][0]['class_name'])
+        # class_name = classes_id_3[v][0]['class_name']
+        # subject id 
+        print (classes_id_3[v][0]['subject_id'])
+
+        mawad.append(classes_id_3[v][0]['sub_name'])
+        classes.append(classes_id_3[v][0]['class_name'])
+        class_name = classes_id_3[v][0]['class_name'].split('-')[0].replace('الصف ' , '')
+        class_char = classes_id_3[v][0]['class_name'].split('-')[1]
+        # sub_name = classes_id_3[v][0]['sub_name']    
+        
+        students = get_class_students(auth
+                                    ,period_id
+                                    ,classes_id_1[v]
+                                    ,classes_id_3[v][0]['institution_class_id']
+                                    ,inst_id)
+        students_names = sorted([i['user']['name'] for i in students['data']])
+        print(students_names)
+        students_id_and_names = []
+        
+        for IdAndName in students['data']:
+            students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+
+        marks_and_name = []
+
+        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
+        for student_data_item in students_id_and_names:   
+            for student_assessment_item in assessments_json['data']:
+                if student_assessment_item['student_id'] == student_data_item['student_id'] :  
+                    if student_assessment_item["marks"] is not None :
+                        dic['id'] = student_data_item['student_id'] 
+                        dic['name'] = student_data_item['student_name'] 
+                        if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment1'] = student_assessment_item["marks"] 
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment4']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment1']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment4']  = v["marks"]
+            marks_and_name.append(dic)
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+
+
+        marks_and_name = [d for d in marks_and_name if d['name'] != '']
+        marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
+        if 'عشر' in class_name :
+            counter = 0
+            for item in marks_and_name :
+                context[f'name{counter}'] = item['name']
+        else:
+            counter = 0
+            for item in marks_and_name :
+                context[f'name{counter}'] = item['name']
+                if not names_only :
+                    if term == 1 :
+                        context[f'A1_{counter}'] = item['term1']['assessment1']
+                        context[f'A2_{counter}'] = item['term1']['assessment2']
+                        context[f'A3_{counter}'] = item['term1']['assessment3']
+                        context[f'A4_{counter}'] = item['term1']['assessment4']
+                        SUM = int(item['term1']['assessment1'] if item['term1']['assessment1'] != '' else 0)+int(item['term1']['assessment2'] if item['term1']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item['term1']['assessment3']
+                    else:
+                        context[f'A1_{counter}'] = item['term2']['assessment1']
+                        context[f'A2_{counter}'] = item['term2']['assessment2']
+                        context[f'A3_{counter}'] = item['term2']['assessment3']
+                        context[f'A4_{counter}'] = item['term2']['assessment4']
+                        SUM = int(item['term2']['assessment1'] if item['term2']['assessment1'] != '' else 0)+int(item['term2']['assessment2'] if item['term2']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item['term2']['assessment3']
+                    
+                    try :                    
+                        variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
+                        variables.append(total - sum(variables))       
+                        context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
+                    except : 
+                        context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4                        
+                    
+                counter+=1 
+        context['teacher'] = userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name']
+        context[f'class_name'] = class_name+' '+ class_char
+        context[f'term'] = 'الأول' if term == 1 else 'الثاني'
+        context['school'] = school_name
+        context['directory'] = modeeriah
+        context['y1'] = melady1
+        context['y2'] = melady2
+        context['sub'] = classes_id_3[v][0]['sub_name']
+        fill_doc(template , context , outdir+f'send{v}.docx' )
+        context.clear()
+        generate_pdf(outdir+f'send{v}.docx' , outdir ,v)
+        delete_pdf_page(outdir+f'send{v}.pdf', outdir+f'SEND{v}.pdf', 1)
+        delete_file(outdir+f'send{v}.pdf')
+
+    for i in classes: 
+        modified_classes.append(mawad_representations(i))
+        
+    modified_classes = ' ، '.join(modified_classes)
+    mawad = sorted(set(mawad))
+    mawad = ' ، '.join(mawad)
+    context = {'school':school_name 
+            ,'classes' : modified_classes 
+            ,'subjects' : mawad
+            ,'teacher' : userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name'] 
+            ,'y1' : melady2 
+            ,'y2' : melady1}
+    fill_doc(template_dir+first_page , context , outdir+first_page )
+    generate_pdf(outdir+first_page , outdir ,first_page)
+    
+    input_files = get_pdf_files(outdir)
+    # Put ready_side_mark_first_page first on the list.
+    input_files.sort(reverse=False)
+    input_files.insert(0, input_files.pop(input_files.index(outdir+first_page.replace('docx','pdf'))))
+    output_path = "السجل الجانبي.pdf"
+    merge_pdfs(input_files, outdir+output_path)
+    [delete_file(i) for i in input_files]
+
+def merge_pdfs(input_files, output_file):
+    """Merges a list of PDF files into a single PDF file.
+
+    Args:
+    input_files: A list of PDF files to merge.
+    output_file: The name of the output PDF file.
+
+    Returns:
+    None.
+    """
+
+    merger = PdfFileMerger()
+
+    for file in input_files:
+        merger.append(file)
+
+    merger.write(output_file)
+
+def get_pdf_files(directory):
+    pdf_files = []
+
+    for filename in os.listdir(directory):
+        if filename.endswith('.pdf'):
+            pdf_files.append(os.path.join(directory, filename))
+
+    return pdf_files
+
+def delete_pdf_page(input_path, output_path, page_number):
+    with open(input_path, 'rb') as file:
+        pdf_reader = PyPDF4.PdfFileReader(file)
+        total_pages = len(pdf_reader.pages)
+
+        if page_number < 0 or page_number >= total_pages:
+            print("Invalid page number.")
+            return
+
+        pdf_writer = PyPDF4.PdfFileWriter()
+
+        for page in range(total_pages):
+            if page != page_number:
+                pdf_writer.addPage(pdf_reader.pages[page])
+
+        with open(output_path, 'wb') as output_file:
+            pdf_writer.write(output_file)
+
+        print("Page deletion completed.")
 
 def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folder/'):
     with zipfile.ZipFile(zip_path+zip_name, 'w') as zipf:
@@ -1893,10 +2107,10 @@ def get_assessment_id_from_grade_id(auth , grade_id):
 def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
-    userInfo = user_info(auth , username)['data'][0]
+    user = user_info(auth , username)
+    userInfo = user['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
     # years = get_curr_period(auth)
-    user = user_info(auth , username)
     school_data = inst_name(auth)['data'][0]
     inst_id = school_data['Institutions']['id']
     school_name = school_data['Institutions']['name']
@@ -2836,7 +3050,8 @@ def side_marks_document(username , password):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    user_id = user_info(auth , username)['data'][0]['id']
+    user = user_info(auth , username)['data']
+    user_id = user[0]['id']
     years = get_curr_period(auth)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
@@ -3015,8 +3230,8 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
 def main():
     print('starting script')
     
-    count_files()
-    breakpoint()
+    # side_marks_document(9971055725,9971055725)
+    side_marks_document_with_marks(9971055725,9971055725 , term =2 )
     
 if __name__ == "__main__":
     main()
