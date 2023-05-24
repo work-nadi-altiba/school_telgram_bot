@@ -33,8 +33,10 @@ import itertools
 import openpyxl
 import tempfile
 import zipfile
+from PyPDF4 import PdfFileMerger
 
-def side_marks_document_with_marks(username , password ,template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='ready_side_mark_first_page.docx', term=1):
+
+def side_marks_document_with_marks(username , password ,template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='side_mark_first_page.docx', template_dir='./templet_files/',term=1 , names_only=False):
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     user = user_info(auth , username)
@@ -136,34 +138,31 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
             counter = 0
             for item in marks_and_name :
                 context[f'name{counter}'] = item['name']
-                if term == 1 :
-                    context[f'A1_{counter}'] = item['term1']['assessment1']
-                    context[f'A2_{counter}'] = item['term1']['assessment2']
-                    context[f'A3_{counter}'] = item['term1']['assessment3']
-                    context[f'A4_{counter}'] = item['term1']['assessment4']
-                    SUM = int(item['term1']['assessment1'] if item['term1']['assessment1'] != '' else 0)+int(item['term1']['assessment2'] if item['term1']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
-                    context[f'S_{counter}'] = SUM if SUM !=0 else ''
-                    total = item['term1']['assessment3']
-                else:
-                    context[f'A1_{counter}'] = item['term2']['assessment1']
-                    context[f'A2_{counter}'] = item['term2']['assessment2']
-                    context[f'A3_{counter}'] = item['term2']['assessment3']
-                    context[f'A4_{counter}'] = item['term2']['assessment4']
-                    SUM = int(item['term1']['assessment1'] if item['term1']['assessment1'] != '' else 0)+int(item['term1']['assessment2'] if item['term1']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
-                    context[f'S_{counter}'] = SUM if SUM !=0 else ''
-                    total = item['term2']['assessment3']
-                
-                try :                    
-                    variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
-                    variables.append(total - sum(variables))       
-                    context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
-                except : 
-                    context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4
-                    # context[f'M1_{counter}'] = ''
-                    # context[f'M2_{counter}'] = ''
-                    # context[f'M3_{counter}'] = ''
-                    # context[f'M4_{counter}'] = ''
-                                        
+                if not names_only :
+                    if term == 1 :
+                        context[f'A1_{counter}'] = item['term1']['assessment1']
+                        context[f'A2_{counter}'] = item['term1']['assessment2']
+                        context[f'A3_{counter}'] = item['term1']['assessment3']
+                        context[f'A4_{counter}'] = item['term1']['assessment4']
+                        SUM = int(item['term1']['assessment1'] if item['term1']['assessment1'] != '' else 0)+int(item['term1']['assessment2'] if item['term1']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item['term1']['assessment3']
+                    else:
+                        context[f'A1_{counter}'] = item['term2']['assessment1']
+                        context[f'A2_{counter}'] = item['term2']['assessment2']
+                        context[f'A3_{counter}'] = item['term2']['assessment3']
+                        context[f'A4_{counter}'] = item['term2']['assessment4']
+                        SUM = int(item['term2']['assessment1'] if item['term2']['assessment1'] != '' else 0)+int(item['term2']['assessment2'] if item['term2']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item['term2']['assessment3']
+                    
+                    try :                    
+                        variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
+                        variables.append(total - sum(variables))       
+                        context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
+                    except : 
+                        context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4                        
+                    
                 counter+=1 
         context['teacher'] = userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name']
         context[f'class_name'] = class_name+' '+ class_char
@@ -191,15 +190,16 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
             ,'teacher' : userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name'] 
             ,'y1' : melady2 
             ,'y2' : melady1}
-    fill_doc(outdir+first_page , context , outdir+first_page )
-    generate_pdf(outdir+first_page , outdir ,v)
+    fill_doc(template_dir+first_page , context , outdir+first_page )
+    generate_pdf(outdir+first_page , outdir ,first_page)
     
-    input_files = get_pdf_files('./')
+    input_files = get_pdf_files(outdir)
     # Put ready_side_mark_first_page first on the list.
     input_files.sort(reverse=False)
-    input_files.insert(0, input_files.pop(input_files.index(outdir+first_page)))
+    input_files.insert(0, input_files.pop(input_files.index(outdir+first_page.replace('docx','pdf'))))
     output_path = "السجل الجانبي.pdf"
     merge_pdfs(input_files, outdir+output_path)
+    [delete_file(i) for i in input_files]
 
 def merge_pdfs(input_files, output_file):
     """Merges a list of PDF files into a single PDF file.
@@ -3231,7 +3231,7 @@ def main():
     print('starting script')
     
     # side_marks_document(9971055725,9971055725)
-    side_marks_document_with_marks(9971055725,9971055725)
+    side_marks_document_with_marks(9971055725,9971055725 , term =2 )
     
 if __name__ == "__main__":
     main()
