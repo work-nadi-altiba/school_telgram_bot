@@ -2885,7 +2885,7 @@ def my_jq(data):
 
 def make_request(url, auth):
     headers = {"Authorization": auth, "ControllerAction": "Results"}
-    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree']
+    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students']
     
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
