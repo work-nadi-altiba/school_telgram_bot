@@ -6,7 +6,7 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import production_bot  as token
+from keys import test_bot  as token
 import io
 
 print('Starting up bot...')
@@ -175,6 +175,20 @@ def receive_file(update, context ):
         context.user_data['file'] = file_id
         context.user_data['file_name'] = file_name
         
+        if file_name.split('.')[-1].lower() == 'ods':
+            file_obj = context.bot.get_file(file_id)
+            file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+    
+            if check_file_if_official_marks_file(file_content=file_bytes):
+                convert_official_marks_doc(file_content=file_bytes)
+                files = count_files()
+                chat_id = update.message.chat.id
+                context.user_data['chat_id'] = chat_id
+                send_files(bot, chat_id, files)
+                delete_send_folder()                
+                update.message.reply_text("تمام انتهينا")                
+                return ConversationHandler.END
+            
         receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
         /document طباعة سجل العلامات الرسمي من الملف فقط
         /marks ادخال العلامات من الملف فقط'''
@@ -183,20 +197,6 @@ def receive_file(update, context ):
     else:
         update.message.reply_text('No document file received. Please send a document file.')
         return ConversationHandler.END
-    
- 
-    # # Get the file object and read its content
-    # file_obj = context.bot.get_file(update.message.document.file_id)
-    # file_bytes = io.BytesIO(file_obj.download_as_bytearray())
-    # update.message.reply_text("انتظر لحظة لو سمحت")     
-    # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
-    # files = count_files()
-    # chat_id = update.message.chat.id
-    # send_files(bot, chat_id, files)
-    # delete_send_folder()
-
-    # update.message.reply_text('تم بنجاح')
-    # return ASK_QUESTION
 
 def handle_question(update, context):
     question = update.message.text.replace('/','')
@@ -209,7 +209,7 @@ def handle_question(update, context):
     file_bytes = io.BytesIO(file_obj.download_as_bytearray())
     if update.message.text == '/cancel':
         return cancel(update, context)
-    else:
+    else:       
         if question == 'document_marks':
             update.message.reply_text("انتظر لحظة لو سمحت")  
             if file_extension == 'xlsx':           
@@ -228,17 +228,13 @@ def handle_question(update, context):
             context.user_data['chat_id'] = chat_id
             send_files(bot, chat_id, files)
             delete_send_folder()
+            return ConversationHandler.END            
         elif question == 'marks':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
             return CREDS_2
-            # files = count_files()
-            # chat_id = update.message.chat.id
-            # context.user_data['chat_id'] = chat_id
-            # send_files(bot, chat_id, files)
-            # delete_send_folder()
         else:
-            update.message.reply_text('ادخال خاطيء')
-            return ASK_QUESTION
+                update.message.reply_text('ادخال خاطيء')
+                return ASK_QUESTION
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
