@@ -2537,7 +2537,7 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
     add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
     add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
-    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf"], outdir)
+    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
     
 def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1):
     ods_file = f'{ods_name}{ods_num}.ods'
@@ -2556,7 +2556,7 @@ def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outd
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
     add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
     add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
-    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf"], outdir)
+    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
 
 def delete_file(file_path):
     """Delete a file"""
@@ -2666,11 +2666,12 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
             }
             for mark_data in all_marks['data']:
                 if mark_data['student_id'] == student_data['student_id']:
-                    term_key = term_mapping.get(mark_data['assessment_period']['academic_term'])
-                    if term_key is not None:
-                        assessment_key = assessment_mapping.get(mark_data['assessment_period']['name'])
-                        if assessment_key is not None:
-                            student_marks[term_key][assessment_key] = mark_data['marks']
+                    if mark_data['marks'] is not None:
+                        term_key = term_mapping.get(mark_data['assessment_period']['academic_term'])
+                        if term_key is not None:
+                            assessment_key = assessment_mapping.get(mark_data['assessment_period']['name'])
+                            if assessment_key is not None:
+                                student_marks[term_key][assessment_key] = mark_data['marks']
             students_marks.append(student_marks)
 
         sorted_students_names_and_marks = sorted(students_marks, key=lambda x: x['name'])
@@ -3417,7 +3418,8 @@ def main():
     print('starting script')
     
     # side_marks_document(9971055725,9971055725)
-    side_marks_document_with_marks(9971055725,9971055725 , term =2 )
+    # fill_official_marks_doc_wrapper(9971055725,9971055725 )
+    
     
 if __name__ == "__main__":
     main()
