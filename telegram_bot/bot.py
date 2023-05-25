@@ -6,7 +6,7 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import test_bot  as token
+from keys import production_bot  as token
 import io
 
 print('Starting up bot...')
@@ -19,16 +19,49 @@ CREDS, FILE = range(2)
 ASK_QUESTION ,CREDS_2  = range(2)
 
 
-help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
+help_text = '''
+/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
 /side_marks_note لطباعة كشف العلامات الجانبي 
 /fill_assess_arbitrary لتسجيل العلامات العشوائية 
 /empty_assess لمسح علامات الصف 
+/check_marks اخذ عينة علامات طلاب في الصف
 /official_marks لطباعة ملف العلامات الرسمية 
 /certs لطباعة ملف الشهادات 
 /tables لطباعة ملفات الجداول 
-/cancel لألغاء العملية'''
+/cancel لألغاء العملية
+'''
 
-# TODO: make sure of every fallback function (cancle function)in the handler conversation 
+def init_check_five_names_marks(update, context):
+    update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS_2
+
+def which_term(update, context):
+    context.user_data['creds'] = update.message.text.split('/')
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        func_text = '''اختر الفصل بالضغط عليه
+        /term1
+        /term2'''
+        update.message.reply_text(func_text) 
+        return ASK_QUESTION
+        
+def print_check_five_names_marks(update, context):
+    term = update.message.text.replace('/','')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    auth = get_auth(username, password)
+    session = requests.Session()
+    update.message.reply_text("انتظر لحظة لو سمحت")     
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        if term == 'term1':
+            text = five_names_every_class_wrapper(auth,username,1,session)
+        elif term == "term2":
+            text = five_names_every_class_wrapper(auth,username,2,session)
+        update.message.reply_text(text) 
+        return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
     
@@ -451,7 +484,6 @@ def send_e_side_marks_note_doc(update, context):
             delete_send_folder()
             return ConversationHandler.END
 
-
 # Run the program
 if __name__ == '__main__':
     updater = Updater(token, use_context=True)
@@ -549,6 +581,14 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
+    check_five_names_marks_conv = ConversationHandler(
+                                    entry_points=[CommandHandler('check_marks', init_check_five_names_marks)],
+                                        states={
+                                            CREDS_2 : [MessageHandler(Filters.text , which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , print_check_five_names_marks)],
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
 
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_official_marks_doc_conv)
@@ -560,6 +600,7 @@ if __name__ == '__main__':
     # dp.add_handler(MessageHandler(Filters.document, receive_file))
     dp.add_handler(receive_file_handler_conv)
     dp.add_handler(send_students_certs_conv)
+    dp.add_handler(check_five_names_marks_conv)
 
     # Run the bot
     updater.start_polling(1.0)
