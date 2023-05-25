@@ -61,7 +61,6 @@ def convert_official_marks_doc(ods_name='send', outdir='./send_folder' ,ods_num=
     add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/سجل العلامات الرسمي_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
     delete_files_except([f"سجل العلامات الرسمي.pdf",f"سجل العلامات الرسمي_A4.pdf"], outdir)
     
-    
 def check_file_if_official_marks_file(file_path=None, file_content=None):
     if file_content is None:
         doc = ezodf.opendoc(file_path)
