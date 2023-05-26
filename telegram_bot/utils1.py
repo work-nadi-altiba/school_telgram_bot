@@ -35,6 +35,23 @@ import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
 
+def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
+    if id == None:
+        teachers = get_school_teachers(auth,nat_school=nat_school,session=session)['staff']
+    else:
+        teachers = get_school_teachers(auth,id=id,session=session)['staff']
+
+    working_teachers = [(teacher['name'],teacher['nat_id']) for teacher in teachers if teacher['staff_status'] == 1]
+
+    found_creds = []
+    for teacher in working_teachers:
+        if get_auth(teacher [1] , teacher [1]):
+            found_creds.append(teacher[1])
+            print('found password for this teacher ' + teacher[0]+' -----> '+teacher[1])
+        else: 
+            pass
+    return {'institution_staff': teachers , 'found_creds': found_creds}
+
 def five_names_every_class_wrapper(auth , emp_number ,term=1 , session=None):
     data = five_names_every_class(auth , emp_number ,session=session)
     term = 'term1' if term == 1 else 'term2'
@@ -878,19 +895,22 @@ def get_school_load(auth , inst_id ,academic_period_id=13):
                 arabic_class_sum+=7
     return {'english_school_sum' : english_class_sum , 'arabic_school_sum' : arabic_class_sum , 'math_school_sum' :  math_class_sum , 'classes' :  classes}
 
-def get_school_teachers(auth ,id=None , nat_school=None ):
+def get_school_teachers(auth ,id=None , nat_school=None ,session=None ,row=False):
     if id == None:
-        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:{nat_school}&_contain=Staff.Users,Staff.Positions')
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:{nat_school}&_contain=Staff.Users,Staff.Positions',session=session)
     else:
-        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={id}&_contain=Staff.Users,Staff.Positions')
+        teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={id}&_contain=Staff.Users,Staff.Positions',session=session)
     dic_list=[]
     for teacher in teachers['data'][0]['staff'] : 
         if teacher['staff_status_id'] == 1:
         # print(counter ,'-' , each['staff_name'])
             # dic_list.append(teacher['staff_name'])
             dic_list.append({'staffId':teacher['staff_id'],'name':teacher['name'] ,'position':teacher['position']['name'],'birthDate':teacher['user']['date_of_birth'], 'nat_id':teacher['user']['identity_number'],'default_nat_id':teacher['user']['default_identity_type'],'staff_type':teacher['staff_type_id'] , 'staff_status': teacher['staff_status_id']})
-    return {'school_code_name' : teachers['data'][0]['code_name'], 'staff' : dic_list}
-
+    if row :
+        return teachers
+    else:
+        return {'school_code_name' : teachers['data'][0]['code_name'], 'staff' : dic_list}
+    
 def get_school_teachers_load(auth , inst_id , academic_period_id=13):
     school_load = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&_contain=Users,InstitutionSubjects&academic_period_id={academic_period_id}&_limit=0')['data']
     
