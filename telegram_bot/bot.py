@@ -19,16 +19,49 @@ CREDS, FILE = range(2)
 ASK_QUESTION ,CREDS_2  = range(2)
 
 
-help_text = '''/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
+help_text = '''
+/e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
 /side_marks_note لطباعة كشف العلامات الجانبي 
 /fill_assess_arbitrary لتسجيل العلامات العشوائية 
 /empty_assess لمسح علامات الصف 
+/check_marks اخذ عينة علامات طلاب في الصف
 /official_marks لطباعة ملف العلامات الرسمية 
 /certs لطباعة ملف الشهادات 
 /tables لطباعة ملفات الجداول 
-/cancel لألغاء العملية'''
+/cancel لألغاء العملية
+'''
 
-# TODO: make sure of every fallback function (cancle function)in the handler conversation 
+def init_check_five_names_marks(update, context):
+    update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS_2
+
+def which_term(update, context):
+    context.user_data['creds'] = update.message.text.split('/')
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        func_text = '''اختر الفصل بالضغط عليه
+        /term1
+        /term2'''
+        update.message.reply_text(func_text) 
+        return ASK_QUESTION
+        
+def print_check_five_names_marks(update, context):
+    term = update.message.text.replace('/','')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    auth = get_auth(username, password)
+    session = requests.Session()
+    update.message.reply_text("انتظر لحظة لو سمحت")     
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        if term == 'term1':
+            text = five_names_every_class_wrapper(auth,username,1,session)
+        elif term == "term2":
+            text = five_names_every_class_wrapper(auth,username,2,session)
+        update.message.reply_text(text) 
+        return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
     
@@ -175,6 +208,20 @@ def receive_file(update, context ):
         context.user_data['file'] = file_id
         context.user_data['file_name'] = file_name
         
+        if file_name.split('.')[-1].lower() == 'ods':
+            file_obj = context.bot.get_file(file_id)
+            file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+    
+            if check_file_if_official_marks_file(file_content=file_bytes):
+                convert_official_marks_doc(file_content=file_bytes)
+                files = count_files()
+                chat_id = update.message.chat.id
+                context.user_data['chat_id'] = chat_id
+                send_files(bot, chat_id, files)
+                delete_send_folder()                
+                update.message.reply_text("تمام انتهينا")                
+                return ConversationHandler.END
+            
         receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
         /document طباعة سجل العلامات الرسمي من الملف فقط
         /marks ادخال العلامات من الملف فقط'''
@@ -183,20 +230,6 @@ def receive_file(update, context ):
     else:
         update.message.reply_text('No document file received. Please send a document file.')
         return ConversationHandler.END
-    
- 
-    # # Get the file object and read its content
-    # file_obj = context.bot.get_file(update.message.document.file_id)
-    # file_bytes = io.BytesIO(file_obj.download_as_bytearray())
-    # update.message.reply_text("انتظر لحظة لو سمحت")     
-    # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks(file_content=file_bytes))
-    # files = count_files()
-    # chat_id = update.message.chat.id
-    # send_files(bot, chat_id, files)
-    # delete_send_folder()
-
-    # update.message.reply_text('تم بنجاح')
-    # return ASK_QUESTION
 
 def handle_question(update, context):
     question = update.message.text.replace('/','')
@@ -209,7 +242,7 @@ def handle_question(update, context):
     file_bytes = io.BytesIO(file_obj.download_as_bytearray())
     if update.message.text == '/cancel':
         return cancel(update, context)
-    else:
+    else:       
         if question == 'document_marks':
             update.message.reply_text("انتظر لحظة لو سمحت")  
             if file_extension == 'xlsx':           
@@ -228,17 +261,13 @@ def handle_question(update, context):
             context.user_data['chat_id'] = chat_id
             send_files(bot, chat_id, files)
             delete_send_folder()
+            return ConversationHandler.END            
         elif question == 'marks':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
             return CREDS_2
-            # files = count_files()
-            # chat_id = update.message.chat.id
-            # context.user_data['chat_id'] = chat_id
-            # send_files(bot, chat_id, files)
-            # delete_send_folder()
         else:
-            update.message.reply_text('ادخال خاطيء')
-            return ASK_QUESTION
+                update.message.reply_text('ادخال خاطيء')
+                return ASK_QUESTION
 
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
@@ -455,7 +484,6 @@ def send_e_side_marks_note_doc(update, context):
             delete_send_folder()
             return ConversationHandler.END
 
-
 # Run the program
 if __name__ == '__main__':
     updater = Updater(token, use_context=True)
@@ -553,6 +581,14 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
+    check_five_names_marks_conv = ConversationHandler(
+                                    entry_points=[CommandHandler('check_marks', init_check_five_names_marks)],
+                                        states={
+                                            CREDS_2 : [MessageHandler(Filters.text , which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , print_check_five_names_marks)],
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
 
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_official_marks_doc_conv)
@@ -564,6 +600,7 @@ if __name__ == '__main__':
     # dp.add_handler(MessageHandler(Filters.document, receive_file))
     dp.add_handler(receive_file_handler_conv)
     dp.add_handler(send_students_certs_conv)
+    dp.add_handler(check_five_names_marks_conv)
 
     # Run the bot
     updater.start_polling(1.0)
