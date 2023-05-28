@@ -35,6 +35,36 @@ import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
 
+def find_parent_info(item_id ,area_data):
+    for item in area_data:
+        if item['id'] == item_id:
+            parent_id = item['parent_id']
+            name = item['name']
+            if parent_id in [3, 4, 5 ,1]:
+                return None, name
+            return parent_id, name
+    return None, None
+
+def find_area_chain(id):
+    names = []
+
+    while id is not None:
+        id, name = find_parent_info(id ,area_data)
+        if name:
+            names.append(name)
+    
+    names.reverse()  # Reverse the order of names            
+    output = ' - '.join(names)
+    return output
+
+def get_AreaAdministrativeLevels(auth,session=None):
+    url='https://emis.moe.gov.jo/openemis-core/restful/v2/Area-AreaAdministratives?_limit=0&_contain=AreaAdministrativeLevels&_fields=id,name,parent_id,area_administrative_level_id'
+    return make_request(auth=auth , url= url,session=session)
+
+def get_IdentityTypes(auth,session=None):
+    url='https://emis.moe.gov.jo/openemis-core/restful/v2/FieldOption-IdentityTypes.json?_limit=0&_fields=id,name'
+    return make_request(auth=auth , url=url ,session=session)
+    
 def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
     if id == None:
         teachers = get_school_teachers(auth,nat_school=nat_school,session=session)['staff']
