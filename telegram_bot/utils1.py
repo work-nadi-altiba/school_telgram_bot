@@ -35,6 +35,110 @@ import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
 
+def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None ,student_ids=None ,session=None):
+    
+    if identity_nos is not None :
+        joined_string = ','.join(str(i) for i in [f'identity_number:{i}' for i in identity_nos])
+    elif students_openemis_nos is not None :
+        joined_string = ','.join(str(i) for i in [f'openemis_no:{i}' for i in students_openemis_nos])
+    elif student_ids is not None :
+        url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
+        student_ids= make_request(url,auth,session=session)
+        student_ids =list(set([i['student_id'] for i in student_ids['data'] ]))
+        joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
+    else :
+        # احضر بيانات الصف الي مع المعلم
+        class_data_url='https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_fields=id,name,institution_id,academic_period_id'
+        class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
+        academic_period_id = class_data['academic_period_id']
+        institution_class_id = class_data['id']
+        institution_id = class_data['institution_id']
+        # احضر اسماء الطلاب في الصف
+        url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
+        student_ids= make_request(url,auth,session=session)
+        student_ids =list(set([i['student_id'] for i in student_ids['data'] ]))
+        joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
+        
+    url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
+    students_info_data= make_request(auth=auth , url=url,session=session)['data']
+
+    for data_item in students_info_data:
+        ''' 
+        تفاصيل حقول البييانات الاحصائية للطالب custom_field_values keys
+            1 ==> اسم الأم (الاسم الاول والعائلة)  variable: 'mother_name'
+            5 ==> عمل ولي الأمر    variable: 'guardian_employment'
+            6 ==> عدد أفراد الأسرة     variable: 'family_size'
+            7 ==> ترتيب الطالب بين اخوانه  variable: 'student_siblings_rank'
+            9 ==> دخل الأسرة الشهري    variable: 'monthly_family_income'
+            11 ==> اسم ولي الأمر   variable: 'guardian_name'
+            12 ==> مستوى تعليم الاب    variable: 'father_education_level'
+            13 ==> الحالة الاجتماعية   variable: 'marital_status'
+            14 ==> مستوى تعليم الام    variable: 'mother_education_level'
+            15 ==> الوضع الصحي للطالب  variable: 'student_health_status'
+            17 ==> الوضع الدراسي للطالب    variable: 'student_academic_status'
+            18 ==> صفة بطاقة الغوث     variable: 'govt_card_attribute'
+            19 ==> علاقة ولي الامر بالطالب     variable: 'guardian_student_relationship'
+            20 ==> المساعدات الخارجية (إن وجدت)    variable: 'external_aid_available'
+            21 ==> نوع الدراسة     variable: 'study_type'
+            22 ==> الديانة     variable: 'religion'
+            28 ==> هل التحق الطالب/الطالبة برياض الاطفال؟  variable: 'did_student_attend_kindergarten'
+            30 ==> هل الاسرة مسجلة بالمعونة الوطنية؟   variable: 'is_family_registered_nationally'
+            31 ==> هاتف ولي امر الطالب     variable: 'guardian_phone_number'
+            32 ==> جنسية الام  variable: 'mother_nationality'
+            37 ==> هل التحق الطالب بالبرنامج الدولي    variable: 'did_student_join_international_program'
+                                    الموهبة    variable: 'talent'
+                                التفوق و الموهبة   variable: 'excellence_and_talent'
+                                التفوق العقلي     variable: 'intellectual_excellence'   
+        '''
+
+        custom_field_values = data_item['custom_field_values'] 
+        custom_field_values_dict = {item['student_custom_field_id']: str(item[key]) for item in custom_field_values 
+                                                                                        for key in ['text_value', 
+                                                                                                    'number_value', 
+                                                                                                    'decimal_value', 
+                                                                                                    'textarea_value', 
+                                                                                                    'date_value', 
+                                                                                                    'time_value'] 
+                                                                                            if item.get(key) is not None}
+        options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي',86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام',117: 'نفسه',118: 'عم-عمه',119: 'جد-جدة',120: 'خال-خالة',121: 'اخ-اخت',136: 'اخرى',100: 'سليم',101: 'غير سليم',110: 'ناجح',111: 'معيد',112: 'متسرب',122: 'لا يوجد',123: 'يوجد',144: 'نعم',145: 'لا',127: 'الاسلام',128: 'المسيحية',113: 'لا يحمل بطاقة',114: 'لاجئ',137: 'روضة 2 (تمهيدي)',138: 'روضة 1 (بستان)',141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر',166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل',173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' }        
+        variables = {
+            'mother_name': 1,
+            'guardian_employment': 5,
+            'student_siblings_rank': 7,
+            'family_size': 6,
+            'monthly_family_income': 9,
+            'guardian_name': 11,
+            'father_education_level': 12,
+            'marital_status': 13,
+            'mother_education_level': 14,
+            'student_health_status': 15,
+            'student_academic_status': 17,
+            'govt_card_attribute': 18,
+            'guardian_student_relationship': 19,
+            'external_aid_available': 20,
+            'study_type': 21,
+            'religion': 22,
+            'did_student_attend_kindergarten': 28,
+            'is_family_registered_nationally': 30,
+            'guardian_phone_number': 31,
+            'mother_nationality': 32,
+            'did_student_join_international_program': 37,
+            'did_student_attend_kindergarten' : '',
+            'intelligence_giftedness' : '',
+            'talent_and_giftedness' : '',
+            'talent' : '',
+            }
+
+
+        result = {var_name: custom_field_values_dict.get(var_id, '') for var_name, var_id in variables.items()}
+        # print(result)
+        result = {
+            key: options_values_dic[int(value)] if value.isdigit() and int(value) in options_values_dic else value
+            for key, value in result.items()
+        }
+
+        return result
+    
 def find_parent_info(item_id ,area_data):
     for item in area_data:
         if item['id'] == item_id:
@@ -73,14 +177,14 @@ def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
 
     working_teachers = [(teacher['name'],teacher['nat_id']) for teacher in teachers if teacher['staff_status'] == 1]
 
-    found_creds = []
+    found_creds,unfound_creds = [],[]
     for teacher in working_teachers:
         if get_auth(teacher [1] , teacher [1]):
             found_creds.append(teacher[1])
             print('found password for this teacher ' + teacher[0]+' -----> '+teacher[1])
         else: 
-            pass
-    return {'institution_staff': teachers , 'found_creds': found_creds}
+            unfound_creds.append(str(teacher[0]+'-'+teacher[1]))
+    return {'institution_staff': teachers , 'found_creds': found_creds ,'unfound_creds': unfound_creds}
 
 def five_names_every_class_wrapper(auth , emp_number ,term=1 , session=None):
     data = five_names_every_class(auth , emp_number ,session=session)
@@ -788,39 +892,39 @@ def upload_marks(username , password , classess_data ):
         
         assessments_periods_data = classess_data['required_data_for_mrks_enter']
         for class_data in classess_data['file_data']:
-                class_id = class_data['class_name'].split('=')[2] 
-                class_subject = class_data['class_name'].split('=')[3]
-                class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
-                if 'عشر' in class_name : 
-                    students_marks_ids = class_data['students_data']
-                    assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
-                    grade_id = assessments_periods_data[int(class_id)]['grade_id']
-                    assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
-                    # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
-                    # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
-                    for student_info in students_marks_ids:
-                        for code in assessment_codes:
-                            if len([i for i in assessment_periods if code in i['code']]) != 0:
-                                assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
-                                term = assessment_code_dic[code]['term']
-                                assess = assessment_code_dic[code]['assess']
-                                term_marks = student_info[term]
-                                mark = term_marks.get(assess)
-                                if mark != '':
-                                    enter_mark(
-                                            auth,
-                                            marks=str("{:.2f}".format(float(mark))),
-                                            assessment_grading_option_id=8,
-                                            assessment_id=assessment_grade_id,
-                                            education_subject_id=class_subject,
-                                            education_grade_id=grade_id,
-                                            institution_id=school_id,
-                                            academic_period_id=period_id,
-                                            institution_classes_id=class_id,
-                                            student_status_id=1,
-                                            student_id=student_info['id'],
-                                            assessment_period_id=assessment_period_id
-                                            )                   
+            class_id = class_data['class_name'].split('=')[2] 
+            class_subject = class_data['class_name'].split('=')[3]
+            class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+            if 'عشر' in class_name : 
+                students_marks_ids = class_data['students_data']
+                assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+                grade_id = assessments_periods_data[int(class_id)]['grade_id']
+                assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
+                # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+                # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+                for student_info in students_marks_ids:
+                    for code in assessment_codes:
+                        if len([i for i in assessment_periods if code in i['code']]) != 0:
+                            assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                            term = assessment_code_dic[code]['term']
+                            assess = assessment_code_dic[code]['assess']
+                            term_marks = student_info[term]
+                            mark = term_marks.get(assess)
+                            if mark != '':
+                                enter_mark(
+                                        auth,
+                                        marks=str("{:.2f}".format(float(mark))),
+                                        assessment_grading_option_id=8,
+                                        assessment_id=assessment_grade_id,
+                                        education_subject_id=class_subject,
+                                        education_grade_id=grade_id,
+                                        institution_id=school_id,
+                                        academic_period_id=period_id,
+                                        institution_classes_id=class_id,
+                                        student_status_id=1,
+                                        student_id=student_info['id'],
+                                        assessment_period_id=assessment_period_id
+                                        )                   
 
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     dic_list = []
