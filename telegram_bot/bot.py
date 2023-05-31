@@ -60,7 +60,9 @@ def print_check_five_names_marks(update, context):
             text = five_names_every_class_wrapper(auth,username,1,session)
         elif term == "term2":
             text = five_names_every_class_wrapper(auth,username,2,session)
-        update.message.reply_text(text) 
+        
+        for t in text.split('----------------------------------------------------------------------')[:-1]:
+            update.message.reply_text(t) 
         return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
