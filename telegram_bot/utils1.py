@@ -42,9 +42,6 @@ def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None
     elif students_openemis_nos is not None :
         joined_string = ','.join(str(i) for i in [f'openemis_no:{i}' for i in students_openemis_nos])
     elif student_ids is not None :
-        url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
-        student_ids= make_request(url,auth,session=session)
-        student_ids =list(set([i['student_id'] for i in student_ids['data'] ]))
         joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
     else :
         # احضر بيانات الصف الي مع المعلم
@@ -60,8 +57,11 @@ def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None
         joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
         
     url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
+    nationality_data = { i['id'] : i['name']  for i in make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
     students_info_data= make_request(auth=auth , url=url,session=session)['data']
-
+    area_data = get_AreaAdministrativeLevels(auth,session=session)['data']
+    identity_types =get_IdentityTypes(auth,session=session)
+    
     for data_item in students_info_data:
         ''' 
         تفاصيل حقول البييانات الاحصائية للطالب custom_field_values keys
@@ -100,7 +100,13 @@ def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None
                                                                                                     'date_value', 
                                                                                                     'time_value'] 
                                                                                             if item.get(key) is not None}
-        options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي',86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام',117: 'نفسه',118: 'عم-عمه',119: 'جد-جدة',120: 'خال-خالة',121: 'اخ-اخت',136: 'اخرى',100: 'سليم',101: 'غير سليم',110: 'ناجح',111: 'معيد',112: 'متسرب',122: 'لا يوجد',123: 'يوجد',144: 'نعم',145: 'لا',127: 'الاسلام',128: 'المسيحية',113: 'لا يحمل بطاقة',114: 'لاجئ',137: 'روضة 2 (تمهيدي)',138: 'روضة 1 (بستان)',141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر',166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل',173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' }        
+        options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي'
+                            ,86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام'
+                            ,117: 'نفسه',118: 'عم-عمه',119: 'جد-جدة',120: 'خال-خالة',121: 'اخ-اخت',136: 'اخرى',100: 'سليم',101: 'غير سليم',110: 'ناجح',111: 'معيد',112: 'متسرب'
+                            ,122: 'لا يوجد',123: 'يوجد',144: 'نعم',145: 'لا',127: 'الاسلام',128: 'المسيحية',113: 'لا يحمل بطاقة',114: 'لاجئ',137: 'روضة 2 (تمهيدي)',138: 'روضة 1 (بستان)'
+                            ,141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر'
+                            ,166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل'
+                            ,173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' ,1:"ذكر" ,2:"انثى" }
         variables = {
             'mother_name': 1,
             'guardian_employment': 5,
@@ -129,14 +135,26 @@ def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None
             'talent' : '',
             }
 
-
         result = {var_name: custom_field_values_dict.get(var_id, '') for var_name, var_id in variables.items()}
         # print(result)
         result = {
             key: options_values_dic[int(value)] if value.isdigit() and int(value) in options_values_dic else value
             for key, value in result.items()
         }
-
+        result['birthPlace_area'] = data_item['birthplace_area']['name']
+        result['identity_type'] =  '' if identity_types[data_item['identity_type_id']] != 825 else identity_types[data_item['identity_type_id']]
+        result['student_id'] = data_item['username']
+        result['first_name'] = data_item['first_name']
+        result['second_name'] = data_item['middle_name']
+        result['third_name'] = data_item['third_name']
+        result['last_name'] = data_item['last_name']
+        result['birth_date'] = data_item['date_of_birth']
+        result['nationality'] = nationality_data[data_item['nationality_id']]
+        result['nationality'] = options_values_dic[data_item['gender_id']]
+        result['resident_governorate'] = find_area_chain(data_item['address_area_id']).split(' - ')[0]
+        result['resident_district'] = find_area_chain(data_item['address_area_id']).split(' - ')[1]
+        result['resident_quarter'] = find_area_chain(data_item['address_area_id']).split(' - ')[2]
+ 
         return result
     
 def find_parent_info(item_id ,area_data):
@@ -167,7 +185,7 @@ def get_AreaAdministrativeLevels(auth,session=None):
 
 def get_IdentityTypes(auth,session=None):
     url='https://emis.moe.gov.jo/openemis-core/restful/v2/FieldOption-IdentityTypes.json?_limit=0&_fields=id,name'
-    return make_request(auth=auth , url=url ,session=session)
+    return { i['id'] : i['name']  for i in make_request(auth=auth , url=url ,session=session)['data']}
     
 def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
     if id == None:
@@ -289,7 +307,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
                             dic['term2']['assessment3']  = student_assessment_item["marks"]
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = v["marks"]
+                            dic['term2']['assessment4']  = student_assessment_item["marks"]
             marks_and_name.append(dic)
             dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
 
