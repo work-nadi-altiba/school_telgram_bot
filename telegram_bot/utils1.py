@@ -35,32 +35,136 @@ import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
 
-def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None ,student_ids=None ,session=None):
-    
-    if identity_nos is not None :
-        joined_string = ','.join(str(i) for i in [f'identity_number:{i}' for i in identity_nos])
-    elif students_openemis_nos is not None :
-        joined_string = ','.join(str(i) for i in [f'openemis_no:{i}' for i in students_openemis_nos])
-    elif student_ids is not None :
-        joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
-    else :
+def get_basic_stuednt_informations():
+    # Load the Excel workbook
+    workbook = openpyxl.load_workbook('كشف البيانات الاساسية للطلاب.xlsx')
+
+    # Specify the page ranges and column ranges to enter data into
+    page_ranges = [
+        ('sheet', 8, 25, 'A', 'AK'),
+        ('sheet', 39, 56, 'A', 'AK'),
+        ('sheet', 70, 87, 'A', 'AK'),
+        ('sheet', 101, 118, 'A', 'AK')
+    ]
+
+    # List of dictionaries to insert
+    data_list = [
+        {'name': 'John', 'age': 25, 'city': 'New York', 'grade': 'A', 'score': 90},
+        {'name': 'Alice', 'age': 30, 'city': 'London', 'grade': 'B', 'score': 85},
+        {'name': 'Bob', 'age': 28, 'city': 'Paris', 'grade': 'A', 'score': 92}
+    ]
+
+    counter = 1
+
+    # Iterate over each page range and insert data from the dictionary list
+    for sheet_name, start_row, end_row, start_column, end_column in page_ranges:
+        sheet = workbook[sheet_name]
+        for row_number, dataFrame in zip(range(start_row, end_row+1), student_details):
+            if counter > len(student_details):
+                break
+            sheet.cell(row=row_number, column=1).value = counter
+            sheet.cell(row=row_number, column=2).value = dataFrame['student_id']
+            sheet.cell(row=row_number, column=3).value = dataFrame['identity_type']
+            sheet.cell(row=row_number, column=4).value = dataFrame['first_name']
+            sheet.cell(row=row_number, column=5).value = dataFrame['second_name']
+            sheet.cell(row=row_number, column=6).value = dataFrame['third_name']
+            sheet.cell(row=row_number, column=7).value = dataFrame['last_name']
+            sheet.cell(row=row_number, column=8).value = dataFrame['birthPlace_area']
+            sheet.cell(row=row_number, column=9).value = dataFrame['birth_date'].replace('-','/')
+            sheet.cell(row=row_number, column=10).value = dataFrame['nationality']
+            sheet.cell(row=row_number, column=11).value = dataFrame['sex']
+            sheet.cell(row=row_number, column=12).value = dataFrame['resident_governorate']
+            sheet.cell(row=row_number, column=13).value = dataFrame['resident_district']
+            sheet.cell(row=row_number, column=14).value = dataFrame['resident_quarter']
+            sheet.cell(row=row_number, column=15).value = ''                                # dataFrame['identity_type']
+            sheet.cell(row=row_number, column=16).value = ''
+            sheet.cell(row=row_number, column=17).value = counter                                 # dataFrame['student_id']
+            sheet.cell(row=row_number, column=18).value = dataFrame['student_id']
+            sheet.cell(row=row_number, column=19).value = dataFrame['first_name']+' '+dataFrame['last_name']
+            sheet.cell(row=row_number, column=20).value = dataFrame['marital_status']
+            sheet.cell(row=row_number, column=21).value = dataFrame['mother_name']
+            sheet.cell(row=row_number, column=22).value = dataFrame['study_type']
+            sheet.cell(row=row_number, column=23).value = dataFrame['father_education_level']
+            sheet.cell(row=row_number, column=24).value = dataFrame['mother_education_level']
+            sheet.cell(row=row_number, column=25).value = dataFrame['guardian_name']
+            sheet.cell(row=row_number, column=26).value = dataFrame['guardian_student_relationship']
+            sheet.cell(row=row_number, column=27).value = dataFrame['guardian_employment']
+            sheet.cell(row=row_number, column=28).value = dataFrame['family_size']
+            sheet.cell(row=row_number, column=29).value = dataFrame['student_siblings_rank']
+            sheet.cell(row=row_number, column=30).value = dataFrame['student_health_status']
+            sheet.cell(row=row_number, column=31).value = dataFrame['student_academic_status']
+            sheet.cell(row=row_number, column=32).value = dataFrame['external_aid_available']
+            sheet.cell(row=row_number, column=33).value = dataFrame['monthly_family_income']
+            sheet.cell(row=row_number, column=34).value = dataFrame['religion']
+            sheet.cell(row=row_number, column=35).value = dataFrame['govt_card_attribute']
+            sheet.cell(row=row_number, column=35).value = dataFrame['guardian_phone_number']
+            counter += 1
+        
+    # Save the workbook
+    workbook.save('your_file.xlsx')
+
+
+def get_student_statistic_info(auth, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None):
+    final_dict_info = []
+    identity_types = get_IdentityTypes(auth, session=session)
+    area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+    nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
+
+    if identity_nos is not None:
+        for chunk in chunks(identity_nos, 20):
+            joined_string = ','.join([f'identity_number:{i}' for i in chunk])
+            url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere={joined_string}'
+            students_info_data = make_request(auth=auth, url=url, session=session)['data']
+            final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
+
+    elif students_openemis_nos is not None:
+        for chunk in chunks(students_openemis_nos, 20):
+            joined_string = ','.join([f'openemis_no:{i}' for i in chunk])
+            url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere={joined_string}'
+            students_info_data = make_request(auth=auth, url=url, session=session)['data']
+            final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
+
+    else : 
         # احضر بيانات الصف الي مع المعلم
         class_data_url='https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_fields=id,name,institution_id,academic_period_id'
         class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
-        academic_period_id = class_data['academic_period_id']
-        institution_class_id = class_data['id']
-        institution_id = class_data['institution_id']
-        # احضر اسماء الطلاب في الصف
+        academic_period_id,institution_class_id ,institution_id = class_data['academic_period_id'] , class_data['id'],class_data['institution_id']
+        # # احضر اسماء الطلاب في الصف
         url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
         student_ids= make_request(url,auth,session=session)
         student_ids =list(set([i['student_id'] for i in student_ids['data'] ]))
-        joined_string = ','.join(str(i) for i in [f'id:{i}' for i in student_ids])
-        
-    url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
-    nationality_data = { i['id'] : i['name']  for i in make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
-    students_info_data= make_request(auth=auth , url=url,session=session)['data']
-    area_data = get_AreaAdministrativeLevels(auth,session=session)['data']
-    identity_types =get_IdentityTypes(auth,session=session)
+        for i in range(0, len(student_ids), 20):
+            start = i
+            end = i+19 if i+19 < len(student_ids) else i+(len(student_ids)-i)-1
+            ids = [i for i in  student_ids[start:end]]
+            joined_string = ','.join(str(i) for i in [f'id:{i}' for i in ids])
+            url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
+            students_info_data = make_request(auth=auth , url=url,session=session)['data']
+            final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
+                
+    return sorted(final_dict_info, key=lambda x: x['full_name'])
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def process_students_info(students_info_data, identity_types, nationality_data , area_data):
+    dic_list=[]
+    options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي'
+                        ,86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام'
+                        ,117: 'نفسه',118: 'عم-عمه',119: 'جد-جدة',120: 'خال-خالة',121: 'اخ-اخت',136: 'اخرى',100: 'سليم',101: 'غير سليم',110: 'ناجح',111: 'معيد',112: 'متسرب'
+                        ,122: 'لا يوجد',123: 'يوجد',144: 'نعم',145: 'لا',127: 'الاسلام',128: 'المسيحية',113: 'لا يحمل بطاقة',114: 'لاجئ',137: 'روضة 2 (تمهيدي)',138: 'روضة 1 (بستان)'
+                        ,141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر'
+                        ,166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل'
+                        ,173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' ,1:"ذكر" ,2:"انثى" }
+    variables = {'mother_name': 1,'guardian_employment': 5,'student_siblings_rank': 7,'family_size': 6,
+        'monthly_family_income': 9,'guardian_name': 11,'father_education_level': 12,'marital_status': 13,
+        'mother_education_level': 14,'student_health_status': 15,'student_academic_status': 17,'govt_card_attribute': 18,
+        'guardian_student_relationship': 19,'external_aid_available': 20,'study_type': 21,'religion': 22,'did_student_attend_kindergarten': 28,
+        'is_family_registered_nationally': 30,'guardian_phone_number': 31,'mother_nationality': 32,'did_student_join_international_program': 37,
+        'did_student_attend_kindergarten' : '','intelligence_giftedness' : '','talent_and_giftedness' : '','talent' : '',
+        }
     
     for data_item in students_info_data:
         ''' 
@@ -99,63 +203,35 @@ def get_student_statistic_info(auth,identity_nos=None,students_openemis_nos=None
                                                                                                     'textarea_value', 
                                                                                                     'date_value', 
                                                                                                     'time_value'] 
-                                                                                            if item.get(key) is not None}
-        options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي'
-                            ,86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام'
-                            ,117: 'نفسه',118: 'عم-عمه',119: 'جد-جدة',120: 'خال-خالة',121: 'اخ-اخت',136: 'اخرى',100: 'سليم',101: 'غير سليم',110: 'ناجح',111: 'معيد',112: 'متسرب'
-                            ,122: 'لا يوجد',123: 'يوجد',144: 'نعم',145: 'لا',127: 'الاسلام',128: 'المسيحية',113: 'لا يحمل بطاقة',114: 'لاجئ',137: 'روضة 2 (تمهيدي)',138: 'روضة 1 (بستان)'
-                            ,141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر'
-                            ,166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل'
-                            ,173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' ,1:"ذكر" ,2:"انثى" }
-        variables = {
-            'mother_name': 1,
-            'guardian_employment': 5,
-            'student_siblings_rank': 7,
-            'family_size': 6,
-            'monthly_family_income': 9,
-            'guardian_name': 11,
-            'father_education_level': 12,
-            'marital_status': 13,
-            'mother_education_level': 14,
-            'student_health_status': 15,
-            'student_academic_status': 17,
-            'govt_card_attribute': 18,
-            'guardian_student_relationship': 19,
-            'external_aid_available': 20,
-            'study_type': 21,
-            'religion': 22,
-            'did_student_attend_kindergarten': 28,
-            'is_family_registered_nationally': 30,
-            'guardian_phone_number': 31,
-            'mother_nationality': 32,
-            'did_student_join_international_program': 37,
-            'did_student_attend_kindergarten' : '',
-            'intelligence_giftedness' : '',
-            'talent_and_giftedness' : '',
-            'talent' : '',
-            }
+                                                                                            if item.get(key) is not None }
 
         result = {var_name: custom_field_values_dict.get(var_id, '') for var_name, var_id in variables.items()}
-        # print(result)
         result = {
-            key: options_values_dic[int(value)] if value.isdigit() and int(value) in options_values_dic else value
-            for key, value in result.items()
+            key: options_values_dic[int(val)] if val.isdigit() 
+                and int(val) in options_values_dic  
+                    and key not in ['family_size', 'monthly_family_income', 'student_siblings_rank', 'guardian_phone_number'] 
+            else val
+            for key, val in result.items()
         }
+
+        area_chain = find_area_chain(data_item['address_area_id'], area_data).split(' - ')
         result['birthPlace_area'] = data_item['birthplace_area']['name']
         result['identity_type'] =  '' if identity_types[data_item['identity_type_id']] != 825 else identity_types[data_item['identity_type_id']]
-        result['student_id'] = data_item['username']
+        result['student_id'] = data_item['identities'][0]['number']
+        result['full_name'] = data_item['name']
         result['first_name'] = data_item['first_name']
         result['second_name'] = data_item['middle_name']
         result['third_name'] = data_item['third_name']
         result['last_name'] = data_item['last_name']
         result['birth_date'] = data_item['date_of_birth']
         result['nationality'] = nationality_data[data_item['nationality_id']]
-        result['nationality'] = options_values_dic[data_item['gender_id']]
-        result['resident_governorate'] = find_area_chain(data_item['address_area_id']).split(' - ')[0]
-        result['resident_district'] = find_area_chain(data_item['address_area_id']).split(' - ')[1]
-        result['resident_quarter'] = find_area_chain(data_item['address_area_id']).split(' - ')[2]
- 
-        return result
+        result['sex'] = options_values_dic[data_item['gender_id']]
+        result['resident_governorate'] = area_chain[0] if len(area_chain) == 1 else ''
+        result['resident_district'] = area_chain[1] if len(area_chain) == 2 else ''
+        result['resident_quarter'] = area_chain[2] if len(area_chain) == 3 else ''                
+        dic_list.append(result)
+    
+    return dic_list
     
 def find_parent_info(item_id ,area_data):
     for item in area_data:
@@ -167,7 +243,7 @@ def find_parent_info(item_id ,area_data):
             return parent_id, name
     return None, None
 
-def find_area_chain(id):
+def find_area_chain(id,area_data):
     names = []
 
     while id is not None:
