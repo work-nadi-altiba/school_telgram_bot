@@ -35,30 +35,32 @@ import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
 
-def get_basic_stuednt_informations():
+def fill_Template_With_basic_Student_info(student_details,template='./templet_files/كشف البيانات الاساسية للطلاب.xlsx' ,outdir='./send_folder' ):
     # Load the Excel workbook
-    workbook = openpyxl.load_workbook('كشف البيانات الاساسية للطلاب.xlsx')
+    workbook = openpyxl.load_workbook(template)
 
+    sheet = workbook.active
     # Specify the page ranges and column ranges to enter data into
     page_ranges = [
-        ('sheet', 8, 25, 'A', 'AK'),
-        ('sheet', 39, 56, 'A', 'AK'),
-        ('sheet', 70, 87, 'A', 'AK'),
-        ('sheet', 101, 118, 'A', 'AK')
-    ]
-
-    # List of dictionaries to insert
-    data_list = [
-        {'name': 'John', 'age': 25, 'city': 'New York', 'grade': 'A', 'score': 90},
-        {'name': 'Alice', 'age': 30, 'city': 'London', 'grade': 'B', 'score': 85},
-        {'name': 'Bob', 'age': 28, 'city': 'Paris', 'grade': 'A', 'score': 92}
+        (8, 25),
+        (39, 56),
+        (70, 87),
+        (101, 118)
     ]
 
     counter = 1
-
+    
+    class_data = student_details['class_name'].split('-')
+    class_name , class_distribution = class_data[1] , class_data[0]
+    
+    school_name , school_code = student_details['school_name_code'].split(' - ')[1] , [int(digit) for digit in  student_details['school_name_code'].split(' - ')[0] ]
+    teacher_incharge_name = student_details['teacher_incharge_name']
+    principle_name = student_details['principle_name']
+    student_details = student_details['students_info']
+                                            
+    
     # Iterate over each page range and insert data from the dictionary list
-    for sheet_name, start_row, end_row, start_column, end_column in page_ranges:
-        sheet = workbook[sheet_name]
+    for start_row, end_row in page_ranges:
         for row_number, dataFrame in zip(range(start_row, end_row+1), student_details):
             if counter > len(student_details):
                 break
@@ -98,13 +100,24 @@ def get_basic_stuednt_informations():
             sheet.cell(row=row_number, column=34).value = dataFrame['religion']
             sheet.cell(row=row_number, column=35).value = dataFrame['govt_card_attribute']
             sheet.cell(row=row_number, column=35).value = dataFrame['guardian_phone_number']
-            counter += 1
+    
+    sheet.cell(row=1, column=39).value = school_name
+    sheet.cell(row=3, column=39).value = class_distribution
+    sheet.cell(row=4, column=39).value = class_name.replace('الصف', '')
+    sheet.cell(row=5, column=39).value = teacher_incharge_name
+    sheet.cell(row=6, column=39).value = principle_name
+    
+    for column_idx , digit in enumerate(school_code,start=39):
+        sheet.cell(row=2, column=column_idx).value = digit
+
         
+        counter += 1
+    
     # Save the workbook
-    workbook.save('your_file.xlsx')
+    workbook.save(outdir+'/your_file.xlsx')
 
-
-def get_student_statistic_info(auth, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None):
+def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None):
+    auth = get_auth(username,password)
     final_dict_info = []
     identity_types = get_IdentityTypes(auth, session=session)
     area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
@@ -126,9 +139,15 @@ def get_student_statistic_info(auth, identity_nos=None, students_openemis_nos=No
 
     else : 
         # احضر بيانات الصف الي مع المعلم
-        class_data_url='https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_fields=id,name,institution_id,academic_period_id'
+        class_data_url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name'
         class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
-        academic_period_id,institution_class_id ,institution_id = class_data['academic_period_id'] , class_data['id'],class_data['institution_id']
+        academic_period_id,institution_class_id ,institution_id ,class_name ,institution_name_code= class_data['academic_period_id'] , class_data['id'],class_data['institution_id'],class_data['name'],class_data['institution']['code_name']
+        staff = get_school_teachers(auth,id=institution_id)['staff']
+        working_teachers = [teacher['name'] for teacher in staff if teacher['staff_status'] == 1]
+        principle_name = [i['name'] for i in working_teachers if '- مدير' in i['position']][0]
+        teacher_incharge_name = [i['name'] for i in working_teachers if i['nat_id'] == str(username) or i['default_nat_id'] == str(username) ][0]
+        
+
         # # احضر اسماء الطلاب في الصف
         url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
         student_ids= make_request(url,auth,session=session)
@@ -141,8 +160,15 @@ def get_student_statistic_info(auth, identity_nos=None, students_openemis_nos=No
             url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
             students_info_data = make_request(auth=auth , url=url,session=session)['data']
             final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
-                
-    return sorted(final_dict_info, key=lambda x: x['full_name'])
+           
+    sorted_final_dict_info=sorted(final_dict_info, key=lambda x: x['full_name'])
+    
+    return {'students_info':sorted_final_dict_info ,
+            'class_name':class_name,
+            'school_name_code':institution_name_code ,
+            'principle_name': principle_name ,
+            'teacher_incharge_name': teacher_incharge_name
+            }
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -3532,7 +3558,7 @@ def inst_name(auth,session=None):
         تعود بالرقم التعريفي و الرقم الوطني و اسم المدرسة 
     '''
     url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
-    return make_request(url,auth,session=session)
+    return make_request(url,auth,session=session)   # institution
 
 def inst_area(auth , inst_id = None ):
     '''
