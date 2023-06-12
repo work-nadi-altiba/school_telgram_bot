@@ -34,6 +34,154 @@ import openpyxl
 import tempfile
 import zipfile
 from PyPDF4 import PdfFileMerger
+import datetime
+from dateutil.relativedelta import relativedelta
+import calendar 
+
+def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
+    doc = ezodf.opendoc(ods_file) 
+        
+    sheet_name = 'Sheet1'
+    sheet = doc.sheets[sheet_name]
+
+    students_data_lists = student_details['students_info']
+    class_name = student_details['class_name']
+    context = {27 : 'Y69=AP123', 2 : 'A69=V123' ,3 : 'Y128=AP182', 26 : 'A128=V182' ,25 : 'Y186=AP240', 4 : 'A186=V240' ,5 : 'Y244=AP298', 24 : 'A244=V298' ,
+                    23 : 'Y302=AP356', 6 : 'A302=V356' ,7 : 'Y360=AP414', 22 : 'A360=V414' ,21 : 'Y418=AP472', 8 : 'A418=V472' ,9 : 'Y476=AP530', 20 : 'A476=V530' ,
+                    19 : 'Y534=AP588', 10 : 'A534=V588' ,11 : 'Y592=AP646', 18 : 'A592=V646' ,17 : 'Y650=AP704', 12 : 'A650=V704' ,13 : 'Y708=AP762', 16 : 'A708=V762' ,
+                    15 : 'Y766=AP820', 14 : 'A766=V820' }
+
+    year1 , year2 = student_details['year_code'].split('-')
+
+    for counter,student_info in enumerate(students_data_lists, start=0):
+        
+        # row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
+        row_idx = counter + 69
+        sheet[f"G{row_idx}"].set_value(student_info['first_name'])
+        sheet[f"I{row_idx}"].set_value(student_info['second_name'])
+        sheet[f"K{row_idx}"].set_value(student_info['third_name'])
+        sheet[f"M{row_idx}"].set_value(student_info['last_name'])
+        
+    months_range = [14,16,18,20,22,24,4,6,8,10,12]
+
+    for  counter, month in enumerate(months_range , start =1):
+        section_one_row_start , section_one_row_end = int(re.findall(r'\d+',context[month].split('=')[0])[0])-2 , int(re.findall(r'\d+',context[month].split('=')[1])[0]) 
+        section_two_row_start , section_two_row_end = int(re.findall(r'\d+',context[month+1].split('=')[0])[0])-2 , int(re.findall(r'\d+',context[month+1].split('=')[1])[0])
+        
+        if month in [26]:
+            print('')
+        
+
+        if counter < 7 :
+            year = int(year2) 
+        elif counter == 7:
+            year = int(year1)
+            counter+=1        
+        else:
+            year = int(year1)
+            counter+=1
+        
+
+        for column in range(8,24):
+            day = column-7
+            try :
+                sheet[section_one_row_start, column-2].set_value( get_day_name_from_date(year , counter , day ) )
+                
+                if not (day ==1 and counter ==1) :
+                    if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) : 
+                        
+                        for row in range(section_one_row_start+1 , section_one_row_end ):
+                            # FIXME: sheet[row, column].fill = PatternFill(start_color="c0c0c0", fill_type="solid")
+                            sheet[row, column-2].set_value('▒▒▒')
+            except ValueError:
+                pass
+            # except AttributeError:
+            #     print(section_one_row_start)
+
+        for column in range(24,40):
+                day = column-23+16
+                try:
+                    sheet[section_two_row_start, column].set_value( get_day_name_from_date(year , counter , column-7) )
+                    
+                    if not (day ==25 and counter ==2) :
+                        if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) : 
+                            
+                                for row in range(section_two_row_start+1 , section_two_row_end ):
+                                    # FIXME: sheet[row, column).fill = PatternFill(start_color="c0c0c0", fill_type="solid")
+                                    sheet[row, column].set_value('▒▒▒')
+                
+                except ValueError:
+                    pass
+                # except AttributeError:
+                #     print(section_two_row_start)         
+
+    doc.saveas(outdir+'one_step_more.ods' )
+    
+    modeeriah = student_details['modeeriah'][0]
+    school_name = student_details['school_name_code'].split(' - ')[1]
+    class_name = student_details['class_name'].split('-')[0].replace('الصف' , '')
+    sec = student_details['class_name'].split('-')[1]
+    teacher = student_details['teacher_incharge_name']
+    year1 , year2 = student_details['year_code'].split('-')
+    custom_shapes = {
+        'modeeriah': f'لواء {modeeriah}',
+        'school': school_name,
+        'class': class_name,
+        'sec': sec,
+        'murabee' : teacher,
+        'year' : f'{year1}  /  {year2}'
+    }
+
+    fill_custom_shape(doc= outdir+'one_step_more.ods', sheet_name='الغلاف', custom_shape_values=custom_shapes, outfile= outdir+f'{class_name}.ods')
+    
+def get_day_name_from_date(year, month, day):
+    # Set the locale to Arabic (Egypt)
+    locale.setlocale(locale.LC_ALL, 'ar_EG.utf8')
+
+    # Create a datetime object from the given year, month, and day
+    date_object = datetime.date(year, month, day)
+
+    # Get the day name in Arabic
+    day_name_arabic = date_object.strftime('%A')
+
+    return day_name_arabic
+
+class InvalidPageRangeError(Exception):
+    pass
+
+def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
+    if pair_pages is not None:
+        if pair_pages % 2 != 0 :
+            raise InvalidPageRangeError("Invalid pair pages range: pair_pages should be even")
+        pages_length = pair_pages
+        counter = pair_pages*2 -2
+    else :
+        range_ = range(start_page, end_page+1)
+        pages_length = int(len(range_)/2)
+        pages_list = [i for i in range_]
+        counter = len(pages_list)-2
+        if len(pages_list) % 2 != 0 :
+            raise InvalidPageRangeError("Invalid page range: end_page should be even")
+        
+    for i in range(start_page,pages_length+1):  
+        if i % 2 == 0 :
+            print(i ,' ----->' , f'{i + counter+1} - {i}')      
+        else :
+            print(i ,' ----->', f'{i} - {i + counter+1 }')
+        counter -=2
+
+def calculate_age(birth_date, target_date):
+    '''
+    # Example usage
+    birth_date = datetime.date(2007, 6, 29)
+    target_date = datetime.date(2022, 9,1)
+    years, months, days = calculate_age(birth_date, target_date)
+
+    # Print the age in years, months, and days
+    print(f"Age on {target_date.strftime('%Y-%m-%d')}: {years} years, {months} months, {days} days")
+    '''
+    age = relativedelta(target_date, birth_date)
+    return age.years, age.months, age.days
 
 def fill_Template_With_basic_Student_info(student_details,template='./templet_files/كشف البيانات الاساسية للطلاب.xlsx' ,outdir='./send_folder' ):
     # Load the Excel workbook
@@ -116,7 +264,7 @@ def fill_Template_With_basic_Student_info(student_details,template='./templet_fi
     # Save the workbook
     workbook.save(outdir+'/your_file.xlsx')
 
-def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None):
+def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False):
     auth = get_auth(username,password)
     final_dict_info = []
     identity_types = get_IdentityTypes(auth, session=session)
@@ -139,14 +287,15 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
 
     else : 
         # احضر بيانات الصف الي مع المعلم
-        class_data_url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name'
+        class_data_url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id'
         class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
-        academic_period_id,institution_class_id ,institution_id ,class_name ,institution_name_code= class_data['academic_period_id'] , class_data['id'],class_data['institution_id'],class_data['name'],class_data['institution']['code_name']
-        staff = get_school_teachers(auth,id=institution_id)['staff']
-        working_teachers = [teacher['name'] for teacher in staff if teacher['staff_status'] == 1]
+        academic_period_id,institution_class_id ,institution_id ,class_name ,institution_name_code ,modeeriah= class_data['academic_period_id'] , class_data['id'],class_data['institution_id'],class_data['name'],class_data['institution']['code_name'],[i['name'] for i in area_data if i['id'] == class_data['institution']['area_administrative_id']]
+        staff = get_school_teachers(auth,id=institution_id ,session=session)['staff']
+        working_teachers = [teacher for teacher in staff if teacher['staff_status'] == 1]
         principle_name = [i['name'] for i in working_teachers if '- مدير' in i['position']][0]
-        teacher_incharge_name = [i['name'] for i in working_teachers if i['nat_id'] == str(username) or i['default_nat_id'] == str(username) ][0]
-        
+        teacher_incharge_name = [i['name_list'] for i in working_teachers 
+                                 if i['nat_id'] == str(username) or i['default_nat_id'] == str(username) ][0]
+                
 
         # # احضر اسماء الطلاب في الصف
         url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
@@ -163,11 +312,19 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
            
     sorted_final_dict_info=sorted(final_dict_info, key=lambda x: x['full_name'])
     
+    # c['code'] ====> '2022-2023'
+    # c['code'].split('-')[0]  ====> '2022'
+    # c['code'].split('-')[1]  ====> '2023'
+
+    year_code = get_curr_period(auth , session=session)['data'][0]['code']
+
     return {'students_info':sorted_final_dict_info ,
             'class_name':class_name,
             'school_name_code':institution_name_code ,
+            'modeeriah' : modeeriah,
             'principle_name': principle_name ,
-            'teacher_incharge_name': teacher_incharge_name
+            'teacher_incharge_name': teacher_incharge_name[0]+' '+teacher_incharge_name[1]+' '+teacher_incharge_name[3] if not teacher_full_name else teacher_incharge_name['name'],
+            'year_code': year_code
             }
 
 def chunks(lst, n):
@@ -184,7 +341,7 @@ def process_students_info(students_info_data, identity_types, nationality_data ,
                         ,141: 'روضة 2 (تمهيدي) روضة 1 (بستان)',142: 'لم يلتحق',158: 'يرسم',159: 'الخط',160: 'الصوت الجميل',161: 'العزف',162: 'رياصية',164: 'التمثيل',165: 'الشعر'
                         ,166: 'الرواية',167: 'اخرى',168: 'التسريع الأكاديمي',169: 'مدارس الملك عبد الله الثاني للتميز',140: 'المراكز الريادية',171: 'غرف مصادر الطلبة الموهوبين',172: 'جائزة انتل'
                         ,173: 'جائزة روبوتكس',174: 'جائزة اخرى',175: 'اختراع',176: 'ابتكار',177: 'فكرة ابداعية',178: 'استكشاف مقصود', 179:'نعم' ,180 :'لا' ,1:"ذكر" ,2:"انثى" }
-    variables = {'mother_name': 1,'guardian_employment': 5,'student_siblings_rank': 7,'family_size': 6,
+    variables = {'mother_name': 1,'guardian_employment': 5,'student_siblings_rank': 7,'family_size': 6,'address':'',
         'monthly_family_income': 9,'guardian_name': 11,'father_education_level': 12,'marital_status': 13,
         'mother_education_level': 14,'student_health_status': 15,'student_academic_status': 17,'govt_card_attribute': 18,
         'guardian_student_relationship': 19,'external_aid_available': 20,'study_type': 21,'religion': 22,'did_student_attend_kindergarten': 28,
@@ -254,7 +411,8 @@ def process_students_info(students_info_data, identity_types, nationality_data ,
         result['sex'] = options_values_dic[data_item['gender_id']]
         result['resident_governorate'] = area_chain[0] if len(area_chain) == 1 else ''
         result['resident_district'] = area_chain[1] if len(area_chain) == 2 else ''
-        result['resident_quarter'] = area_chain[2] if len(area_chain) == 3 else ''                
+        result['resident_quarter'] = area_chain[2] if len(area_chain) == 3 else ''    
+        result['address'] = data_item['address']
         dic_list.append(result)
     
     return dic_list
@@ -1159,7 +1317,7 @@ def get_school_teachers(auth ,id=None , nat_school=None ,session=None ,row=False
         if teacher['staff_status_id'] == 1:
         # print(counter ,'-' , each['staff_name'])
             # dic_list.append(teacher['staff_name'])
-            dic_list.append({'staffId':teacher['staff_id'],'name':teacher['name'] ,'position':teacher['position']['name'],'birthDate':teacher['user']['date_of_birth'], 'nat_id':teacher['user']['identity_number'],'default_nat_id':teacher['user']['default_identity_type'],'staff_type':teacher['staff_type_id'] , 'staff_status': teacher['staff_status_id']})
+            dic_list.append({'staffId':teacher['staff_id'],'name':teacher['name'],'name_list':[teacher['user']['first_name'], teacher['user']['middle_name'],teacher['user']['third_name'],teacher['user']['last_name']],'position':teacher['position']['name'],'birthDate':teacher['user']['date_of_birth'], 'nat_id':teacher['user']['identity_number'],'default_nat_id':teacher['user']['default_identity_type'],'staff_type':teacher['staff_type_id'] , 'staff_status': teacher['staff_status_id']})
     if row :
         return teachers
     else:
@@ -3064,6 +3222,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
     for class_info in classes_id_2:
         classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'sub_id' : class_info[0]['institution_subject']['education_subject_id']}])
     institution_subjects_id = [i[0]["institution_class_id"] for i in classes_id_3]
+
     for v in range(len(classes_id_1)):
         # id
         print (classes_id_3[v][0]['institution_class_id'])
@@ -3183,7 +3342,6 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
         name_counter = 1
         page += 2
 
-    
     for i in classes: 
         modified_classes.append(mawad_representations(i))
         
@@ -3408,28 +3566,31 @@ def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
         # Iterate over the sheets in the document
         for sheet in doc.spreadsheet.childNodes[1:-1]:
             # Check if the sheet is the one we want (replace 'Sheet2' with the name of your sheet)
-            if sheet.getAttribute('name') == sheet_name:
-                # Get the custom shapes on the sheet
-                custom_shapes = sheet.getElementsByType(CustomShape)
-                for custom_shape in custom_shapes:     
-                    # Check if the custom shape name is in the dictionary of custom shape values
-                    if custom_shape.getAttribute('name')  in custom_shape_values:
-                        # get the style name
-                        p_style = custom_shape.childNodes[0].attributes.get(('urn:oasis:names:tc:opendocument:xmlns:text:1.0', 'style-name'), 'default_style')
-                        span_style = custom_shape.childNodes[0].childNodes[0].attributes.get(('urn:oasis:names:tc:opendocument:xmlns:text:1.0', 'style-name'), 'default_style')
-                        # clear the text
-                        clear_text_custom_shape(custom_shape) 
-                        value = custom_shape_values[custom_shape.getAttribute('name')]
-                        # Create the text:p element inside the custom shape
-                        text_p = P(stylename=str(p_style))
-                        text_p.addElement(Span(text=str(value), stylename=str(span_style)))
-                        # Add a new text paragraph to the custom shape with the new value
-                        custom_shape.addElement(text_p)  
+            try :
+                if sheet.getAttribute('name') == sheet_name:
+                    # Get the custom shapes on the sheet
+                    custom_shapes = sheet.getElementsByType(CustomShape)
+                    for custom_shape in custom_shapes:     
+                        # Check if the custom shape name is in the dictionary of custom shape values
+                        if custom_shape.getAttribute('name')  in custom_shape_values:
+                            # get the style name
+                            p_style = custom_shape.childNodes[0].attributes.get(('urn:oasis:names:tc:opendocument:xmlns:text:1.0', 'style-name'), 'default_style')
+                            span_style = custom_shape.childNodes[0].childNodes[0].attributes.get(('urn:oasis:names:tc:opendocument:xmlns:text:1.0', 'style-name'), 'default_style')
+                            # clear the text
+                            clear_text_custom_shape(custom_shape) 
+                            value = custom_shape_values[custom_shape.getAttribute('name')]
+                            # Create the text:p element inside the custom shape
+                            text_p = P(stylename=str(p_style))
+                            text_p.addElement(Span(text=str(value), stylename=str(span_style)))
+                            # Add a new text paragraph to the custom shape with the new value
+                            custom_shape.addElement(text_p)  
+            except ValueError : 
+                pass
     except:
         pass
     # Save the modified document
     doc.save(outfile)
-    
+        
 def clear_text_custom_shape(shape):
     # Remove all child nodes from the shape element
     while len(shape.childNodes) > 0:
@@ -3872,8 +4033,7 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
 def main():
     print('starting script')
     
-    # side_marks_document(9971055725,9971055725)
-    # fill_official_marks_doc_wrapper(9971055725,9971055725 )
+    # get_student_statistic_info(9971055725,9971055725)
     
 if __name__ == "__main__":
     main()
