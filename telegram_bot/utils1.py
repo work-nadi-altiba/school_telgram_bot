@@ -2953,7 +2953,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name']+'='+classes_id_3[v][0]['sub_name']+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
+        new_ws.title = classes_id_3[v][0]['class_name']+'='+classes_id_3[v][0]['sub_name'].replace("الصف",'')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -4034,6 +4034,7 @@ def main():
     print('starting script')
     
     # get_student_statistic_info(9971055725,9971055725)
+    
     
 if __name__ == "__main__":
     main()
