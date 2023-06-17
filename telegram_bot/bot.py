@@ -48,7 +48,46 @@ def which_term(update, context):
         /term2'''
         update.message.reply_text(func_text) 
         return ASK_QUESTION
-        
+
+
+def init_marks_up_percentage(update, context):
+    update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS_2
+
+def which_term(update, context):
+    context.user_data['creds'] = update.message.text.split('/')
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        func_text = '''اختر الفصل بالضغط عليه
+        /term1
+        /term2'''
+        update.message.reply_text(func_text) 
+        return ASK_QUESTION
+
+def get_marks_up_percentage(update, context):
+    term = update.message.text.replace('/','')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    auth = get_auth(username, password)
+    session = requests.Session()
+    update.message.reply_text("هذا الامر قد يستغرق بعض الوقت ارجوا منك الانتظار ")     
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    elif update.message.text == re.findall(r'.*', update.message.text) and update.message.text != '/cancel' :
+        update.message.reply_text("انتظر لحظة لو سمحت") 
+    else:
+        # if term == 'term1':
+        #     teachers_marks_upload_percentage_wrapper(auth,term=1,session=session)
+        # elif term == "term2":
+        #     teachers_marks_upload_percentage_wrapper(auth,term=2,session=session)
+        generate_pdf(f'./send_folder/output.xlsx' , './send_folder' ,'output')            
+        files = count_files()
+        chat_id = update.message.chat.id
+        send_files(bot, chat_id, files)
+        delete_send_folder()
+        return ConversationHandler.END
+
 def print_check_five_names_marks(update, context):
     term = update.message.text.replace('/','')
     username = context.user_data['creds'][0]
@@ -595,6 +634,15 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
+    marks_up_percentage_conv = ConversationHandler(
+                                    entry_points=[CommandHandler('marks_up_percentage', init_marks_up_percentage)],
+                                        states={
+                                            CREDS_2 : [MessageHandler(Filters.text , which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , get_marks_up_percentage)],
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
+    
     # Add the conversation handler to the dispatcher
     dp.add_handler(send_official_marks_doc_conv)
     dp.add_handler(send_e_side_marks_note_doc_conv)
@@ -606,6 +654,7 @@ if __name__ == '__main__':
     dp.add_handler(receive_file_handler_conv)
     dp.add_handler(send_students_certs_conv)
     dp.add_handler(check_five_names_marks_conv)
+    dp.add_handler(marks_up_percentage_conv)
 
     # Run the bot
     updater.start_polling(1.0)

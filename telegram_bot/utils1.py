@@ -645,22 +645,21 @@ def check_file_if_official_marks_file(file_path=None, file_content=None):
     exists = 'sheet' in [sheet.name for sheet in doc.sheets]
     return exists
 
-def upload_marks_wrapper():
-    percent_dict ={'subject': '' , 'className' :'', 'term1' : {'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0} ,
-                                'term2':{'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0}}
-    assessments = ['assessment1','assessment2','assessment3','assessment4']
-    terms = ['term1','term2']
-    terms = 'term2'
-    auth = get_auth(9971055725 , 9971055725)
-    session = requests.Session()
-    teachers_nats = [teacher['nat_id'] for teacher in get_school_teachers( auth , id=2600)['staff'] if 'معلم' in teacher['position']]
+def teachers_marks_upload_percentage_wrapper(auth ,term=1 ,inst_id=None , inst_nat=None , session=None , template='./templet_files/كشف نسبة الادخال معدل.xlsx' ,outdir='./send_folder/' ):
+    # percent_dict ={'subject': '' , 'className' :'', 'term1' : {'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0} ,
+    #                             'term2':{'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0}}
+    # assessments = ['assessment1','assessment2','assessment3','assessment4']
+    # terms = ['term1','term2']
+    # terms = 'term2'
+    # session = requests.Session()
+    term = 'term1' if term == 1 else 'term2'
+    if inst_id is None and inst_nat is None : 
+        inst_id = inst_name(auth ,session=session)['data'][0]['Institutions']['id']
+        
+    teachers_nats = [teacher['nat_id'] for teacher in get_school_teachers( auth , id=inst_id ,nat_school=inst_nat , session=session)['staff'] if 'معلم' in teacher['position']]
     all_teachers_data  = []
     for nat in teachers_nats :
         all_teachers_data.append(teachers_marks_upload_percentage(auth , nat ,session=session))
-
-    term = 'term2'
-
-    template = 'كشف نسبة الادخال معدل.xlsx'
 
     # load the existing workbook
     existing_wb = load_workbook(template)
@@ -705,7 +704,7 @@ def upload_marks_wrapper():
             row_number+=1
         else:
             row_number-=1
-    existing_wb.save(f'output.xlsx')
+    existing_wb.save( outdir + f'output.xlsx')
     
     playsound()
         
@@ -764,7 +763,7 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
         for IdAndName in students['data']:
             students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
 
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects',session=session)
 
         marks_and_name = []
 
@@ -790,7 +789,7 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
                             dic['term2']['assessment3']  = student_assessment_item["marks"]
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = v["marks"]
+                            dic['term2']['assessment4']  = student_assessment_item["marks"]
             marks_and_name.append(dic)
             dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
 
@@ -4034,7 +4033,8 @@ def main():
     print('starting script')
     
     # get_student_statistic_info(9971055725,9971055725)
-    create_e_side_marks_doc(9981054126,123456)
+    # create_e_side_marks_doc(9981054126,123456)
+    teachers_marks_upload_percentage_wrapper(get_auth(9971055725,9971055725) , term=2 , session = requests.Session())
     
 if __name__ == "__main__":
     main()
