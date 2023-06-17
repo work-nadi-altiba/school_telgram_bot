@@ -20,6 +20,9 @@ ASK_QUESTION ,CREDS_2  = range(2)
 
 
 help_text = '''
+/marks_up_percentage كشف بنسبة ادخال علامات كل معلم في المدرسة
+/students_basic_info كشف البيانات الاساسية للطلاب
+/student_absent_document طباعة دفتر الحضور و الغياب الكتروني
 /e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
 /side_marks_note لطباعة كشف العلامات الجانبي 
 /fill_assess_arbitrary لتسجيل العلامات العشوائية 
