@@ -37,6 +37,44 @@ from PyPDF4 import PdfFileMerger
 import datetime
 from dateutil.relativedelta import relativedelta
 import calendar 
+import locale
+
+class RandomNumberGenerator:
+    '''
+    total_sum = 18
+    numbers = [3, 2, 4, 5, 1, 3]
+    ranges = RandomNumberGenerator.convert_to_ranges(numbers)  # ranges = [(0, 3), (0, 3), (0, 5), (0, 5), (0, 2), (0, 2)]
+    
+    generator = RandomNumberGenerator(total_sum, ranges)
+    result = generator.generate_numbers_with_sum()
+    print(ranges)
+    '''
+    def __init__(self, total_sum, ranges):
+        self.total_sum = total_sum
+        self.ranges = ranges
+    
+    def generate_numbers(self):
+        numbers = []
+        
+        for minimum, maximum in self.ranges:
+            number = random.randint(minimum, maximum)
+            numbers.append(number)
+        
+        return numbers
+    
+    def check_sum(self, numbers):
+        return sum(numbers) == self.total_sum
+    
+    def generate_numbers_with_sum(self):
+        while True:
+            numbers = self.generate_numbers()
+            if self.check_sum(numbers):
+                return numbers
+    
+    @staticmethod
+    def convert_to_ranges(numbers):
+        ranges = [(0, number) for number in numbers]
+        return ranges
 
 def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
     doc = ezodf.opendoc(ods_file) 
@@ -2664,13 +2702,14 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
             rows.append(list(row))    
 
         for row in rows:
-            dic = {
-                'id': row[1], 
-                'name':  row[2],
-                'term1': {'assessment1':  row[3], 'assessment2':row[4], 'assessment3': row[5], 'assessment4': row[6]},
-                'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
-                    }
-            data.append(dic)
+            if row[1] != '' or row[2] != '': 
+                dic = {
+                    'id': row[1], 
+                    'name':  row[2],
+                    'term1': {'assessment1':  row[3], 'assessment2':row[4], 'assessment3': row[5], 'assessment4': row[6]},
+                    'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
+                        }
+                data.append(dic)
         temp_dic = {'class_name':sheet ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
