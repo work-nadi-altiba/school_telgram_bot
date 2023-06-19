@@ -953,7 +953,7 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
                             dic['term2']['assessment3']  = student_assessment_item["marks"]
                         elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = v["marks"]
+                            dic['term2']['assessment4']  = student_assessment_item["marks"]
             marks_and_name.append(dic)
             dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
 
@@ -4072,8 +4072,7 @@ def main():
     print('starting script')
     
     # get_student_statistic_info(9971055725,9971055725)
-    # create_e_side_marks_doc(9981054126,123456)
-    teachers_marks_upload_percentage_wrapper(get_auth(9971055725,9971055725) , term=2 , session = requests.Session())
+
     
 if __name__ == "__main__":
     main()
