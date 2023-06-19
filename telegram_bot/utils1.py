@@ -4072,9 +4072,7 @@ def main():
     print('starting script')
     
     # get_student_statistic_info(9971055725,9971055725)
-    # create_e_side_marks_doc(9981054126,123456)
-    # teachers_marks_upload_percentage_wrapper(get_auth(9971055725,9971055725) , term=2 , session = requests.Session())
-    side_marks_document_with_marks(3067287379, '3067287379Aa@' ,term=2 , names_only=False)
+
     
 if __name__ == "__main__":
     main()
