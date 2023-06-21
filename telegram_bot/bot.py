@@ -16,7 +16,7 @@ INIT_F , RESPOND = range(2)
 WAITING_FOR_RESPONSE = range(1)
 CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
-ASK_QUESTION ,CREDS_2  = range(2)
+CREDS_2 ,ASK_QUESTION   = range(2)
 
 
 help_text = '''
@@ -24,16 +24,50 @@ help_text = '''
 /students_basic_info كشف البيانات الاساسية للطلاب
 /student_absent_document طباعة دفتر الحضور و الغياب الكتروني
 /e_side_marks_note لطباعة كشف علامات جانبي الكتروني 
-/side_marks_note لطباعة كشف العلامات الجانبي 
+/side_marks_note  لطباعة كشف العلامات الجانبي العادي
+/performance_side_marks_note لطباعة كشف العلامات و الاداء الجانبي 
 /fill_assess_arbitrary لتسجيل العلامات العشوائية 
 /empty_assess لمسح علامات الصف 
 /check_marks اخذ عينة علامات طلاب في الصف
-/official_marks لطباعة ملف العلامات الرسمية 
+/official_marks لطباعة سجل العلامات الرسمي 
 /certs لطباعة ملف الشهادات 
 /tables لطباعة ملفات الجداول 
 /cancel لألغاء العملية
 '''
 
+def init_side_marks(update, context):
+    update.message.reply_text("هل تريد كشف العلامات الجانبي العادي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS_2
+
+def send_side_marks_note_doc(update, context):
+    term = update.message.text.replace('/','')
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
+    # session = requests.Session()
+        
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        update.message.reply_text("انتظر لحظة لو سمحت")     
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            if term == 'term1':            
+                side_marks_document_with_marks(username , password ,term=1 )
+            elif term == "term2":
+                side_marks_document_with_marks(username , password ,term=2 )
+            else:
+                update.message.reply_text("لم تختر فصل ")
+                return CREDS_2
+                            
+            # side_marks_document(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
+        
 def init_check_five_names_marks(update, context):
     update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS_2
@@ -44,26 +78,14 @@ def which_term(update, context):
         return cancel(update, context)
     else:
         func_text = '''اختر الفصل بالضغط عليه
-        /term1
-        /term2'''
+        /term1 الفصل الاول 
+        /term2 الفصل الثاني '''
         update.message.reply_text(func_text) 
         return ASK_QUESTION
-
 
 def init_marks_up_percentage(update, context):
     update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS_2
-
-def which_term(update, context):
-    context.user_data['creds'] = update.message.text.split('/')
-    if update.message.text == '/cancel':
-        return cancel(update, context)
-    else:
-        func_text = '''اختر الفصل بالضغط عليه
-        /term1
-        /term2'''
-        update.message.reply_text(func_text) 
-        return ASK_QUESTION
 
 def get_marks_up_percentage(update, context):
     term = update.message.text.replace('/','')
@@ -399,11 +421,11 @@ def check_creds(update, context):
             update.message.reply_text('0000ارسل ملف العلامات الجانبي الالكتروني؟')            
             return FILE
 
-def init_side_marks(update, context):
-    update.message.reply_text("هل تريد كشف علامات جانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+def init_performance_side_marks(update, context):
+    update.message.reply_text("هل تريد كشف العلامات والاداء الجانبي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS
 
-def send_side_marks_note_doc(update, context):
+def send_performance_side_marks_note_doc(update, context):
     user = update.message.from_user
     if update.message.text == '/cancel':
         return cancel(update, context)
@@ -542,6 +564,15 @@ if __name__ == '__main__':
     # Log all errors
     dp.add_error_handler(error)
 
+    send_side_marks_note_doc_conv = ConversationHandler(
+        entry_points=[CommandHandler('side_marks_note', init_side_marks)],
+                                        states={
+                                            CREDS_2 : [MessageHandler(Filters.text ,which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , send_side_marks_note_doc)]
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
+    
     fill_assess_arbitrary_marks_conv = ConversationHandler(
         entry_points=[CommandHandler('fill_assess_arbitrary', init_fill)],
                                         states={
@@ -564,10 +595,10 @@ if __name__ == '__main__':
                                         allow_reentry=True  # To allow restarting the conversation while it's in progress
                                                         ) 
 
-    send_side_marks_note_doc_conv = ConversationHandler(
-        entry_points=[CommandHandler('side_marks_note', init_side_marks)],
+    send_performance_side_marks_note_doc_conv = ConversationHandler(
+        entry_points=[CommandHandler('side_marks_note', init_performance_side_marks)],
                                         states={
-                                            CREDS : [MessageHandler(Filters.text , send_side_marks_note_doc)]
+                                            CREDS : [MessageHandler(Filters.text , send_performance_side_marks_note_doc)]
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
@@ -655,6 +686,7 @@ if __name__ == '__main__':
     dp.add_handler(send_students_certs_conv)
     dp.add_handler(check_five_names_marks_conv)
     dp.add_handler(marks_up_percentage_conv)
+    dp.add_handler(send_performance_side_marks_note_doc_conv)
 
     # Run the bot
     updater.start_polling(1.0)

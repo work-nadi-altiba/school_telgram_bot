@@ -47,33 +47,27 @@ class RandomNumberGenerator:
     
     generator = RandomNumberGenerator(total_sum, ranges)
     result = generator.generate_numbers_with_sum()
-    print(ranges)
+    print(result)
     '''
     def __init__(self, total_sum, ranges):
         self.total_sum = total_sum
         self.ranges = ranges
     
     def generate_numbers(self):
-        numbers = []
-        
-        for minimum, maximum in self.ranges:
-            number = random.randint(minimum, maximum)
-            numbers.append(number)
-        
+        numbers = [random.randint(minimum, maximum) for minimum, maximum in self.ranges]
         return numbers
     
     def check_sum(self, numbers):
         return sum(numbers) == self.total_sum
     
     def generate_numbers_with_sum(self):
-        while True:
-            numbers = self.generate_numbers()
+        for numbers in product(*(range(minimum, maximum + 1) for minimum, maximum in self.ranges)):
             if self.check_sum(numbers):
                 return numbers
     
     @staticmethod
     def convert_to_ranges(numbers):
-        ranges = [(0, number) for number in numbers]
+        ranges = [(1, int(number)) for number in numbers]
         return ranges
 
 def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
@@ -969,23 +963,20 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
             for item in marks_and_name :
                 context[f'name{counter}'] = item['name']
                 if not names_only :
-                    if term == 1 :
-                        context[f'A1_{counter}'] = item['term1']['assessment1']
-                        context[f'A2_{counter}'] = item['term1']['assessment2']
-                        context[f'A3_{counter}'] = item['term1']['assessment3']
-                        context[f'A4_{counter}'] = item['term1']['assessment4']
-                        SUM = int(item['term1']['assessment1'] if item['term1']['assessment1'] != '' else 0)+int(item['term1']['assessment2'] if item['term1']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
-                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
-                        total = item['term1']['assessment3']
-                    else:
-                        context[f'A1_{counter}'] = item['term2']['assessment1']
-                        context[f'A2_{counter}'] = item['term2']['assessment2']
-                        context[f'A3_{counter}'] = item['term2']['assessment3']
-                        context[f'A4_{counter}'] = item['term2']['assessment4']
-                        SUM = int(item['term2']['assessment1'] if item['term2']['assessment1'] != '' else 0)+int(item['term2']['assessment2'] if item['term2']['assessment2'] != '' else 0)+int(item['term1']['assessment3'] if item['term1']['assessment3'] != '' else 0)+int(item['term1']['assessment4'] if item['term1']['assessment4'] != '' else 0)
-                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
-                        total = item['term2']['assessment3']
-                    
+                    assessments = [
+                                item[f'term{term}']['assessment1'],
+                                item[f'term{term}']['assessment2'],
+                                item[f'term{term}']['assessment3'],
+                                item[f'term{term}']['assessment4']
+                                ]
+                    context[f'A1_{counter}'] = item[f'term{term}']['assessment1']
+                    context[f'A2_{counter}'] = item[f'term{term}']['assessment2']
+                    context[f'A3_{counter}'] = item[f'term{term}']['assessment3']
+                    context[f'A4_{counter}'] = item[f'term{term}']['assessment4']
+                    SUM = sum(int(assessment) if assessment != '' else 0 for assessment in assessments)                    
+                    context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                    total = item[f'term{term}']['assessment3']
+
                     try :                    
                         variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
                         variables.append(total - sum(variables))       
@@ -2938,21 +2929,21 @@ def get_assessment_id_from_grade_id(auth , grade_id):
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
-def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ):
-    auth = get_auth(username , password)
-    period_id = get_curr_period(auth)['data'][0]['id']
-    user = user_info(auth , username)
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,session=None):
+    auth = get_auth(username , password )
+    period_id = get_curr_period(auth,session=session)['data'][0]['id']
+    user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
     # years = get_curr_period(auth)
-    school_data = inst_name(auth)['data'][0]
+    school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
     school_name = school_data['Institutions']['name']
     school_name_id = f'{school_name}={inst_id}'
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
-    school_year = get_curr_period(auth)['data']
+    school_year = get_curr_period(auth,session=session)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
     hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
     melady1 = str(school_year[0]['start_year'])
@@ -2960,8 +2951,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
-    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']]
+    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []  
     assessments_period_data = []
     
@@ -2991,7 +2982,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name']+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
+        new_ws.title = classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -3071,7 +3062,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
                 new_ws.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
                 new_ws.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
                 new_ws.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
-
+                new_ws.cell(row=row_number, column=14).value = f'=SUM(H{row_number},M{row_number})/2'
                 # Set the font for the data rows
                 for cell in new_ws[row_number]:
                     cell.font = data_font
@@ -3736,7 +3727,7 @@ def make_request(url, auth ,session=None):
         
     return ['Some Thing Wrong']
 
-def get_auth(username , password):
+def get_auth(username , password ):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
     url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
     payload = {
@@ -3759,7 +3750,7 @@ def inst_name(auth,session=None):
     url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
     return make_request(url,auth,session=session)   # institution
 
-def inst_area(auth , inst_id = None ):
+def inst_area(auth , inst_id = None ,session=None):
     '''
     استدعاء لواء المدرسة و المنطقة
     عوامل الدالة الرابط و التوكن
@@ -3768,7 +3759,7 @@ def inst_area(auth , inst_id = None ):
     if inst_id is None:
         inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Institutions.json?id={inst_id}&_contain=AreaAdministratives,Areas&_fields=AreaAdministratives.name,Areas.name"
-    return make_request(url,auth)
+    return make_request(url,auth,session=session)
 
 def user_info(auth,username,session=None):
     '''
