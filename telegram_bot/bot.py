@@ -18,7 +18,6 @@ CREDS, AVAILABLE_ASS ,WAITING_FOR_RESPONSE = range(3)
 CREDS, FILE = range(2)
 CREDS_2 ,ASK_QUESTION   = range(2)
 
-
 help_text = '''
 /marks_up_percentage كشف بنسبة ادخال علامات كل معلم في المدرسة
 /students_basic_info كشف البيانات الاساسية للطلاب
