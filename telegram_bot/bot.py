@@ -137,7 +137,7 @@ def print_check_five_names_marks(update, context):
         return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
-    
+    question = context.user_data['quetion']
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
@@ -173,17 +173,17 @@ def upload_marks_bot_version(update, context):
             for assessment in assess_data:
                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
                 enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
-                    
-            if file_extension == 'xlsx':           
-                upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
-            elif file_extension == 'ods':    
-                upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
-            
-            files = count_files()
-            chat_id = update.message.chat.id
-            context.user_data['chat_id'] = chat_id
-            send_files(bot, chat_id, files)
-            delete_send_folder()
+            if question == 'document_marks' :
+                if file_extension == 'xlsx':           
+                    upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+                elif file_extension == 'ods':    
+                    upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+                
+                files = count_files()
+                chat_id = update.message.chat.id
+                context.user_data['chat_id'] = chat_id
+                send_files(bot, chat_id, files)
+                delete_send_folder()
             
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
@@ -306,6 +306,7 @@ def receive_file(update, context ):
 
 def handle_question(update, context):
     question = update.message.text.replace('/','')
+    context.user_data['quetion'] = question
     file_id = context.user_data['file']
     file_name =context.user_data['file_name'] 
     file_extension = file_name.split('.')[-1].lower()
