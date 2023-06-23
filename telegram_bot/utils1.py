@@ -3158,7 +3158,7 @@ def delete_files_except(filenames, dir_path):
     Deletes every ODS or PDF file in the specified directory except for the files with the specified names.
     """
     for file in os.listdir(dir_path):
-        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
+        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx") ):
             os.remove(os.path.join(dir_path, file))
 
 def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):

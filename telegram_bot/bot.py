@@ -52,14 +52,21 @@ def send_side_marks_note_doc(update, context):
         print(username, password)
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+            return CREDS_2
         else:
             if term == 'term1':            
                 side_marks_document_with_marks(username , password ,term=1 )
             elif term == "term2":
                 side_marks_document_with_marks(username , password ,term=2 )
             else:
+                func_text = '''اختر الفصل بالضغط عليه
+                /term1 الفصل الاول 
+                /term2 الفصل الثاني '''
+                
                 update.message.reply_text("لم تختر فصل ")
-                return CREDS_2
+                
+                update.message.reply_text(func_text) 
+                
                             
             # side_marks_document(username, password)
             files = count_files()
@@ -338,10 +345,11 @@ def handle_question(update, context):
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
-def send_files(bot, chat_id, files , outdir='./send_folder'):
+def send_files(bot, chat_id, files , outdir='./send_folder',name="ملف مضغوظ"):
     if len(files) >= 4:
-        create_zip(files)
-        delete_files_except('ملف مضغوط' , outdir)
+        create_zip(files,zip_name=name)
+        delete_files_except(name , outdir)
+        bot.send_document(chat_id=chat_id, document=open(outdir+'/'+name, 'rb'))
     else:
         for file in files:
             bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
