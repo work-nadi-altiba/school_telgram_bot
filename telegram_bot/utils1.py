@@ -38,6 +38,7 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import calendar 
 import locale
+from itertools import product
 
 def convert_files_to_pdf(outdir):
     """داله تقوم بتحويل الملفات في مجلد الى صيغة pdf 
