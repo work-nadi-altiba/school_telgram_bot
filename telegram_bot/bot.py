@@ -52,14 +52,21 @@ def send_side_marks_note_doc(update, context):
         print(username, password)
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+            return CREDS_2
         else:
             if term == 'term1':            
                 side_marks_document_with_marks(username , password ,term=1 )
             elif term == "term2":
                 side_marks_document_with_marks(username , password ,term=2 )
             else:
+                func_text = '''اختر الفصل بالضغط عليه
+                /term1 الفصل الاول 
+                /term2 الفصل الثاني '''
+                
                 update.message.reply_text("لم تختر فصل ")
-                return CREDS_2
+                
+                update.message.reply_text(func_text) 
+                
                             
             # side_marks_document(username, password)
             files = count_files()
@@ -130,7 +137,7 @@ def print_check_five_names_marks(update, context):
         return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
-    
+    question = context.user_data['quetion']
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
@@ -166,17 +173,17 @@ def upload_marks_bot_version(update, context):
             for assessment in assess_data:
                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
                 enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
-                    
-            if file_extension == 'xlsx':           
-                upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
-            elif file_extension == 'ods':    
-                upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
-            
-            files = count_files()
-            chat_id = update.message.chat.id
-            context.user_data['chat_id'] = chat_id
-            send_files(bot, chat_id, files)
-            delete_send_folder()
+            if question == 'document_marks' :
+                if file_extension == 'xlsx':           
+                    upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+                elif file_extension == 'ods':    
+                    upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+                
+                files = count_files()
+                chat_id = update.message.chat.id
+                context.user_data['chat_id'] = chat_id
+                send_files(bot, chat_id, files)
+                delete_send_folder()
             
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
@@ -299,6 +306,7 @@ def receive_file(update, context ):
 
 def handle_question(update, context):
     question = update.message.text.replace('/','')
+    context.user_data['quetion'] = question
     file_id = context.user_data['file']
     file_name =context.user_data['file_name'] 
     file_extension = file_name.split('.')[-1].lower()
@@ -338,10 +346,11 @@ def handle_question(update, context):
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=help_text)
 
-def send_files(bot, chat_id, files , outdir='./send_folder'):
+def send_files(bot, chat_id, files , outdir='./send_folder',name="ملف مضغوظ"):
     if len(files) >= 4:
-        create_zip(files)
-        delete_files_except('ملف مضغوط' , outdir)
+        create_zip(files,zip_name=name)
+        delete_files_except(name , outdir)
+        bot.send_document(chat_id=chat_id, document=open(outdir+'/'+name, 'rb'))
     else:
         for file in files:
             bot.send_document(chat_id=chat_id, document=open(file, 'rb'))

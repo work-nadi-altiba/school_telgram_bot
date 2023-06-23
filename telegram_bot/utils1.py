@@ -38,6 +38,97 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import calendar 
 import locale
+from itertools import product
+
+def convert_files_to_pdf(outdir):
+    """داله تقوم بتحويل الملفات في مجلد الى صيغة pdf 
+
+    Args:
+        outdir (string): اسم المجلد الذي تريد تحويل الملفات منه
+    """    
+    files = os.listdir(outdir)
+
+    for file in files:
+        subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
+
+
+def column_index_from_string(column_string):
+    """Converts a column letter to a column index."""
+    index = 0
+    for i, char in enumerate(column_string):
+        index = index * 26 + (ord(char.upper()) - ord('A')) + 1
+    return index
+
+def get_column_letter(column_index):
+    """
+    Convert a column index to the corresponding column letter.
+    """
+    div = column_index +1
+    column_letter = ""
+    while div > 0:
+        modulo = (div - 1) % 26
+        column_letter = chr(65 + modulo) + column_letter
+        div = (div - modulo) // 26
+    return column_letter
+
+def strategy_ladder ( ):
+    doc = ezodf.opendoc('./ods_strategy_ladder/SL-5,6,7.ods')
+    sheet = doc.sheets[0] # Assuming you want to work with the first sheet
+
+    # Access cell values
+    cell = sheet['AM1']
+    cells = cell.value.split('-')
+    firstCell, secondCell, beforeLastCell = cells[0].split('/')[0], cells[0].split('/')[1], cells[0].split('/')[-2]
+    thirdCell = column_index_from_string(secondCell)+1
+    arb_fill_cells = cells[1].split('.')
+
+    # function parameter variables
+    outdir = './send_folder'
+    file_name = 'عمرو المطارنة-9981048186(2).ods'
+    student_details = Read_E_Side_Note_Marks_ods('./'+file_name)
+    term = 2
+
+
+    # Iterate over student data
+    for students_data_list in student_details['file_data']:
+        class_name = students_data_list['class_name'].split('=')[0].replace('الصف', '')
+        
+        for row_idx, student_info in enumerate(students_data_list['students_data'], start=9):
+            assessments = [
+                student_info[f'term{term}']['assessment1'],
+                student_info[f'term{term}']['assessment2'],
+                student_info[f'term{term}']['assessment3'],
+                student_info[f'term{term}']['assessment4']
+                ]
+            name_conter = row_idx - 8
+            sheet[row_idx ,0].set_value(name_conter)
+            sheet[row_idx ,1].set_value(student_info['name'])
+            sheet[row_idx ,column_index_from_string(firstCell)].set_value(student_info[f'term{term}']['assessment1'])
+            sheet[row_idx ,column_index_from_string(secondCell)].set_value(student_info[f'term{term}']['assessment2'])
+            sheet[row_idx ,thirdCell].set_value(student_info[f'term{term}']['assessment3'])
+            sheet[row_idx ,column_index_from_string(beforeLastCell)].set_value(student_info[f'term{term}']['assessment4'])
+            sheet[row_idx ,column_index_from_string(beforeLastCell)+1].set_value(sum(int(assessment) if assessment != '' else 0 for assessment in assessments) )
+
+            Assess1_generator = RandomNumberGenerator(student_info[f'term{term}']['assessment1'], RandomNumberGenerator.convert_to_ranges(arb_fill_cells)).generate_numbers_with_sum()
+            Assess1_generator = Assess1_generator if Assess1_generator is not None else [''] * len(arb_fill_cells)
+            Assess1_start_column = column_index_from_string(firstCell) - len(arb_fill_cells)
+            for column_idx, value in enumerate(Assess1_generator, start=Assess1_start_column):
+                sheet[row_idx ,column_idx].set_value(value)
+
+            Assess2_generator = RandomNumberGenerator(student_info[f'term{term}']['assessment2'], RandomNumberGenerator.convert_to_ranges(arb_fill_cells)).generate_numbers_with_sum() 
+            Assess2_generator = Assess2_generator if Assess2_generator is not None else [''] * len(arb_fill_cells)
+            Assess2_start = column_index_from_string(secondCell) - len(arb_fill_cells)
+            for column_idx, value in enumerate(Assess2_generator, start=Assess2_start):
+                sheet[row_idx ,column_idx].set_value(value)
+
+            Assess4_generator = RandomNumberGenerator(student_info[f'term{term}']['assessment4'], RandomNumberGenerator.convert_to_ranges([int(i) * 2 for i in arb_fill_cells])).generate_numbers_with_sum() 
+            Assess4_generator = Assess4_generator if Assess4_generator is not None else [''] * len(arb_fill_cells)
+            Assess4_start = column_index_from_string(beforeLastCell) - len(arb_fill_cells)
+            for column_idx, value in enumerate(Assess4_generator, start=Assess4_start):
+                sheet[row_idx ,column_idx].set_value(value)
+            
+            
+        doc.saveas(f'{outdir}/{class_name}.ods')    
 
 class RandomNumberGenerator:
     '''
@@ -860,96 +951,112 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
     
     return {'teacher': userInfo['name'] ,'upload_percentage' :upload_percentage , 'row_data':row_data}
 
-def side_marks_document_with_marks(username , password ,template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='side_mark_first_page.docx', template_dir='./templet_files/',term=1 , names_only=False):
-    auth = get_auth(username , password)
-    period_id = get_curr_period(auth)['data'][0]['id']
-    user = user_info(auth , username)
-    userInfo = user['data'][0]
-    user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
-    # years = get_curr_period(auth)
-    school_data = inst_name(auth)['data'][0]
-    inst_id = school_data['Institutions']['id']
-    school_name = school_data['Institutions']['name']
-    school_name_id = f'{school_name}={inst_id}'
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
-    school_year = get_curr_period(auth)['data']
-    melady1 = str(school_year[0]['start_year'])
-    melady2 = str(school_year[0]['end_year'])
-    teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+def side_marks_document_with_marks(username=None , password=None ,classes_data=None,template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='side_mark_first_page.docx', template_dir='./templet_files/',term=1 , names_only=False):
+    """دالة تقوم بانشاء سجل علامات جانبي وتعبئة العلامات 
+
+    Args:
+        username (_type_, optional): اسم المستخدم. Defaults to None.
+        password (_type_, optional): كلم السر. Defaults to None.
+        classes_data (_type_, optional): بيانات الصفوف اذا استعملت الدالة اوفلاين. Defaults to None.
+        template (str, optional): النموذج الذي يتم استخدامه. Defaults to './templet_files/side_marks_note_2.docx'.
+        outdir (str, optional): المجلد الذي يتم الحفظ فيه . Defaults to './send_folder/'.
+        first_page (str, optional): الصفحة الاولى للسجل الجانبي . Defaults to 'side_mark_first_page.docx'.
+        template_dir (str, optional): مجلد النماذج. Defaults to './templet_files/'.
+        term (int, optional): الفصل اما الاول او الثاني. Defaults to 1.
+        names_only (bool, optional): خيار لطباعة الاسماء فقط. Defaults to False.
+    """    
     
-    # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
-    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
-    classes_id_3 = []  
     classes=[]
     mawad=[]
     modified_classes=[]
     context={}
-
-    for class_info in classes_id_2:
-        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
-
-    for v in range(len(classes_id_1)):
-        # id
-        print (classes_id_3[v][0]['institution_class_id'])
-        id = classes_id_3[v][0]['institution_class_id']
-        # subject name 
-        print (classes_id_3[v][0]['sub_name'])
-        # class name
-        print (classes_id_3[v][0]['class_name'])
-        # class_name = classes_id_3[v][0]['class_name']
-        # subject id 
-        print (classes_id_3[v][0]['subject_id'])
-
-        mawad.append(classes_id_3[v][0]['sub_name'])
-        classes.append(classes_id_3[v][0]['class_name'])
-        class_name = classes_id_3[v][0]['class_name'].split('-')[0].replace('الصف ' , '')
-        class_char = classes_id_3[v][0]['class_name'].split('-')[1]
-        # sub_name = classes_id_3[v][0]['sub_name']    
+    
+    if username is not None and password is not None : 
+        auth = get_auth(username , password)
+        period_id = get_curr_period(auth)['data'][0]['id']
+        user = user_info(auth , username)
+        userInfo = user['data'][0]
+        user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
+        # years = get_curr_period(auth)
+        school_data = inst_name(auth)['data'][0]
+        inst_id = school_data['Institutions']['id']
+        school_name = school_data['Institutions']['name']
+        school_name_id = f'{school_name}={inst_id}'
+        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
+        # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+        school_year = get_curr_period(auth)['data']
+        melady1 = str(school_year[0]['start_year'])
+        melady2 = str(school_year[0]['end_year'])
+        teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
         
-        students = get_class_students(auth
-                                    ,period_id
-                                    ,classes_id_1[v]
-                                    ,classes_id_3[v][0]['institution_class_id']
-                                    ,inst_id)
-        students_names = sorted([i['user']['name'] for i in students['data']])
-        print(students_names)
-        students_id_and_names = []
-        
-        for IdAndName in students['data']:
-            students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+        # ما بعرف كيف سويتها لكن زبطت 
+        classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+        classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+        classes_id_3 = []  
 
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+        for class_info in classes_id_2:
+            classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
 
-        marks_and_name = []
+        for v in range(len(classes_id_1)):
+            # id
+            print (classes_id_3[v][0]['institution_class_id'])
+            id = classes_id_3[v][0]['institution_class_id']
+            # subject name 
+            print (classes_id_3[v][0]['sub_name'])
+            # class name
+            print (classes_id_3[v][0]['class_name'])
+            # class_name = classes_id_3[v][0]['class_name']
+            # subject id 
+            print (classes_id_3[v][0]['subject_id'])
 
-        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
-        for student_data_item in students_id_and_names:   
-            for student_assessment_item in assessments_json['data']:
-                if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                    if student_assessment_item["marks"] is not None :
-                        dic['id'] = student_data_item['student_id'] 
-                        dic['name'] = student_data_item['student_name'] 
-                        if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment1'] = student_assessment_item["marks"] 
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment2']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment3']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment4']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment1']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment2']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment3']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = student_assessment_item["marks"]
-            marks_and_name.append(dic)
-            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
+            mawad.append(classes_id_3[v][0]['sub_name'])
+            classes.append(classes_id_3[v][0]['class_name'])
+            class_name = classes_id_3[v][0]['class_name'].split('-')[0].replace('الصف ' , '')
+            class_char = classes_id_3[v][0]['class_name'].split('-')[1]
+            # sub_name = classes_id_3[v][0]['sub_name']    
+            
+            students = get_class_students(auth
+                                        ,period_id
+                                        ,classes_id_1[v]
+                                        ,classes_id_3[v][0]['institution_class_id']
+                                        ,inst_id)
+            students_names = sorted([i['user']['name'] for i in students['data']])
+            print(students_names)
+            students_id_and_names = []
+            
+            for IdAndName in students['data']:
+                students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
+            assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+
+            marks_and_name = []
+
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''}}
+            for student_data_item in students_id_and_names:   
+                for student_assessment_item in assessments_json['data']:
+                    if student_assessment_item['student_id'] == student_data_item['student_id'] :  
+                        if student_assessment_item["marks"] is not None :
+                            dic['id'] = student_data_item['student_id'] 
+                            dic['name'] = student_data_item['student_name'] 
+                            if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                                dic['term1']['assessment1'] = student_assessment_item["marks"] 
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                                dic['term1']['assessment2']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                                dic['term1']['assessment3']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                                dic['term1']['assessment4']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                                dic['term2']['assessment1']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                                dic['term2']['assessment2']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                                dic['term2']['assessment3']  = student_assessment_item["marks"]
+                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                                dic['term2']['assessment4']  = student_assessment_item["marks"]
+                marks_and_name.append(dic)
+                dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
 
 
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
@@ -999,16 +1106,75 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
         delete_pdf_page(outdir+f'send{v}.pdf', outdir+f'SEND{v}.pdf', 1)
         delete_file(outdir+f'send{v}.pdf')
 
-    for i in classes: 
-        modified_classes.append(mawad_representations(i))
+        for i in classes: 
+            modified_classes.append(mawad_representations(i))
+    else:
+        student_details = classes_data
+        school_name = student_details['custom_shapes']['school']
+        modified_classes =student_details['custom_shapes']['classes']
+        teacher = student_details['custom_shapes']['teacher']
+        melady2 = student_details['custom_shapes']['melady1']
+        melady1 = student_details['custom_shapes']['melady2']
+        modeeriah = student_details['custom_shapes']['modeeriah']
         
-    modified_classes = ' ، '.join(modified_classes)
+        # Iterate over student data
+        for v ,students_data_list in enumerate(student_details['file_data']):
+            class_name = students_data_list['class_name'].split('=')[0].replace('الصف', '')
+            mawad.append(students_data_list['class_name'].split('=')[1])
+            classes.append(class_name)
+
+            if 'عشر' in class_name :
+                counter = 0
+                for item in students_data_list['students_data'] :
+                    context[f'name{counter}'] = item['name']
+            else:
+                counter = 0
+                for item in students_data_list['students_data'] :
+                    context[f'name{counter}'] = item['name']
+                    if not names_only :
+                        assessments = [
+                                    item[f'term{term}']['assessment1'],
+                                    item[f'term{term}']['assessment2'],
+                                    item[f'term{term}']['assessment3'],
+                                    item[f'term{term}']['assessment4']
+                                    ]
+                        context[f'A1_{counter}'] = item[f'term{term}']['assessment1']
+                        context[f'A2_{counter}'] = item[f'term{term}']['assessment2']
+                        context[f'A3_{counter}'] = item[f'term{term}']['assessment3']
+                        context[f'A4_{counter}'] = item[f'term{term}']['assessment4']
+                        SUM = sum(int(assessment) if assessment != '' else 0 for assessment in assessments)                    
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item[f'term{term}']['assessment3']
+
+                        try :                    
+                            variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
+                            variables.append(total - sum(variables))       
+                            context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
+                        except : 
+                            context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4                        
+                        
+                    counter+=1 
+                    context['teacher'] = teacher
+            context[f'class_name'] = class_name
+            context[f'term'] = 'الأول' if term == 1 else 'الثاني'
+            context['school'] = school_name
+            context['directory'] = modeeriah
+            context['y1'] = melady1
+            context['y2'] = melady2
+            context['sub'] = students_data_list['class_name'].split('=')[1]
+            fill_doc(template , context , outdir+f'send{v}.docx' )
+            context.clear()
+            generate_pdf(outdir+f'send{v}.docx' , outdir ,v)
+            delete_pdf_page(outdir+f'send{v}.pdf', outdir+f'SEND{v}.pdf', 1)
+            delete_file(outdir+f'send{v}.pdf')    
+            
+    modified_classes = modified_classes if modified_classes else ' ، '.join(modified_classes)
     mawad = sorted(set(mawad))
     mawad = ' ، '.join(mawad)
     context = {'school':school_name 
             ,'classes' : modified_classes 
             ,'subjects' : mawad
-            ,'teacher' : userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name'] 
+            ,'teacher' : teacher if teacher else userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name'] 
             ,'y1' : melady2 
             ,'y2' : melady1}
     fill_doc(template_dir+first_page , context , outdir+first_page )
@@ -1021,7 +1187,7 @@ def side_marks_document_with_marks(username , password ,template='./templet_file
     output_path = "السجل الجانبي.pdf"
     merge_pdfs(input_files, outdir+output_path)
     [delete_file(i) for i in input_files]
-
+    
 def merge_pdfs(input_files, output_file):
     """Merges a list of PDF files into a single PDF file.
 
@@ -3158,7 +3324,7 @@ def delete_files_except(filenames, dir_path):
     Deletes every ODS or PDF file in the specified directory except for the files with the specified names.
     """
     for file in os.listdir(dir_path):
-        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") ):
+        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx") ):
             os.remove(os.path.join(dir_path, file))
 
 def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
