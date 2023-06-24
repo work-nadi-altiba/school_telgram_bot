@@ -169,16 +169,21 @@ def upload_marks_bot_version(update, context):
             file_obj = context.bot.get_file(file_id)
             file_bytes = io.BytesIO(file_obj.download_as_bytearray())
 
+            # فرغ كل التقومات من العلامات
             assess_data = [i for i in editable_assessments]
             for assessment in assess_data:
                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
                 enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
-            if question == 'document_marks' :
-                if file_extension == 'xlsx':           
-                    upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
-                elif file_extension == 'ods':    
-                    upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+
+            # عبي التقويم من ملف سجل العلامات الجانبي
+            if file_extension == 'xlsx':
+                upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)) if question == 'document_marks' else None
+            elif file_extension == 'ods':
+                upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes)) if question == 'document_marks' else None
                 
+            if question == 'document_marks' :
                 files = count_files()
                 chat_id = update.message.chat.id
                 context.user_data['chat_id'] = chat_id

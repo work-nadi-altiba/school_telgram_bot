@@ -51,7 +51,6 @@ def convert_files_to_pdf(outdir):
     for file in files:
         subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
 
-
 def column_index_from_string(column_string):
     """Converts a column letter to a column index."""
     index = 0
@@ -1367,7 +1366,7 @@ def upload_marks(username , password , classess_data ):
             class_id = class_data['class_name'].split('=')[2] 
             class_subject = class_data['class_name'].split('=')[3]
             class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
-            if 'عشر' in class_name : 
+            if 'عشر' not in class_name : 
                 students_marks_ids = class_data['students_data']
                 assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
                 grade_id = assessments_periods_data[int(class_id)]['grade_id']
@@ -2878,6 +2877,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
         modified_classes.append(mawad_representations(i))
         
     school_name = info_sheet['A1'].value.split('=')[0]
+    school_id = info_sheet['A1'].value.split('=')[1]
     modeeriah = info_sheet['A2'].value
     hejri1 = info_sheet['A3'].value
     hejri2 = info_sheet['A4'].value
@@ -2921,7 +2921,8 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'classes_20_1': modified_classes,
     'mawad_20_1': mawad,
     'teacher_20_1': teacher,
-    'period_id': period_id
+    'period_id': period_id,
+    'school_id' : school_id 
     }
     
     required_data_mrks_dic_list = {
@@ -4011,11 +4012,11 @@ def enter_mark(auth
         'action_type': 'default',
     }
 
-    response = requests.post(url,headers=headers,json=json_data,)
+    response = requests.post(url,headers=headers,json=json_data)
     if response.status_code != 200:
         raise(Exception("couldn't enter the mark for some reason")) 
     else:
-        print(response.status_code)
+        print(marks , education_subject_id ,student_id , response.status_code)
 
 def get_curr_period(auth,session=None):
     '''
