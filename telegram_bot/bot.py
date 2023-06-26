@@ -355,10 +355,10 @@ def send_files(bot, chat_id, files , outdir='./send_folder',name="ملف مضغ�
     if len(files) >= 4:
         create_zip(files,zip_name=name)
         delete_files_except(name , outdir)
-        bot.send_document(chat_id=chat_id, document=open(outdir+'/'+name, 'rb'))
+        bot.send_document(chat_id=chat_id, document=open(outdir+'/'+name, 'rb'), timeout=900)
     else:
         for file in files:
-            bot.send_document(chat_id=chat_id, document=open(file, 'rb'))
+            bot.send_document(chat_id=chat_id, document=open(file, 'rb'), timeout=900)
         return False
 
 # Lets us use the /help command
@@ -461,14 +461,14 @@ def send_performance_side_marks_note_doc(update, context):
 
 def init_certs (update, context): 
     update.message.reply_text("هل تريد طباعة شهادات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
-    return CREDS
+    return CREDS_2
 
 def send_students_certs(update, context):
     user = update.message.from_user
+    term = update.message.text.replace('/','')    
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
-        context.user_data['creds'] = update.message.text.split('/')
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
@@ -476,11 +476,21 @@ def send_students_certs(update, context):
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
-            update.message.reply_text("هل تريد استخراج نتائج الفصل الثاني؟ نعم|لا")
-            if update.message.text == 'نعم':            
-                create_certs_wrapper(username, password , term2=True)
-            else:
+            update.message.reply_text("انتظر لحظة لو سمحت")
+            if term == 'term1':            
                 create_certs_wrapper(username, password)
+                pass
+            elif term == "term2":
+                create_certs_wrapper(username, password , term2=True)
+                pass
+            else:
+                func_text = '''اختر الفصل بالضغط عليه
+                /term1 الفصل الاول 
+                /term2 الفصل الثاني '''
+                
+                update.message.reply_text("لم تختر فصل ")
+                
+                update.message.reply_text(func_text)                                 
             files = count_files()
             chat_id = update.message.chat.id
             send_files(bot, chat_id, files)
@@ -620,7 +630,8 @@ if __name__ == '__main__':
     send_students_certs_conv = ConversationHandler(
                                         entry_points=[CommandHandler('certs', init_certs)],
                                         states={
-                                            CREDS : [MessageHandler(Filters.text , send_students_certs)]
+                                            CREDS_2 : [MessageHandler(Filters.text ,which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , send_students_certs)]
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
