@@ -38,6 +38,8 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import calendar 
 import locale
+from itertools import product
+import pdb
 
 def convert_files_to_pdf(outdir):
     """داله تقوم بتحويل الملفات في مجلد الى صيغة pdf 
@@ -49,7 +51,6 @@ def convert_files_to_pdf(outdir):
 
     for file in files:
         subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
-
 
 def column_index_from_string(column_string):
     """Converts a column letter to a column index."""
@@ -1366,7 +1367,7 @@ def upload_marks(username , password , classess_data ):
             class_id = class_data['class_name'].split('=')[2] 
             class_subject = class_data['class_name'].split('=')[3]
             class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
-            if 'عشر' in class_name : 
+            if 'عشر' not in class_name : 
                 students_marks_ids = class_data['students_data']
                 assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
                 grade_id = assessments_periods_data[int(class_id)]['grade_id']
@@ -2607,9 +2608,11 @@ def add_subject_sum_dictionary (grouped_list):
             items['subject_sums'] = subject_sums
             subject_sums={}
 
-def playsound():
+def playsound(debug =False):
     # Execute the shell command to play a sine wave sound with frequency 440Hz for 2 seconds
     subprocess.run(['play', '-n', 'synth', '2', 'sin', '440'])
+    if debug :
+        pdb.set_trace()
     
 def group_students(dic_list4 , i = None):
     # sort the list based on the 'class_name' key
@@ -2661,23 +2664,23 @@ def get_students_info_subjectsMarks(username,password):
                 dictionaries = [assessments for assessments in target_student_marks if subject == assessments['education_subject_id']]
                 sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
                 sub_dic['subject_number']= dictionaries[0]['education_subject_id']
-                sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
                 
-                sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A4' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+                sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
                 subjects_assessments_info.append(sub_dic)   
                 sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
                 # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
@@ -2877,6 +2880,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
         modified_classes.append(mawad_representations(i))
         
     school_name = info_sheet['A1'].value.split('=')[0]
+    school_id = info_sheet['A1'].value.split('=')[1]
     modeeriah = info_sheet['A2'].value
     hejri1 = info_sheet['A3'].value
     hejri2 = info_sheet['A4'].value
@@ -2920,7 +2924,8 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'classes_20_1': modified_classes,
     'mawad_20_1': mawad,
     'teacher_20_1': teacher,
-    'period_id': period_id
+    'period_id': period_id,
+    'school_id' : school_id 
     }
     
     required_data_mrks_dic_list = {
@@ -3323,7 +3328,7 @@ def delete_files_except(filenames, dir_path):
     Deletes every ODS or PDF file in the specified directory except for the files with the specified names.
     """
     for file in os.listdir(dir_path):
-        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx") ):
+        if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx")or file.endswith(".xlsx") ):
             os.remove(os.path.join(dir_path, file))
 
 def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
@@ -4010,11 +4015,11 @@ def enter_mark(auth
         'action_type': 'default',
     }
 
-    response = requests.post(url,headers=headers,json=json_data,)
+    response = requests.post(url,headers=headers,json=json_data)
     if response.status_code != 200:
         raise(Exception("couldn't enter the mark for some reason")) 
     else:
-        print(response.status_code)
+        print(marks , education_subject_id ,student_id , response.status_code)
 
 def get_curr_period(auth,session=None):
     '''
