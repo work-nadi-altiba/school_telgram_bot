@@ -32,8 +32,13 @@ help_text = '''
 /official_marks لطباعة سجل العلامات الرسمي 
 /certs لطباعة ملف الشهادات 
 /tables لطباعة ملفات الجداول 
+/links رابط بنك اسئلة المواد لاضافة اسئلة
 /cancel لألغاء العملية
 '''
+# https://forms.gle/1PMSeb75mQVJUEnw5
+def links(update, context):
+    update.message.reply_text("رابط بنك الاسئلة : \nhttps://forms.gle/1PMSeb75mQVJUEnw5") 
+    return CREDS_2
 
 def init_side_marks(update, context):
     update.message.reply_text("هل تريد كشف العلامات الجانبي العادي ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
@@ -584,7 +589,8 @@ if __name__ == '__main__':
     # Commands
     dp.add_handler(CommandHandler('help', help_command))
     dp.add_handler(CommandHandler('start', start))
-
+    dp.add_handler(CommandHandler('links', links))
+    
     # Log all errors
     dp.add_error_handler(error)
 
