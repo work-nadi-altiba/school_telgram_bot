@@ -5650,9 +5650,7 @@ def main():
     add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
     add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
     create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
-    # create_coloured_certs_wrapper(9991014194,9991014194,term2=True)
     playsound()
-    # get_student_statistic_info(9971055725,9971055725)
 
 if __name__ == "__main__":
     main()
