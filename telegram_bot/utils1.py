@@ -40,7 +40,229 @@ import calendar
 import locale
 from itertools import product
 import pdb
+import wfuzz
+from tqdm import tqdm
 
+def add_averages_to_group_list(grouped_list , skip_art_sport=True):
+    for group in grouped_list:
+        for item in group:
+            if len(item['subjects_assessments_info']) > 0 :
+                term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
+                if 'سادس' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_2_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'سابع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]/3,1)
+                            term_1_avarage +=round(value[1]/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'ثامن' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'تاسع' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                elif 'عاشر' in  item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+                else:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_1_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+
+def wfuzz_function(fuzz_list,headers,body_postdata,method='POST'):
+    """دالة استخدمها لارسال طلب بوست بشكل سريع
+
+    Args:
+        fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
+        headers (tuple-list): راسيات الطلب او الركويست
+        body_postdata (str): جسم البوست داتا
+        method (str, optional): طريقة الطلب. Defaults to 'POST'.
+
+    Returns:
+        any : تعود بقائمة الطلبات غير الناجحة
+    """    
+    unsuccessful_requests=[]
+    with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
+            postfix=["uploaded mark", {"value": 0}]) as t:
+            s = wfuzz.get_payloads([fuzz_list])
+            for idx , r in enumerate(s.fuzz(
+                            url="https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json" ,
+                            # hc=[404] , 
+                            # payloads=[("list",fuzz_list)] ,
+                            headers=headers ,
+                            postdata = body_postdata ,
+                            proxies=[("127.0.0.1","8080","HTTP")] ,
+                            method= method
+                            ),start =1):
+                    
+                t.postfix[1]["value"] = idx
+                t.update()    
+            #     print(r)
+            #     print(r.content)
+            #     print(r.history.code) # كود الركويست
+                if r.history.code != 200 :
+                    unsuccessful_requests.append(r.description)
+    return unsuccessful_requests
+
+def upload_marks_optimized(username , password , classess_data , empty = False):
+    '''
+    file_name = 'علي المحاميد-9901024120(6).ods'
+    student_details = Read_E_Side_Note_Marks_ods('./'+file_name)
+    
+    fuzz_list = upload_marks_optimized(9901024120 , 9901024120 , student_details ,empty=False)
+    '''
+    fuzz_postdata_list = []
+    session = requests.Session()
+    auth = get_auth(username , password)
+    period_id = classess_data['custom_shapes']['period_id']
+    school_id = classess_data['custom_shapes']['school_id']
+    # term1_assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4']
+    # term2_assessment_codes = ['S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4' , 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_code_dic = {'S1A1': {'term' :'term1' , 'assess' : 'assessment1'},
+                            'S1A2': {'term' :'term1' , 'assess' : 'assessment2'},
+                            'S1A3': {'term' :'term1' , 'assess' : 'assessment3'},
+                            'S1A4': {'term' :'term1' , 'assess' : 'assessment4'},
+                            'S2A1': {'term' :'term2' , 'assess' : 'assessment1'},
+                            'S2A2': {'term' :'term2' , 'assess' : 'assessment2'},
+                            'S2A3': {'term' :'term2' , 'assess' : 'assessment3'},
+                            'S2A4': {'term' :'term2' , 'assess' : 'assessment4'}}
+    
+    assessments_periods_data = classess_data['required_data_for_mrks_enter']
+    for class_data in classess_data['file_data']:
+        class_id = class_data['class_name'].split('=')[2] 
+        class_subject = class_data['class_name'].split('=')[3]
+        class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+        if 'عشر' not in class_name : 
+            students_marks_ids = class_data['students_data']
+            assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+            grade_id = assessments_periods_data[int(class_id)]['grade_id']
+            assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject,session=session)
+            # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+            # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+            for student_info in students_marks_ids:
+                for code in assessment_codes:
+                    if len([i for i in assessment_periods if code in i['code']]) != 0:
+                        assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                        term = assessment_code_dic[code]['term']
+                        assess = assessment_code_dic[code]['assess']
+                        term_marks = student_info[term]
+                        mark = '' if empty else term_marks.get(assess)
+                        fuzz_postdata = {
+                                'marks': '' if mark== '' else str("{:.2f}".format(float(mark))),
+                                'assessment_id': assessment_grade_id,
+                                'education_subject_id': class_subject,
+                                'education_grade_id': grade_id,
+                                'institution_classes_id': class_id,
+                                'student_id': student_info['id'],
+                                'assessment_period_id': assessment_period_id,
+                                'action_type': 'default'
+                            }
+                        fuzz_postdata_list.append(json.dumps(fuzz_postdata).replace('{','').replace('}',''))
+                        
+    body_postdata = json.dumps({
+            'assessment_grading_option_id': 8,
+            'institution_id': school_id,
+            'academic_period_id': period_id,
+            'student_status_id': 1,
+            'action_type': 'default'}).replace('}',', FUZZ }')
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
+
+    unsuccessful_requests = wfuzz_function(fuzz_postdata_list,headers,body_postdata)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
+
+    print("All requests were successful!")
+    
 def read_json_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         dictionary = json.load(file)
@@ -896,7 +1118,8 @@ def five_names_every_class(auth, emp_username ,session=None ):
         for student_data_item in students_id_and_names:   
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                    if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1118,7 +1341,8 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
         for student_data_item in students_id_and_names:   
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                    if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1260,7 +1484,8 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
             for student_data_item in students_id_and_names:   
                 for student_assessment_item in assessments_json['data']:
                     if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                        if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                        
+                        # if student_assessment_item["marks"] is not None :
                             dic['id'] = student_data_item['student_id'] 
                             dic['name'] = student_data_item['student_name'] 
                             if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -3548,9 +3773,9 @@ def create_coloured_certs_ods(grouped_list , term2=False ,template='./templet_fi
                 sheet2[c['principal_name']].set_value( grouped_list['principle_name'] )
                 sheet2 = filler_sheet.copy(newname=str(sheet_number))
                 template_file.sheets += sheet2  
-                              
+            del template_file.sheets[-1]
             # template_file.remove(template_file['Sheet1'])
-            template_file.saveas(outdir+group[0]['student_class_name_letter']+'.xlsx')
+            template_file.saveas(outdir+group[0]['student_class_name_letter']+'.ods')
 
 def sort_dictionary_list_based_on(dictionary_list, dictionary_key='t1+t2+year_avarage', item_in_list=0, reverse=True, simple=True):
     if simple:
@@ -4175,38 +4400,38 @@ def assessments_commands_text(lst):
         text += '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
         return text
     
-def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None):
+def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None,session=None):
     if assessment_grade_id is None or class_subject is None:
-        required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
+        required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username,session=session)
         ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
-        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1],session=session) for i in ass_data] for item in sublist if item.get('editable')==True]
         # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
         unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
         sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
         return sorted_dict
     else:
-        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, assessment_grade_id ,class_subject)] for item in sublist if item.get('editable')==True]
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, assessment_grade_id ,class_subject ,session=session)] for item in sublist if item.get('editable')==True]
         # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
         unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
         sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
         return sorted_dict    
        
-def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
+def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
     '''
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
-    return make_request(url,auth)
+    return make_request(url,auth,session=session)
 
-def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id):
+def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id,session=None):
     '''
          استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
     '''
-    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
+    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id,session=session)['data']
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
     min_max=[]
@@ -4239,33 +4464,33 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,student_id= Student_id
                 ,assessment_period_id= assessment_period_id)
 
-def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id):
+def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
     '''
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
-    student_ids = [student['student_id'] for student in make_request(url,auth)['data']]
+    student_ids = [student['student_id'] for student in make_request(url,auth,session=session)['data']]
     return student_ids
 
-def get_required_data_to_enter_marks(auth ,username):
-    period_id = get_curr_period(auth)['data'][0]['id']
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    user_id = user_info(auth , username)['data'][0]['id']
-    years = get_curr_period(auth)
+def get_required_data_to_enter_marks(auth ,username,session=None):
+    period_id = get_curr_period(auth,session=session)['data'][0]['id']
+    inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
+    user_id = user_info(auth,username,session=session)['data'][0]['id']
+    years = get_curr_period(auth,session=session)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
     required_data_to_enter_marks = []
     
     for class_id in classes_id_1 : 
-        class_info = get_teacher_classes2( auth , class_id)['data']
+        class_info = get_teacher_classes2( auth , class_id,session=session)['data']
         dic = {'assessment_id':'','education_subject_id':'' ,'education_grade_id':'','institution_classes_id':'','students_ids':[] }
-        dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'])
+        dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'],session=session)
         dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
         dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
         dic['institution_classes_id'] = class_info[0]['institution_class_id']
-        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id)
+        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
 
         required_data_to_enter_marks.append(dic)
     
@@ -4281,9 +4506,9 @@ def get_grade_name_from_grade_id(auth , grade_id):
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
 
-def get_assessment_id_from_grade_id(auth , grade_id):
+def get_assessment_id_from_grade_id(auth , grade_id,session=None):
     
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
@@ -4364,7 +4589,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         for i in students_id_and_names:   
             for v in assessments_json['data']:
                 if v['student_id'] == i['student_id'] :  
-                    if v["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if v["marks"] is not None :
                         dic['id'] = i['student_id'] 
                         dic['name'] = i['student_name'] 
                         dic['assessments_periods_ides'].append(v['assessment_period_id'] )
@@ -4796,14 +5022,14 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
     return make_request(url,auth)
 
-def get_assessments_periods(auth ,term, assessment_id):
+def get_assessments_periods(auth ,term, assessment_id,session=None):
     '''
          استعلام عن تعريفات التقويمات في الفصل الدراسي 
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth)
+    return make_request(url,auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
     '''
@@ -4831,14 +5057,14 @@ def get_assessments_id( auth ,education_grade_id ):
         if assessment['education_grade_id'] == education_grade_id :
             return assessment['id']
 
-def get_AcademicTerms(auth,assessment_id):
+def get_AcademicTerms(auth,assessment_id,session=None):
     '''
     دالة لاستدعاء اسم الفصل 
     و عواملها التوكن و رقم تقيم الصف 
     و تعود باسماء الفصول على شكل جيسن
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth)        
+    return make_request(url,auth,session=session)        
 
 def draw_rect_top(page, page_width, fill_color , width=50):
     """
@@ -5421,8 +5647,9 @@ def main():
     print('starting script')
 
     students_statistics_assesment_data = read_json_file('./templet_files/output.json')
+    add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
+    add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
     create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
-    # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
     # create_coloured_certs_wrapper(9991014194,9991014194,term2=True)
     playsound()
     # get_student_statistic_info(9971055725,9971055725)

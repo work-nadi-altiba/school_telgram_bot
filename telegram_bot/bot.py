@@ -6,7 +6,8 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import production_bot  as token
+from keys import test_bot  as token
+import traceback
 import io
 
 print('Starting up bot...')
@@ -372,6 +373,7 @@ def help_command(update, context):
 
 # Log errors
 def error(update, context):
+    traceback.print_exc()    
     print(f'Update {update} caused error {context.error}')
 
 def cancel(update, context):
