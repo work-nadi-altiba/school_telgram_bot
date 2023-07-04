@@ -5105,13 +5105,13 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
 
-    students_statistics_assesment_data = read_json_file('./templet_files/مدرسة المزرعة الثانوية للبنين.json')
-    add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
-    add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
-    create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
-    # create_coloured_certs_wrapper(9971055725,9971055725)
-    # convert_files_to_pdf('./send_folder')
-    # sort_send_folder_into_two_folders()
+    # students_statistics_assesment_data = read_json_file('./templet_files/مدرسة المزرعة الثانوية للبنين.json')
+    # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
+    # add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
+    # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
+    create_coloured_certs_wrapper(9971055725,9971055725)
+    convert_files_to_pdf('./send_folder')
+    sort_send_folder_into_two_folders()
     playsound()
 
 if __name__ == "__main__":
