@@ -3391,22 +3391,23 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                 item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
             else:
-                for key, value in item['subject_sums'].items():
-                    if 'ربية الاجتماعية و الوطنية' in key :
-                        # print(key ,round(value[0]*2/3),1)
-                        term_1_avarage +=round(value[0]*2/3,1)
-                        term_2_avarage +=round(value[1]*2/3,1)
-                        # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    elif skip_art_sport :
-                        if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                            pass                        
-                    else:
-                        # print(key , value[0])
-                        term_1_avarage += value[0]
-                        term_2_avarage += value[1]
-                        # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+                if 'عشر' not in item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_2_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
 def add_subject_sum_dictionary (grouped_dict_list):
     subject_sums = {}
@@ -5105,11 +5106,11 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
 
-    # students_statistics_assesment_data = read_json_file('./templet_files/مدرسة المزرعة الثانوية للبنين.json')
-    # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
-    # add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
-    # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
-    create_coloured_certs_wrapper(9971055725,9971055725)
+    students_statistics_assesment_data = read_json_file('./templet_files/مدرسة المزرعة الثانوية للبنين.json')
+    add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
+    add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
+    create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
+    # create_coloured_certs_wrapper(9971055725,9971055725)
     convert_files_to_pdf('./send_folder')
     sort_send_folder_into_two_folders()
     playsound()
