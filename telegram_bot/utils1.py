@@ -40,16 +40,364 @@ import calendar
 import locale
 from itertools import product
 import pdb
+import wfuzz
+from tqdm import tqdm
 
+def mark_all_students_as_present(term_days_dates,auth):
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:2600;institution_class_id:786118;education_grade_id:275;academic_period_id:13;attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+
+    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
+
+    print("All requests were successful!")
+    
+def mark_students_absent_in_dates():
+    auth = get_auth(9971055725,9971055725)
+    absent = '''4/7/9
+    5/25/26/9
+    7/11/9
+    8/13/9
+    11/29/9
+    15/12/13/9
+    17/26/9
+    18/7/9
+    19/13/9
+    22/12/9
+    26/11/9
+    2/24/10
+    3/11/10
+    4/4/10
+    6/24/10
+    11/10/10
+    18/19/10
+    20/10/10
+    21/25/10
+    27/4/10
+    444/24/10
+    5/10/10
+    2/3/21/28/11
+    3/15/11
+    4/3/22/11
+    5/22/27/11
+    7/15/27/11
+    8/1/15/11
+    9/22/11
+    11/7/11
+    13/7/11
+    15/7/10/14/15/22/27/11
+    17/7/11
+    18/3/11
+    19/3/11
+    20/7/20/28/11
+    21/3/6/22/11
+    22/30/11
+    23/2/13/22/11
+    24/7/11
+    25/3/16/20/22/11
+    27/2/3/10/11
+    444/1/16/11
+    555/14/15/11
+    9/5/12
+    15/5/12
+    19/5/12
+    25/5/12
+    555/5/12
+    2/21/2
+    16/22/2
+    21/13/16/23/27/2
+    555/21/26/2
+    2/19/3
+    3/19/3
+    4/7/3
+    5/20/21/3
+    7/21/3
+    8/19/3
+    9/7/3
+    13/28/3
+    15/8/28/3
+    18/7/28/3
+    19/19/28/29/3
+    21/2/6/8/14/22/3
+    22/20/3
+    25/7/8/19/3
+    26/1/6/20/3
+    27/19/3
+    444/7/16/29/3
+    555/2/6/20/21/3
+    5/20/3
+    2/3/12/26/4
+    3/26/4
+    4/26/4
+    5/13/4
+    7/3/4
+    9/26/4
+    11/3/26/4
+    15/14/26/4
+    16/26/4
+    18/26/4
+    19/3/4/26/4
+    20/4/12/4
+    26/26/4
+    27/26/3/9/4
+    444/26/3/4/4
+    555/26/4/4
+    2/3/5
+    3/8/5
+    4/21/5
+    5/16/21/24/5
+    8/17/21/5
+    9/16/21/5
+    10/16/5
+    11/4/9/16/21/29/5
+    12/16/5
+    13/16/5
+    15/16/5
+    444/21/5
+    555/21/5
+    26/18/21/5
+    27/16/21/24/5
+    444/21/30/5
+    16/16/21/5
+    17/16/5
+    18/16/21/5
+    19/16/21/24/5
+    20/16/21/5
+    21/16/21/5
+    22/16/5
+    23/16/5
+    24/21/5
+    25/16/5
+    '''.split('\n')
+
+    absent_days_list = [day.split('/') for day in absent if day]
+
+    # absent_days[1][1:-1]
+
+    students_names = ['احمد حسين عيسى الدغيمات','احمد خليل ابراهيم العونة','احمد خليل محمد الخنازره','احمد سفيان احمد الجعارات','امير لافي محمد النوايشه','ايهم عمر محمود الدغيمات','بشار عبد الله عيد الهويمل','جمال هارون ابراهيم الجعارات','جمعه كودابوكس محراب لونكا','زيد محمد عبد الرحيم العشوش','سراج زكريا خالد الهويمل','سلامة محمود سليمان الجعارات','سليمان احمد سليمان النوايشه','سليمان علي سليمان الهويمل','عمار رشيد عيد النوايشه','عمر جميل عوده الهويمل','عيد جميل عيد الجعارات','لؤي سلامه علي المراحله','لؤي موسى سليمان الهويمل','ليث محمد حسن الدغيمات','محمد امير عيد جميل الجعارات','محمد عبد الرزاق مصطفى العجالين','مدين سميح فلاح الدغيمات','معاذ جبرين سلامه الجعارات','نورالدين محمود راضي الدغيمات','يزن بكر عبد المحسن الدغيمات','يزن صالح احمد العجالين','يوسف امين احمد الهويمل']
+    students_ids = [10137540,7459083,7388854,7464726,10159305,6880369,7305148,7327218,7199282,7298162,7298198,7334184,7200052,7305606,7209214,7304956,7355630,7305448,7388970,7327780,7355120,7304522,7304554,7329162,3824166,7330736,7248432,7356766]
+
+    students_dictionary = {}
+    for idx, (name, student_id) in enumerate(zip(students_names, students_ids), start=1) :
+        
+        if (idx >= 8 and idx <= 14) or idx >= 20:
+            idx -=1
+            students_dictionary
+        else:    
+            idx = idx
+        
+        students_dictionary[idx]= [student_id,name , ]
+    students_dictionary[555] = [7305148,'بشار عبد الله عيد الهويمل']
+
+    # students_dictionary
+    year1 , year2 = 2022,2023
+    absent_data = []
+
+    for date in absent_days_list:
+        if '444' not in date:
+            student_id = str(students_dictionary[int(date[0])][0])
+            student_name = str(students_dictionary[int(date[0])][1])
+            year = year1 if int(date[-1]) in [9,10,11,12] else year2
+            
+            for day in date[1:-1]:
+                date_str = f"{year}-{date[-1]}-{day}"
+                print ( student_name  , date_str)
+                item = json.dumps({"student_id": student_id,
+                                    "institution_id": 2600,
+                                    "academic_period_id": 13,
+                                    "institution_class_id": 786118,
+                                    "absence_type_id": "2",
+                                    "student_absence_reason_id": None,
+                                    "comment": None,
+                                    "period": 1,
+                                    "date": date_str,
+                                    "subject_id": 0,
+                                    "education_grade_id": 275}).replace('}','')
+                absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
+
+    print("All requests were successful!")
+
+def term_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
+
+    present_days = []
+    start_date = datetime.date(2022, 8, 30)
+    end_date = datetime.date(2023, 6, 30)
+    skip_start_date = datetime.date(2023, 1, 1)
+    skip_end_date = datetime.date(2023, 2, 5)
+
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date < skip_start_date or current_date > skip_end_date:
+            if current_date.weekday() not in [4, 5]:  # Exclude Friday (4) and Saturday (5)
+                present_days.append(current_date.strftime("%Y-%m-%d"))
+        current_date += datetime.timedelta(days=1)
+
+    return present_days
+
+def group_students(dic_list , i = None):
+    # sort the list based on the 'class_name' key
+    sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
+
+    # group the sorted list by the 'student_class_name_letter' key
+    grouped_list = []
+    for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
+        group_list = list(group)
+        if all(x.get('student_class_name_letter') for x in group_list ):
+            grouped_list.append(group_list)
+    if i :
+        for i in grouped_list:
+            print(len(i),i[0]['student_class_name_letter'])
+        return 0
+    else : 
+        return grouped_list
+
+def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None):
+    """دالة استخدمها لارسال طلب بوست بشكل سريع
+
+    Args:
+        fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
+        headers (tuple-list): راسيات الطلب او الركويست
+        body_postdata (str): جسم البوست داتا
+        method (str, optional): طريقة الطلب. Defaults to 'POST'.
+
+    Returns:
+        any : تعود بقائمة الطلبات غير الناجحة
+    """    
+    unsuccessful_requests=[]
+    with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
+            postfix=["uploaded mark", {"value": 0}]) as t:
+            s = wfuzz.get_payloads([fuzz_list])
+            for idx , r in enumerate(s.fuzz(
+                            url=url ,
+                            # hc=[404] , 
+                            # payloads=[("list",fuzz_list)] ,
+                            headers=headers ,
+                            postdata = body_postdata ,
+                            proxies= proxies ,
+                            method= method
+                            ),start =1):
+                    
+                t.postfix[1]["value"] = idx
+                t.update()    
+            #     print(r)
+            #     print(r.content)
+            #     print(r.history.code) # كود الركويست
+                if r.history.code != 200 :
+                    unsuccessful_requests.append(r.description)
+    return unsuccessful_requests
+
+def upload_marks_optimized(username , password , classess_data , empty = False):
+    '''
+    file_name = 'علي المحاميد-9901024120(6).ods'
+    student_details = Read_E_Side_Note_Marks_ods('./'+file_name)
+    
+    fuzz_list = upload_marks_optimized(9901024120 , 9901024120 , student_details ,empty=False)
+    
+    هذه الدالة خطيرة و تحتاج الى تغيير بعض الاشياء و التاكد من الاشياء التالية
+    1- تحتاج الى التكاد من جسم الرد على الطلب ان يكون جيسون و ان لا يكون فيه خطاء
+    2- تغير وايل لوب جملة التكرار بينما الى جملة التكرار فور و تكرار الكود داخلها اقصى حد خمس مرات و الخروج من جملة التكرار
+    '''
+    fuzz_postdata_list = []
+    session = requests.Session()
+    auth = get_auth(username , password)
+    period_id = classess_data['custom_shapes']['period_id']
+    school_id = classess_data['custom_shapes']['school_id']
+    # term1_assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4']
+    # term2_assessment_codes = ['S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4' , 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_code_dic = {'S1A1': {'term' :'term1' , 'assess' : 'assessment1'},
+                            'S1A2': {'term' :'term1' , 'assess' : 'assessment2'},
+                            'S1A3': {'term' :'term1' , 'assess' : 'assessment3'},
+                            'S1A4': {'term' :'term1' , 'assess' : 'assessment4'},
+                            'S2A1': {'term' :'term2' , 'assess' : 'assessment1'},
+                            'S2A2': {'term' :'term2' , 'assess' : 'assessment2'},
+                            'S2A3': {'term' :'term2' , 'assess' : 'assessment3'},
+                            'S2A4': {'term' :'term2' , 'assess' : 'assessment4'}}
+    
+    assessments_periods_data = classess_data['required_data_for_mrks_enter']
+    for class_data in classess_data['file_data']:
+        class_id = class_data['class_name'].split('=')[2] 
+        class_subject = class_data['class_name'].split('=')[3]
+        class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+        if 'عشر' not in class_name : 
+            students_marks_ids = class_data['students_data']
+            assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+            grade_id = assessments_periods_data[int(class_id)]['grade_id']
+            assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject,session=session)
+            # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+            # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+            for student_info in students_marks_ids:
+                for code in assessment_codes:
+                    if len([i for i in assessment_periods if code in i['code']]) != 0:
+                        assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                        term = assessment_code_dic[code]['term']
+                        assess = assessment_code_dic[code]['assess']
+                        term_marks = student_info[term]
+                        mark = '' if empty else term_marks.get(assess)
+                        fuzz_postdata = {
+                                'marks': '' if mark== '' else str("{:.2f}".format(float(mark))),
+                                'assessment_id': assessment_grade_id,
+                                'education_subject_id': class_subject,
+                                'education_grade_id': grade_id,
+                                'institution_classes_id': class_id,
+                                'student_id': student_info['id'],
+                                'assessment_period_id': assessment_period_id,
+                                'action_type': 'default'
+                            }
+                        fuzz_postdata_list.append(json.dumps(fuzz_postdata).replace('{','').replace('}',''))
+                        
+    body_postdata = json.dumps({
+            'assessment_grading_option_id': 8,
+            'institution_id': school_id,
+            'academic_period_id': period_id,
+            'student_status_id': 1,
+            'action_type': 'default'}).replace('}',', FUZZ }')
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
+    
+    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
+
+    print("All requests were successful!")
+    
 def read_json_file(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         dictionary = json.load(file)
     return dictionary
 
-def save_dictionary_to_json(dictionary, file_path, indent=None):
+def save_dictionary_to_json_file(dictionary, file_path='./send_folder/output.json', indent=None):
+
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(dictionary, file, indent=indent, ensure_ascii=False)
-
+        
 def create_coloured_certs_wrapper(username , password ,term2=False):
     session = requests.Session()
     auth = get_auth(username , password)
@@ -57,171 +405,15 @@ def create_coloured_certs_wrapper(username , password ,term2=False):
     students_statistics_assesment_data = get_student_statistic_info(username,password , student_ids=[i['student_id'] for i in get_school_students_ids(auth)] , session=session)
     
     dic_list4 = student_info_marks
-    def group_students(dic_list , i = None):
-        # sort the list based on the 'class_name' key
-        sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
-
-        # group the sorted list by the 'student_class_name_letter' key
-        grouped_list = []
-        for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
-            group_list = list(group)
-            if all(x.get('student_class_name_letter') for x in group_list ):
-                grouped_list.append(group_list)
-        if i :
-            for i in grouped_list:
-                print(len(i),i[0]['student_class_name_letter'])
-            return 0
-        else : 
-            return grouped_list
     grouped_list = group_students(dic_list4 )
     
-    # def add_subject_sum_dictionary (grouped_dict_list):
-    #     subject_sums = {}
-    #     for group in grouped_dict_list:
-    #         for items in group:
-    #             if len(items['subjects_assessments_info']) > 0 :
-    #                 science_sum ,social_sum ,subject_sum ,science_sum_t2 ,social_sum_t2 ,subject_sum_t2 =  [0] * 6
-    #                 for i in items['subjects_assessments_info'][0]:
-    #                     if "علوم الأرض" in i['subject_name'] or 'الكيمياء' in i['subject_name'] or 'الحياتية' in i['subject_name'] or 'الفيزياء' in i['subject_name'] or 'العلوم' in i['subject_name']:
-    #                         # compute sum for science subjects
-    #                         science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                         science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                     elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'تاريخ' in i['subject_name']:
-    #                         # compute sum for social subjects
-    #                         social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                         social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                     else:
-    #                         # compute sum for other subjects
-    #                         subject_sum = sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                         subject_sum_t2 = sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                         # update dictionary with other subject sum
-    #                         subject_sums[i['subject_name']] = [subject_sum,subject_sum_t2]
-    #                 if science_sum != 0:
-    #                     # update dictionary with science subject sum
-    #                     subject_sums['العلوم'] = [science_sum ,science_sum_t2]
-    #                 if social_sum != 0 :
-    #                     # update dictionary with social subject sum
-    #                     subject_sums['التربية الاجتماعية و الوطنية'] = [social_sum,social_sum_t2]
-    #                 # print (items['student__full_name'],items['student_class_name_letter'],subject_sums)
-    #                 items['subject_sums'] = subject_sums
-    #                 subject_sums={}
     
     add_subject_sum_dictionary(grouped_list)
-    def add_averages_to_group_list(grouped_list , skip_art_sport=True):
-        for group in grouped_list:
-            for item in group:
-                if len(item['subjects_assessments_info']) > 0 :
-                    term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
-                    if 'سادس' in  item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]/3,1)
-                                term_2_avarage +=round(value[1]/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                    elif 'سابع' in  item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]/3,1)
-                                term_1_avarage +=round(value[1]/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                    elif 'ثامن' in  item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]*2/3,1)
-                                term_1_avarage +=round(value[1]*2/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                    elif 'تاسع' in  item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]*2/3,1)
-                                term_1_avarage +=round(value[1]*2/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                    elif 'عاشر' in  item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]*2/3,1)
-                                term_1_avarage +=round(value[1]*2/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                    else:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]*2/3,1)
-                                term_1_avarage +=round(value[1]*2/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
     add_averages_to_group_list(grouped_list ,skip_art_sport=False)
     students_statistics_assesment_data['assessments_data'] = grouped_list
+    
+    save_dictionary_to_json_file(dictionary=students_statistics_assesment_data)
     
     create_coloured_certs_ods(students_statistics_assesment_data , term2=term2)
 
@@ -234,7 +426,8 @@ def convert_files_to_pdf(outdir):
     files = os.listdir(outdir)
 
     for file in files:
-        subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
+        if not file.endswith(".json"):
+            subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
 
 def column_index_from_string(column_string):
     """Converts a column letter to a column index."""
@@ -896,7 +1089,8 @@ def five_names_every_class(auth, emp_username ,session=None ):
         for student_data_item in students_id_and_names:   
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                    if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1118,7 +1312,8 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
         for student_data_item in students_id_and_names:   
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                    if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1260,7 +1455,8 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
             for student_data_item in students_id_and_names:   
                 for student_assessment_item in assessments_json['data']:
                     if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-                        if student_assessment_item["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                        
+                        # if student_assessment_item["marks"] is not None :
                             dic['id'] = student_data_item['student_id'] 
                             dic['name'] = student_data_item['student_name'] 
                             if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1850,341 +2046,31 @@ def count_teacher_load(classes):
     return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
 
 def create_tables_wrapper(username , password ,term2=False): 
+    session = requests.Session()
     auth = get_auth(username, password)
-    student_info_marks = get_students_info_subjectsMarks( username , password )
+    student_info_marks = get_students_info_subjectsMarks( username , password ,session)
     dic_list4 = student_info_marks
-    def group_students(dic_list , i = None):
-        # sort the list based on the 'class_name' key
-        sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
-
-        # group the sorted list by the 'class_name' key
-        grouped_list = []
-        for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
-            group_list = list(group)
-            if all(x.get('student_class_name_letter') for x in group_list):
-                grouped_list.append(group_list)
-        if i :
-            for i in grouped_list:
-                print(len(i),i[0]['student_class_name_letter'])
-            return 0
-        else : 
-            return grouped_list
     grouped_list = group_students(dic_list4 )
     
-    # def add_subject_sum_dictionary (grouped_dict_list):
-    #     subject_sums = {}
-    #     for group in grouped_dict_list:
-    #         for items in group:
-    #             science_sum ,social_sum ,subject_sum ,science_sum_t2 ,social_sum_t2 ,subject_sum_t2 =  [0] * 6
-    #             for i in items['subjects_assessments_info'][0]:
-    #                 if "علوم الأرض" in i['subject_name'] or 'الكيمياء' in i['subject_name'] or 'الحياتية' in i['subject_name'] or 'الفيزياء' in i['subject_name'] or 'العلوم' in i['subject_name']:
-    #                     # compute sum for science subjects
-    #                     science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                 elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'التاريخ' in i['subject_name']:
-    #                     # compute sum for social subjects
-    #                     social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                 else:
-    #                     # compute sum for other subjects
-    #                     subject_sum = sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     subject_sum_t2 = sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                     # update dictionary with other subject sum
-    #                     subject_sums[i['subject_name']] = [subject_sum,subject_sum_t2]
-    #             if science_sum != 0:
-    #                 # update dictionary with science subject sum
-    #                 subject_sums['العلوم'] = [science_sum ,science_sum_t2]
-    #             if social_sum != 0 :
-    #                 # update dictionary with social subject sum
-    #                 subject_sums['التربية الاجتماعية و الوطنية'] = [social_sum,social_sum_t2]
-    #             # print (items['student__full_name'],items['student_class_name_letter'],subject_sums)
-    #             items['subject_sums'] = subject_sums
-    #             subject_sums={}
 
     add_subject_sum_dictionary(grouped_list)
-    def add_averages_to_group_list(grouped_list , skip_art_sport=True):
-        for group in grouped_list:
-            for item in group:
-                term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
-                if 'سادس' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]/3,1)
-                            term_2_avarage +=round(value[1]/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'سابع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]/3,1)
-                            term_1_avarage +=round(value[1]/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'ثامن' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'تاسع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'عاشر' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                else:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
     add_averages_to_group_list(grouped_list ,skip_art_sport=False)
     
+    # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
         
 def create_certs_wrapper(username , password ,term2=False):
     student_info_marks = get_students_info_subjectsMarks( username , password )
     dic_list4 = student_info_marks
-    def group_students(dic_list , i = None):
-        # sort the list based on the 'class_name' key
-        sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
-
-        # group the sorted list by the 'class_name' key
-        grouped_list = []
-        for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
-            group_list = list(group)
-            if all(x.get('student_class_name_letter') for x in group_list):
-                grouped_list.append(group_list)
-        if i :
-            for i in grouped_list:
-                print(len(i),i[0]['student_class_name_letter'])
-            return 0
-        else : 
-            return grouped_list
     grouped_list = group_students(dic_list4 )
     
-    # def add_subject_sum_dictionary (grouped_dict_list):
-    #     subject_sums = {}
-    #     for group in grouped_dict_list:
-    #         for items in group:
-    #             science_sum ,social_sum ,subject_sum ,science_sum_t2 ,social_sum_t2 ,subject_sum_t2 =  [0] * 6
-    #             for i in items['subjects_assessments_info'][0]:
-    #                 if "علوم الأرض" in i['subject_name'] or 'الكيمياء' in i['subject_name'] or 'الحياتية' in i['subject_name'] or 'الفيزياء' in i['subject_name'] or 'العلوم' in i['subject_name']:
-    #                     # compute sum for science subjects
-    #                     science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                 elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'التاريخ' in i['subject_name']:
-    #                     # compute sum for social subjects
-    #                     social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                 else:
-    #                     # compute sum for other subjects
-    #                     subject_sum = sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
-    #                     subject_sum_t2 = sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-    #                     # update dictionary with other subject sum
-    #                     subject_sums[i['subject_name']] = [subject_sum,subject_sum_t2]
-    #             if science_sum != 0:
-    #                 # update dictionary with science subject sum
-    #                 subject_sums['العلوم'] = [science_sum ,science_sum_t2]
-    #             if social_sum != 0 :
-    #                 # update dictionary with social subject sum
-    #                 subject_sums['التربية الاجتماعية و الوطنية'] = [social_sum,social_sum_t2]
-    #             # print (items['student__full_name'],items['student_class_name_letter'],subject_sums)
-    #             items['subject_sums'] = subject_sums
-    #             subject_sums={}
 
     add_subject_sum_dictionary(grouped_list)
-    def add_averages_to_group_list(grouped_list , skip_art_sport=True):
-        for group in grouped_list:
-            for item in group:
-                term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
-                if 'سادس' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]/3,1)
-                            term_2_avarage +=round(value[1]/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'سابع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]/3,1)
-                            term_1_avarage +=round(value[1]/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'ثامن' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'تاسع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'عاشر' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                else:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_1_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
     add_averages_to_group_list(grouped_list ,skip_art_sport=False)
     
     create_certs(grouped_list , term2=term2)
 
-def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx.xlsx'  , outdir='./send_folder/'):
+def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx'  , outdir='./send_folder/'):
     # auth = get_auth(username , password)
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
@@ -2192,154 +2078,172 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
 
     for group in grouped_list:
         
-        template_file = openpyxl.load_workbook(template)
-        marks_sheet = template_file.worksheets[2]
+        if 'عشر' not in group[0]['student_grade_name']:
+            template_file = openpyxl.load_workbook(template)
+            marks_sheet = template_file.worksheets[2]
 
-        for row_number, dataFrame in enumerate(sort_dictionary_list_based_on(group ,key='student__full_name',simple=False,reverse=False), start=4):
-            islam_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'سلامية' in key] # التربية الاسلامية
-            arabic_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'عربية' in key] # اللغة العربية
-            english_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'جليزية' in key]   # اللغة الانجليزية 
-            math_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضيات' in key] # الرياضيات 
-            social_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'اجتماعية و الوطنية' in key]   # التربية الاجتماعية و الوطنية 
-            science_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'العلوم' in key]  # العلوم
-            art_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الفنية والموس' in key]    # التربية الفنية والموسيقية
-            sport_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضية' in key] # التربية الرياضية
-            vocational_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مهنية' in key] # التربية المهنية 
-            computer_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'حاسوب' in key]   # الحاسوب
-            financial_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مالية' in key]  # الثقافة المالية
-            franch_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'فرنسية' in key]    # اللغة الفرنسية 
-            christian_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الدين المسيحي' in key]  # الدين المسيحي
-
-            marks_sheet.cell(row=row_number, column=1).value = row_number-3
-            marks_sheet.cell(row=row_number, column=2).value = dataFrame['student__full_name']
-            marks_sheet.cell(row=row_number, column=3).value = dataFrame['student_nat']
-            marks_sheet.cell(row=row_number, column=4).value = dataFrame['student_birth_place']
-            marks_sheet.cell(row=row_number, column=5).value = dataFrame['student_birth_date'].split('/')[0]
-            marks_sheet.cell(row=row_number, column=6).value = dataFrame['student_birth_date'].split('/')[1]
-            marks_sheet.cell(row=row_number, column=7).value = dataFrame['student_birth_date'].split('/')[2]
-            marks_sheet.cell(row=row_number, column=8).value = islam_subject[0][0] if islam_subject and len(islam_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=9).value = islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=10).value = islam_subject[0][0]+islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=11).value = arabic_subject[0][0] if arabic_subject and len(arabic_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=12).value = arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=13).value = arabic_subject[0][0]+arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=14).value = english_subject[0][0] if english_subject and len(english_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=15).value = english_subject[0][1] if term2 and english_subject and len(english_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=16).value = english_subject[0][0]+english_subject[0][1] if term2 and english_subject and len(english_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=17).value = math_subject[0][0] if math_subject and len(math_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=18).value = math_subject[0][1] if term2 and math_subject and len(math_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=19).value = math_subject[0][0]+math_subject[0][1] if term2 and math_subject and len(math_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=20).value = social_subjects[0][0] if social_subjects and len(social_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=21).value = social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=22).value = social_subjects[0][0]+social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=23).value = science_subjects[0][0] if science_subjects and len(science_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=24).value = science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=25).value = science_subjects[0][0]+science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=26).value = art_subject[0][0] if art_subject and len(art_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=27).value = art_subject[0][1] if term2 and art_subject and len(art_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=28).value = art_subject[0][0]+art_subject[0][1] if term2 and art_subject and len(art_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=29).value = sport_subject[0][0] if sport_subject and len(sport_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=30).value = sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=31).value = sport_subject[0][0]+sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=32).value = financial_subject[0][0] if financial_subject and len(financial_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=33).value = financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=34).value = financial_subject[0][0]+financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=35).value = vocational_subject[0][0] if vocational_subject and len(vocational_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=36).value = vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=37).value = vocational_subject[0][0]+vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=38).value = computer_subject[0][0] if computer_subject and len(computer_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=39).value = computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=40).value = computer_subject[0][0]+computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=41).value = franch_subject[0][0] if franch_subject and len(franch_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=42).value = franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=43).value = franch_subject[0][0]+franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) > 0 else ''
-            # marks_sheet.cell(row=row_number, column=44).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
-            # marks_sheet.cell(row=row_number, column=45).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
-            # marks_sheet.cell(row=row_number, column=46).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=47).value = christian_subject[0][0] if christian_subject and len(christian_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=48).value = christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
-            marks_sheet.cell(row=row_number, column=49).value = christian_subject[0][0]+christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
-
-        if 'الثامن' in group[0]['student_grade_name']:
-            marks_sheet['a1'] = 1800
-            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف الثامن الأساسي للعام الدراسي ( {curr_year_code} )'
-            # اسلامية
-            # h/i/j
-            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
-            # عربية 
-            # k/l/m
-            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
-            # انجليزية 
-            # n/o/p
-            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
-            # رياضيات
-            # q/r/s
-            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
-            # اجتماعيات 
-            # t/u/v
-            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
-            # علوم
-            # w/x/y
-            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [200]*3
-        elif 'التاسع' in group[0]['student_grade_name']:
-            marks_sheet['a1'] = 2000
-            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف التاسع  الأساسي للعام الدراسي ( {curr_year_code} )'
-            # اسلامية
-            # h/i/j
-            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
-            # عربية 
-            # k/l/m
-            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
-            # انجليزية 
-            # n/o/p
-            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
-            # رياضيات
-            # q/r/s
-            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
-            # اجتماعيات 
-            # t/u/v
-            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
-            # علوم
-            # w/x/y
-            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3
-        elif 'العاشر' in group[0]['student_grade_name']:
-            marks_sheet['a1'] = 2000
-            marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف العاشر الأساسي للعام الدراسي ( {curr_year_code} )'
-            # اسلامية
-            # h/i/j
-            marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
-            # عربية 
-            # k/l/m
-            marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
-            # انجليزية 
-            # n/o/p
-            marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
-            # رياضيات
-            # q/r/s
-            marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
-            # اجتماعيات 
-            # t/u/v
-            marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
-            # علوم
-            # w/x/y
-            marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3        
-        else:
-            marks_sheet['a3'] = f'جدول العلامات الدراسية للصفوف من الأول الى السابع الأساسي ( {curr_year_code} )'
-            if 'سابع' in group[0]['student_grade_name']:
-                marks_sheet['a1'] = 1100
-            elif 'سادس' in group[0]['student_grade_name']:
-                marks_sheet['a1'] = 900
-            else:
-                marks_sheet['a1'] = 800
-            
-        marks_sheet['b3'] = institution_area_data['data'][0]['Areas']['name']
-        marks_sheet['c3'] = ''
-        marks_sheet['d3'] = institution_data['data'][0]['Institutions']['code_name']
-        marks_sheet['e3'] = institution_area_data['data'][0]['AreaAdministratives']['name']
-        marks_sheet['f3'] = group[0]['student_grade_name']
-        marks_sheet['g3'] = group[0]['student_class_name_letter']
         
-        template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
+            for row_number, dataFrame in enumerate(sort_dictionary_list_based_on(group ,dictionary_key='student__full_name',simple=False,reverse=False), start=4):
+                islam_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'سلامية' in key] # التربية الاسلامية
+                arabic_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'عربية' in key] # اللغة العربية
+                english_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'جليزية' in key]   # اللغة الانجليزية 
+                math_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضيات' in key] # الرياضيات 
+                social_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'اجتماعية و الوطنية' in key]   # التربية الاجتماعية و الوطنية 
+                science_subjects = [value for key ,value in dataFrame['subject_sums'].items() if 'العلوم' in key]  # العلوم
+                art_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الفنية والموس' in key]    # التربية الفنية والموسيقية
+                sport_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'رياضية' in key] # التربية الرياضية
+                vocational_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مهنية' in key] # التربية المهنية 
+                computer_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'حاسوب' in key]   # الحاسوب
+                financial_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'مالية' in key]  # الثقافة المالية
+                franch_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'فرنسية' in key]    # اللغة الفرنسية 
+                christian_subject = [value for key ,value in dataFrame['subject_sums'].items() if 'الدين المسيحي' in key]  # الدين المسيحي
+
+                marks_sheet.cell(row=row_number, column=1).value = row_number-3
+                marks_sheet.cell(row=row_number, column=2).value = dataFrame['student__full_name']
+                marks_sheet.cell(row=row_number, column=3).value = dataFrame['student_nat']
+                marks_sheet.cell(row=row_number, column=4).value = dataFrame['student_birth_place']
+                marks_sheet.cell(row=row_number, column=5).value = dataFrame['student_birth_date'].split('/')[0]
+                marks_sheet.cell(row=row_number, column=6).value = dataFrame['student_birth_date'].split('/')[1]
+                marks_sheet.cell(row=row_number, column=7).value = dataFrame['student_birth_date'].split('/')[2]
+                marks_sheet.cell(row=row_number, column=8).value = islam_subject[0][0] if islam_subject and len(islam_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=9).value = islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=10).value = islam_subject[0][0]+islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=11).value = arabic_subject[0][0] if arabic_subject and len(arabic_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=12).value = arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=13).value = arabic_subject[0][0]+arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=14).value = english_subject[0][0] if english_subject and len(english_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=15).value = english_subject[0][1] if term2 and english_subject and len(english_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=16).value = english_subject[0][0]+english_subject[0][1] if term2 and english_subject and len(english_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=17).value = math_subject[0][0] if math_subject and len(math_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=18).value = math_subject[0][1] if term2 and math_subject and len(math_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=19).value = math_subject[0][0]+math_subject[0][1] if term2 and math_subject and len(math_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=20).value = social_subjects[0][0] if social_subjects and len(social_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=21).value = social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=22).value = social_subjects[0][0]+social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=23).value = science_subjects[0][0] if science_subjects and len(science_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=24).value = science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=25).value = science_subjects[0][0]+science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=26).value = art_subject[0][0] if art_subject and len(art_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=27).value = art_subject[0][1] if term2 and art_subject and len(art_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=28).value = art_subject[0][0]+art_subject[0][1] if term2 and art_subject and len(art_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=29).value = sport_subject[0][0] if sport_subject and len(sport_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=30).value = sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=31).value = sport_subject[0][0]+sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=32).value = financial_subject[0][0] if financial_subject and len(financial_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=33).value = financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=34).value = financial_subject[0][0]+financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=35).value = vocational_subject[0][0] if vocational_subject and len(vocational_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=36).value = vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=37).value = vocational_subject[0][0]+vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=38).value = computer_subject[0][0] if computer_subject and len(computer_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=39).value = computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=40).value = computer_subject[0][0]+computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=41).value = franch_subject[0][0] if franch_subject and len(franch_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=42).value = franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=43).value = franch_subject[0][0]+franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) > 0 else ''
+                # marks_sheet.cell(row=row_number, column=44).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+                # marks_sheet.cell(row=row_number, column=45).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+                # marks_sheet.cell(row=row_number, column=46).value = dataFrame[0][] if = and len(=[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=47).value = christian_subject[0][0] if christian_subject and len(christian_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=48).value = christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
+                marks_sheet.cell(row=row_number, column=49).value = christian_subject[0][0]+christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
+
+            if 'الثامن' in group[0]['student_grade_name']:
+                marks_sheet['a1'] = 1800
+                marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف الثامن الأساسي للعام الدراسي ( {curr_year_code} )'
+                # اسلامية
+                # h/i/j
+                marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+                # عربية 
+                # k/l/m
+                marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+                # انجليزية 
+                # n/o/p
+                marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+                # رياضيات
+                # q/r/s
+                marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+                # اجتماعيات 
+                # t/u/v
+                marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+                # علوم
+                # w/x/y
+                marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [200]*3
+            elif 'التاسع' in group[0]['student_grade_name']:
+                marks_sheet['a1'] = 2000
+                marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف التاسع  الأساسي للعام الدراسي ( {curr_year_code} )'
+                # اسلامية
+                # h/i/j
+                marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+                # عربية 
+                # k/l/m
+                marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+                # انجليزية 
+                # n/o/p
+                marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+                # رياضيات
+                # q/r/s
+                marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+                # اجتماعيات 
+                # t/u/v
+                marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+                # علوم
+                # w/x/y
+                marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3
+            elif 'العاشر' in group[0]['student_grade_name']:
+                marks_sheet['a1'] = 2000
+                marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف العاشر الأساسي للعام الدراسي ( {curr_year_code} )'
+                # اسلامية
+                # h/i/j
+                marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [200]*3
+                # عربية 
+                # k/l/m
+                marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [300]*3
+                # انجليزية 
+                # n/o/p
+                marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [200]*3
+                # رياضيات
+                # q/r/s
+                marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [200]*3
+                # اجتماعيات 
+                # t/u/v
+                marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [200]*3
+                # علوم
+                # w/x/y
+                marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3        
+            else:
+                marks_sheet['a3'] = f'جدول العلامات الدراسية للصفوف من الأول الى السابع الأساسي ( {curr_year_code} )'
+                marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [100]*3
+                # عربية 
+                # k/l/m
+                marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [100]*3
+                # انجليزية 
+                # n/o/p
+                marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [100]*3
+                # رياضيات
+                # q/r/s
+                marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [100]*3
+                # اجتماعيات 
+                # t/u/v
+                marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [100]*3
+                # علوم
+                # w/x/y
+                marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [100]*3    
+                if 'سابع' in group[0]['student_grade_name']:
+                    marks_sheet['a1'] = 1100
+                elif 'سادس' in group[0]['student_grade_name']:
+                    marks_sheet['a1'] = 900
+                else:
+                    marks_sheet['a1'] = 800
+                
+            marks_sheet['b3'] = institution_area_data['data'][0]['Areas']['name']
+            marks_sheet['c3'] = ''
+            marks_sheet['d3'] = institution_data['data'][0]['Institutions']['code_name']
+            marks_sheet['e3'] = institution_area_data['data'][0]['AreaAdministratives']['name']
+            marks_sheet['f3'] = group[0]['student_grade_name']
+            marks_sheet['g3'] = group[0]['student_class_name_letter']
+            
+            template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
         
 def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_cert.xlsx' ,image='./templet_files/Pasted image.png' , outdir='./send_folder/'):
     gray_cert_cell_positions_context = {
@@ -2384,296 +2288,296 @@ def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_c
     'student_name': '',
     }
     for group in grouped_list:
-        
-        template_file = load_workbook(template)
-        sheet1 = template_file.worksheets[0]
-        
-        names_averages =  sort_dictionary_list_based_on(group)
-
-        group = sort_dictionary_list_based_on(group ,simple=False)
-
-        for row_number, dataFrame in enumerate(names_averages, start=5):
-            sheet1.cell(row=row_number, column=2).value = dataFrame[1]
-            sheet1.cell(row=row_number, column=4).value = dataFrame[0]
+        if 'عشر' not in group[0]['student_grade_name']:
+            template_file = load_workbook(template)
+            sheet1 = template_file.worksheets[0]
             
-        counter = 1
-        for group_item in group:
-            
-            sheet2 = template_file.copy_worksheet(template_file.worksheets[1])
-            sheet2.title = str(counter)
-            counter += 1
-            sheet2.sheet_view.rightToLeft = True    
-            sheet2.sheet_view.rightToLeft = True   
+            names_averages =  sort_dictionary_list_based_on(group)
 
-            img = openpyxl.drawing.image.Image(image)
-            img.anchor = 'e2'
-            sheet2.add_image(img)
+            group = sort_dictionary_list_based_on(group ,simple=False)
 
-            # group_item = grouped_list[0][0]
-            # print(sheet2)
-            sheet2['b7'] = group_item['student__full_name']
-            # مكان و تاريخ الولادة
-            sheet2['h7']= str(group_item['student_birth_place']) + ' ' + str(group_item['student_birth_date'])
-            #الرقم الوطني
-            sheet2['b9']= group_item['student_nat_id']
-            #الجنسية
-            sheet2['h9']= group_item['student_nat']
-            #الصف و الشعبة 
-            sheet2['b11']= group_item['student_class_name_letter']
-            #المدرسة و رقمها الوطني
-            sheet2['g11']= group_item['student_school_name']
-            #المنطقة التعليمية 
-            sheet2['b13']= group_item['student_edu_place']  
-            #البلدة 
-            sheet2['f13']= ''
-            #اللواء
-            sheet2['i13']= group_item['student_directory']
-            # put the subjects cells inder here 
-            i ='c,d,e,g,j,f'.split(',')
-            r = range(18,32)
-
-            value_item = 0
-
-            # التربية الاسلامية
-            islam_subject = [value for key ,value in group_item['subject_sums'].items() if 'سلامية' in key]
-            if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C18'] = 200
-                maxMark = 200
-            else:
-                sheet2['C18'] = 100
-                maxMark = 100
-            sheet2['D18'] = islam_subject[0][value_item] if islam_subject and len(islam_subject[0]) != 0 else ''
-            sheet2['E18'] = islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) != 0 else ''
-            sheet2['F18'] = (islam_subject[0][value_item] + islam_subject[0][1])/2 if term2 and islam_subject and len(islam_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G18'] = convert_avarage_to_words((islam_subject[0][value_item] + islam_subject[0][1])/2) if islam_subject else ''
-                sheet2['J18'] = score_in_words(((islam_subject[0][value_item] + islam_subject[0][1])/2),max_mark=maxMark) if islam_subject else ''
-            else:
-                sheet2['G18'] = convert_avarage_to_words(islam_subject[0][value_item]) if islam_subject else ''
-                sheet2['J18'] = score_in_words(islam_subject[0][value_item],max_mark=maxMark) if islam_subject else ''
-
-            # اللغة العربية
-            arabic_subject = [value for key ,value in group_item['subject_sums'].items() if 'عربية' in key]
-            if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C19'] = 300
-                maxMark = 300
-            else:
-                sheet2['C19'] = 100
-                maxMark = 100
-            sheet2['D19'] = arabic_subject[0][value_item] if arabic_subject and len(arabic_subject[0]) != 0 else ''
-            sheet2['E19'] = arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) != 0 else ''
-            sheet2['F19'] = (arabic_subject[0][value_item] + arabic_subject[0][1])/2 if term2 and arabic_subject and len(arabic_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G19'] = convert_avarage_to_words((arabic_subject[0][value_item] + arabic_subject[0][1])/2) if arabic_subject else ''
-                sheet2['J19'] = score_in_words(((arabic_subject[0][value_item] + arabic_subject[0][1])/2),max_mark=maxMark) if arabic_subject else ''
-            else:
-                sheet2['G19'] = convert_avarage_to_words(arabic_subject[0][value_item]) if arabic_subject else ''
-                sheet2['J19'] = score_in_words(arabic_subject[0][value_item],max_mark=maxMark) if arabic_subject else ''
-
-            # اللغة الانجليزية 
-            english_subject = [value for key ,value in group_item['subject_sums'].items() if 'جليزية' in key]
-            if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C20'] = 200
-                maxMark = 200
-            else:
-                sheet2['C20'] = 100
-                maxMark = 100
-            sheet2['D20'] = english_subject[0][value_item] if english_subject and len(english_subject[0]) != 0 else ''
-            sheet2['E20'] = english_subject[0][1] if term2 and english_subject and len(english_subject[0]) != 0 else ''
-            sheet2['F20'] = (english_subject[0][value_item] + english_subject[0][1])/2 if term2 and english_subject and len(english_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G20'] = convert_avarage_to_words((english_subject[0][value_item] + english_subject[0][1])/2) if english_subject else ''
-                sheet2['J20'] = score_in_words(((english_subject[0][value_item] + english_subject[0][1])/2),max_mark=maxMark) if english_subject else ''
-            else:
-                sheet2['G20'] = convert_avarage_to_words(english_subject[0][value_item]) if english_subject else ''
-                sheet2['J20'] = score_in_words(english_subject[0][value_item],max_mark=maxMark) if english_subject else ''
-
-            # الرياضيات 
-            math_subject = [value for key ,value in group_item['subject_sums'].items() if 'رياضيات' in key]
-            if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C21'] = 200
-                maxMark = 200
-            else:
-                sheet2['C21'] = 100
-                maxMark = 100
-            sheet2['D21'] = math_subject[0][value_item] if math_subject and len(math_subject[0]) != 0 else ''
-            sheet2['E21'] = math_subject[0][1] if term2 and math_subject and len(math_subject[0]) != 0 else ''
-            sheet2['F21'] = (math_subject[0][value_item] + math_subject[0][1])/2 if term2 and math_subject and len(math_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G21'] = convert_avarage_to_words((math_subject[0][value_item] + math_subject[0][1])/2) if math_subject else ''
-                sheet2['J21'] = score_in_words(((math_subject[0][value_item] + math_subject[0][1])/2),max_mark=maxMark) if math_subject else ''
-            else:
-                sheet2['G21'] = convert_avarage_to_words(math_subject[0][value_item]) if math_subject else ''
-                sheet2['J21'] = score_in_words(math_subject[0][value_item],max_mark=maxMark) if math_subject else ''
-
-            # التربية الاجتماعية و الوطنية 
-            social_subjects = [value for key ,value in group_item['subject_sums'].items() if 'اجتماعية و الوطنية' in key]
-            if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C22'] = 200
-                maxMark = 200
-                sheet2['D22'] = int(social_subjects[0][value_item]*(2/3)) if social_subjects and len(social_subjects[0]) != 0 else ''
-            elif 'سادس' in group_item['student_grade_name'] or 'سابع' in group_item['student_grade_name']:
-                sheet2['D22'] = int(social_subjects[0][value_item]/3) if social_subjects and len(social_subjects[0]) != 0 else ''
-                sheet2['C22'] = 100
-                maxMark = 100                
-            else:
-                sheet2['C22'] = 100
-                maxMark = 100
+            for row_number, dataFrame in enumerate(names_averages, start=5):
+                sheet1.cell(row=row_number, column=2).value = dataFrame[1]
+                sheet1.cell(row=row_number, column=4).value = dataFrame[0]
                 
-            # sheet2['D22'] = social_subjects[0][value_item] if social_subjects and len(social_subjects[0]) != 0 else ''
-            sheet2['E22'] = social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) != 0 else ''
-            sheet2['F22'] = (social_subjects[0][value_item] + social_subjects[0][1])/2 if term2 and social_subjects and len(social_subjects[0]) != 0 else ''
-            if term2:
-                sheet2['G22'] = convert_avarage_to_words((social_subjects[0][value_item] + social_subjects[0][1])/2) if social_subjects else ''
-                sheet2['J22'] = score_in_words(int(((social_subjects[0][value_item] + social_subjects[0][1])/2)*(2/3)),max_mark=maxMark) if social_subjects else ''
-            else:
-                sheet2['G22'] = convert_avarage_to_words(social_subjects[0][value_item]) if social_subjects else ''
-                sheet2['J22'] = score_in_words(int(social_subjects[0][value_item]*(2/3)),max_mark=maxMark) if social_subjects else ''
-
-            # العلوم
-            science_subjects = [value for key ,value in group_item['subject_sums'].items() if 'علوم' in key]
-            if 'ثامن' in group_item['student_grade_name'] :
-                sheet2['C23'] = 200
-                maxMark = 200
-            elif 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
-                sheet2['C23'] = 400
-                maxMark = 400
-            else:
-                sheet2['C23'] = 100
-                maxMark = 100
-            sheet2['D23'] = science_subjects[0][value_item] if science_subjects and len(science_subjects[0]) != 0 else ''
-            sheet2['E23'] = science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) != 0 else ''
-            sheet2['F23'] = (science_subjects[0][value_item] + science_subjects[0][1])/2 if term2 and science_subjects and len(science_subjects[0]) != 0 else ''
-            if term2:
-                sheet2['G23'] = convert_avarage_to_words((science_subjects[0][value_item] + science_subjects[0][1])/2) if science_subjects else ''
-                sheet2['J23'] = score_in_words( ((science_subjects[0][value_item] + science_subjects[0][1])/2),max_mark=maxMark) if  science_subjects else ''
-            else:
-                sheet2['G23'] = convert_avarage_to_words(science_subjects[0][value_item]) if science_subjects else ''
-                sheet2['J23'] = score_in_words( science_subjects[0][value_item],max_mark=maxMark) if  science_subjects else ''
-
-            # التربية الفنية والموسيقية
-            art_subject = [value for key ,value in group_item['subject_sums'].items() if 'الفنية والموس' in key]
-            sheet2['C24'] = 100 if art_subject and len(art_subject[0]) != 0 else ''
-            sheet2['D24'] = art_subject[0][value_item] if art_subject and len(art_subject[0]) != 0 else ''
-            sheet2['E24'] = art_subject[0][1] if term2 and art_subject and len(art_subject[0]) != 0 else ''
-            sheet2['F24'] = (art_subject[0][value_item] + art_subject[0][1])/2 if term2 and art_subject and len(art_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G24'] = convert_avarage_to_words((art_subject[0][value_item] + art_subject[0][1])/2) if art_subject else ''
-                sheet2['J24'] = score_in_words(((art_subject[0][value_item] + art_subject[0][1])/2) ) if art_subject else ''
-            else:
-                sheet2['G24'] = convert_avarage_to_words(art_subject[0][value_item]) if art_subject else ''
-                sheet2['J24'] = score_in_words(art_subject[0][value_item] ) if art_subject else ''
-
-            # التربية الرياضية
-            sport_subject = [value for key ,value in group_item['subject_sums'].items() if 'رياضية' in key]
-            sheet2['C25'] = 100 if sport_subject and len(sport_subject[0]) != 0 else ''
-            sheet2['D25'] = sport_subject[0][value_item] if sport_subject and len(sport_subject[0]) != 0 else ''
-            sheet2['E25'] = sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) != 0 else ''
-            sheet2['F25'] = (sport_subject[0][value_item] + sport_subject[0][1])/2 if term2 and sport_subject and len(sport_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G25'] = convert_avarage_to_words((sport_subject[0][value_item] + sport_subject[0][1])/2) if sport_subject else ''
-                sheet2['J25'] = score_in_words(((sport_subject[0][value_item] + sport_subject[0][1])/2) ) if sport_subject else ''
-            else:
-                sheet2['G25'] = convert_avarage_to_words(sport_subject[0][value_item]) if sport_subject else ''
-                sheet2['J25'] = score_in_words(sport_subject[0][value_item] ) if sport_subject else ''
-
-            # التربية المهنية 
-            vocational_subject = [value for key ,value in group_item['subject_sums'].items() if 'مهنية' in key]
-            sheet2['C26'] = 100 if vocational_subject and len(vocational_subject[0]) != 0 else ''
-            sheet2['D26'] = vocational_subject[0][value_item] if vocational_subject and len(vocational_subject[0]) != 0 else ''
-            sheet2['E26'] = vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) != 0 else ''
-            sheet2['F26'] = (vocational_subject[0][value_item] + vocational_subject[0][1])/2 if term2 and vocational_subject and len(vocational_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G26'] = convert_avarage_to_words((vocational_subject[0][value_item] + vocational_subject[0][1])/2) if vocational_subject else ''
-                sheet2['J26'] = score_in_words(((vocational_subject[0][value_item] + vocational_subject[0][1])/2) ) if vocational_subject else ''
-            else:
-                sheet2['G26'] = convert_avarage_to_words(vocational_subject[0][value_item]) if vocational_subject else ''
-                sheet2['J26'] = score_in_words(vocational_subject[0][value_item] ) if vocational_subject else ''
-
-            # الحاسوب
-            computer_subject = [value for key ,value in group_item['subject_sums'].items() if 'حاسوب' in key]
-            sheet2['C27'] = 100 if computer_subject and len(computer_subject[0]) != 0 else ''
-            sheet2['D27'] = computer_subject[0][value_item] if computer_subject and len(computer_subject[0]) != 0 else ''
-            sheet2['E27'] = computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) != 0 else ''
-            sheet2['F27'] = (computer_subject[0][value_item] + computer_subject[0][1])/2 if term2 and computer_subject and len(computer_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G27'] = convert_avarage_to_words((computer_subject[0][value_item] + computer_subject[0][1])/2) if computer_subject else ''
-                sheet2['J27'] = score_in_words(((computer_subject[0][value_item] + computer_subject[0][1])/2) ) if computer_subject else ''
-            else:
-                sheet2['G27'] = convert_avarage_to_words(computer_subject[0][value_item]) if computer_subject else ''
-                sheet2['J27'] = score_in_words(computer_subject[0][value_item] ) if computer_subject else ''
-
-            # الثقافة المالية
-            financial_subject = [value for key ,value in group_item['subject_sums'].items() if 'مالية' in key]
-            sheet2['C28'] = 100 if financial_subject and len(financial_subject[0]) != 0 else ''
-            sheet2['D28'] = financial_subject[0][value_item] if financial_subject and len(financial_subject[0]) != 0 else ''
-            sheet2['E28'] = financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) != 0 else ''
-            sheet2['F28'] = (financial_subject[0][value_item] + financial_subject[0][1])/2 if term2 and financial_subject and len(financial_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G28'] = convert_avarage_to_words((financial_subject[0][value_item] + financial_subject[0][1])/2) if financial_subject else ''
-                sheet2['J28'] = score_in_words(((financial_subject[0][value_item] + financial_subject[0][1])/2) ) if financial_subject else ''
-            else:
-                sheet2['G28'] = convert_avarage_to_words(financial_subject[0][value_item]) if financial_subject else ''
-                sheet2['J28'] = score_in_words(financial_subject[0][value_item] ) if financial_subject else ''
-
-            # اللغة الفرنسية 
-            franch_subject = [value for key ,value in group_item['subject_sums'].items() if 'فرنسية' in key]
-            sheet2['C29'] = 100 if franch_subject and len(franch_subject[0]) != 0 else ''
-            sheet2['D29'] = franch_subject[0][value_item] if franch_subject and len(franch_subject[0]) != 0 else ''
-            sheet2['E29'] = franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) != 0 else ''
-            sheet2['F29'] = (franch_subject[0][value_item] + franch_subject[0][1])/2 if term2 and franch_subject and len(franch_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G29'] = convert_avarage_to_words((franch_subject[0][value_item] + franch_subject[0][1])/2) if franch_subject else ''
-                sheet2['J29'] = score_in_words(((franch_subject[0][value_item] + franch_subject[0][1])/2) ) if franch_subject else ''
-            else:
-                sheet2['G29'] = convert_avarage_to_words(franch_subject[0][value_item]) if franch_subject else ''
-                sheet2['J29'] = score_in_words(franch_subject[0][value_item] ) if franch_subject else ''
-
-            # الدين المسيحي
-            christian_subject = [value for key ,value in group_item['subject_sums'].items() if 'الدين المسيحي' in key]
-            sheet2['C30'] = 100 if christian_subject and len(christian_subject[0]) != 0 else ''
-            sheet2['D30'] = christian_subject[0][value_item] if christian_subject and len(christian_subject[0]) != 0 else ''
-            sheet2['E30'] = christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) != 0 else ''
-            sheet2['F30'] = (christian_subject[0][value_item] + christian_subject[0][1])/2 if term2 and christian_subject and len(christian_subject[0]) != 0 else ''
-            if term2:
-                sheet2['G30'] = convert_avarage_to_words((christian_subject[0][value_item] + christian_subject[0][1])/2) if christian_subject else ''
-                sheet2['J30'] = score_in_words(((christian_subject[0][value_item] + christian_subject[0][1])/2) ) if christian_subject else ''
-            else:
-                sheet2['G30'] = convert_avarage_to_words(christian_subject[0][value_item]) if christian_subject else ''
-                sheet2['J30'] = score_in_words(christian_subject[0][value_item] ) if christian_subject else ''
-
-            if term2 :
-                # عدل المئوي بالرقام 
-                sheet2['c32']= group_item['t1+t2+year_avarage'][2]
-                #بالحروف
-                sheet2['e32']= convert_avarage_to_words(group_item['t1+t2+year_avarage'][2]) if group_item else ''
-                #ترتيب الطالب على الصف 
-                sheet2['j32']= counter-1
-                #النتيجة 
-                sheet2['b33']= 'مقصر' if any(int(sum(item)/2) > 49 for item in [value for key , value in group_item['subject_sums'].items()] ) else score_in_words(int(group_item['t1+t2+year_avarage'][2]))
-            else:
+            counter = 1
+            for group_item in group:
                 
-                #المعدل المئوي بالرقام 
-                sheet2['c32']= group_item['t1+t2+year_avarage'][0]
-                #بالحروف
-                sheet2['e32']= convert_avarage_to_words(group_item['t1+t2+year_avarage'][0]) if group_item else ''
-                #ترتيب الطالب على الصف 
-                sheet2['j32']= counter-1
-                #النتيجة 
-                sheet2['b33']= 'مقصر' if any(item < 49 for item in [value[0] for key , value in group_item['subject_sums'].items()] ) else score_in_words(int(group_item['t1+t2+year_avarage'][0]))
-            
-            #عدد ايام غياب الطالب 
-            sheet2['c35']= ''
-            #عدد ايام الدوام الرسمي الكامل 
-            sheet2['g35']= ''
-            #اسم و توقيع مربي الصف 
-            sheet2['j35']= ''
-            #التاريخ
-            sheet2['b36']= ''
-            #اسم و توقيع مدير المدرسة
-            sheet2['i36']= ''
-        template_file.remove(template_file['sheet'])
-        template_file.save(outdir+group[0]['student_class_name_letter']+'.xlsx')
+                sheet2 = template_file.copy_worksheet(template_file.worksheets[1])
+                sheet2.title = str(counter)
+                counter += 1
+                sheet2.sheet_view.rightToLeft = True    
+                sheet2.sheet_view.rightToLeft = True   
+
+                img = openpyxl.drawing.image.Image(image)
+                img.anchor = 'e2'
+                sheet2.add_image(img)
+
+                # group_item = grouped_list[0][0]
+                # print(sheet2)
+                sheet2['b7'] = group_item['student__full_name']
+                # مكان و تاريخ الولادة
+                sheet2['h7']= str(group_item['student_birth_place']) + ' ' + str(group_item['student_birth_date'])
+                #الرقم الوطني
+                sheet2['b9']= group_item['student_nat_id']
+                #الجنسية
+                sheet2['h9']= group_item['student_nat']
+                #الصف و الشعبة 
+                sheet2['b11']= group_item['student_class_name_letter']
+                #المدرسة و رقمها الوطني
+                sheet2['g11']= group_item['student_school_name']
+                #المنطقة التعليمية 
+                sheet2['b13']= group_item['student_edu_place']  
+                #البلدة 
+                sheet2['f13']= ''
+                #اللواء
+                sheet2['i13']= group_item['student_directory']
+                # put the subjects cells inder here 
+                i ='c,d,e,g,j,f'.split(',')
+                r = range(18,32)
+
+                value_item = 0
+
+                # التربية الاسلامية
+                islam_subject = [value for key ,value in group_item['subject_sums'].items() if 'سلامية' in key]
+                if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C18'] = 200
+                    maxMark = 200
+                else:
+                    sheet2['C18'] = 100
+                    maxMark = 100
+                sheet2['D18'] = islam_subject[0][value_item] if islam_subject and len(islam_subject[0]) != 0 else ''
+                sheet2['E18'] = islam_subject[0][1] if term2 and islam_subject and len(islam_subject[0]) != 0 else ''
+                sheet2['F18'] = (islam_subject[0][value_item] + islam_subject[0][1])/2 if term2 and islam_subject and len(islam_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G18'] = convert_avarage_to_words((islam_subject[0][value_item] + islam_subject[0][1])/2) if islam_subject else ''
+                    sheet2['J18'] = score_in_words(((islam_subject[0][value_item] + islam_subject[0][1])/2),max_mark=maxMark) if islam_subject else ''
+                else:
+                    sheet2['G18'] = convert_avarage_to_words(islam_subject[0][value_item]) if islam_subject else ''
+                    sheet2['J18'] = score_in_words(islam_subject[0][value_item],max_mark=maxMark) if islam_subject else ''
+
+                # اللغة العربية
+                arabic_subject = [value for key ,value in group_item['subject_sums'].items() if 'عربية' in key]
+                if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C19'] = 300
+                    maxMark = 300
+                else:
+                    sheet2['C19'] = 100
+                    maxMark = 100
+                sheet2['D19'] = arabic_subject[0][value_item] if arabic_subject and len(arabic_subject[0]) != 0 else ''
+                sheet2['E19'] = arabic_subject[0][1] if term2 and arabic_subject and len(arabic_subject[0]) != 0 else ''
+                sheet2['F19'] = (arabic_subject[0][value_item] + arabic_subject[0][1])/2 if term2 and arabic_subject and len(arabic_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G19'] = convert_avarage_to_words((arabic_subject[0][value_item] + arabic_subject[0][1])/2) if arabic_subject else ''
+                    sheet2['J19'] = score_in_words(((arabic_subject[0][value_item] + arabic_subject[0][1])/2),max_mark=maxMark) if arabic_subject else ''
+                else:
+                    sheet2['G19'] = convert_avarage_to_words(arabic_subject[0][value_item]) if arabic_subject else ''
+                    sheet2['J19'] = score_in_words(arabic_subject[0][value_item],max_mark=maxMark) if arabic_subject else ''
+
+                # اللغة الانجليزية 
+                english_subject = [value for key ,value in group_item['subject_sums'].items() if 'جليزية' in key]
+                if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C20'] = 200
+                    maxMark = 200
+                else:
+                    sheet2['C20'] = 100
+                    maxMark = 100
+                sheet2['D20'] = english_subject[0][value_item] if english_subject and len(english_subject[0]) != 0 else ''
+                sheet2['E20'] = english_subject[0][1] if term2 and english_subject and len(english_subject[0]) != 0 else ''
+                sheet2['F20'] = (english_subject[0][value_item] + english_subject[0][1])/2 if term2 and english_subject and len(english_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G20'] = convert_avarage_to_words((english_subject[0][value_item] + english_subject[0][1])/2) if english_subject else ''
+                    sheet2['J20'] = score_in_words(((english_subject[0][value_item] + english_subject[0][1])/2),max_mark=maxMark) if english_subject else ''
+                else:
+                    sheet2['G20'] = convert_avarage_to_words(english_subject[0][value_item]) if english_subject else ''
+                    sheet2['J20'] = score_in_words(english_subject[0][value_item],max_mark=maxMark) if english_subject else ''
+
+                # الرياضيات 
+                math_subject = [value for key ,value in group_item['subject_sums'].items() if 'رياضيات' in key]
+                if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C21'] = 200
+                    maxMark = 200
+                else:
+                    sheet2['C21'] = 100
+                    maxMark = 100
+                sheet2['D21'] = math_subject[0][value_item] if math_subject and len(math_subject[0]) != 0 else ''
+                sheet2['E21'] = math_subject[0][1] if term2 and math_subject and len(math_subject[0]) != 0 else ''
+                sheet2['F21'] = (math_subject[0][value_item] + math_subject[0][1])/2 if term2 and math_subject and len(math_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G21'] = convert_avarage_to_words((math_subject[0][value_item] + math_subject[0][1])/2) if math_subject else ''
+                    sheet2['J21'] = score_in_words(((math_subject[0][value_item] + math_subject[0][1])/2),max_mark=maxMark) if math_subject else ''
+                else:
+                    sheet2['G21'] = convert_avarage_to_words(math_subject[0][value_item]) if math_subject else ''
+                    sheet2['J21'] = score_in_words(math_subject[0][value_item],max_mark=maxMark) if math_subject else ''
+
+                # التربية الاجتماعية و الوطنية 
+                social_subjects = [value for key ,value in group_item['subject_sums'].items() if 'اجتماعية و الوطنية' in key]
+                if 'ثامن' in group_item['student_grade_name'] or 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C22'] = 200
+                    maxMark = 200
+                    sheet2['D22'] = int(social_subjects[0][value_item]*(2/3)) if social_subjects and len(social_subjects[0]) != 0 else ''
+                elif 'سادس' in group_item['student_grade_name'] or 'سابع' in group_item['student_grade_name']:
+                    sheet2['D22'] = int(social_subjects[0][value_item]/3) if social_subjects and len(social_subjects[0]) != 0 else ''
+                    sheet2['C22'] = 100
+                    maxMark = 100                
+                else:
+                    sheet2['C22'] = 100
+                    maxMark = 100
+                    
+                # sheet2['D22'] = social_subjects[0][value_item] if social_subjects and len(social_subjects[0]) != 0 else ''
+                sheet2['E22'] = social_subjects[0][1] if term2 and social_subjects and len(social_subjects[0]) != 0 else ''
+                sheet2['F22'] = (social_subjects[0][value_item] + social_subjects[0][1])/2 if term2 and social_subjects and len(social_subjects[0]) != 0 else ''
+                if term2:
+                    sheet2['G22'] = convert_avarage_to_words((social_subjects[0][value_item] + social_subjects[0][1])/2) if social_subjects else ''
+                    sheet2['J22'] = score_in_words(int(((social_subjects[0][value_item] + social_subjects[0][1])/2)*(2/3)),max_mark=maxMark) if social_subjects else ''
+                else:
+                    sheet2['G22'] = convert_avarage_to_words(social_subjects[0][value_item]) if social_subjects else ''
+                    sheet2['J22'] = score_in_words(int(social_subjects[0][value_item]*(2/3)),max_mark=maxMark) if social_subjects else ''
+
+                # العلوم
+                science_subjects = [value for key ,value in group_item['subject_sums'].items() if 'علوم' in key]
+                if 'ثامن' in group_item['student_grade_name'] :
+                    sheet2['C23'] = 200
+                    maxMark = 200
+                elif 'تاسع' in group_item['student_grade_name'] or 'عاشر' in group_item['student_grade_name']:
+                    sheet2['C23'] = 400
+                    maxMark = 400
+                else:
+                    sheet2['C23'] = 100
+                    maxMark = 100
+                sheet2['D23'] = science_subjects[0][value_item] if science_subjects and len(science_subjects[0]) != 0 else ''
+                sheet2['E23'] = science_subjects[0][1] if term2 and science_subjects and len(science_subjects[0]) != 0 else ''
+                sheet2['F23'] = (science_subjects[0][value_item] + science_subjects[0][1])/2 if term2 and science_subjects and len(science_subjects[0]) != 0 else ''
+                if term2:
+                    sheet2['G23'] = convert_avarage_to_words((science_subjects[0][value_item] + science_subjects[0][1])/2) if science_subjects else ''
+                    sheet2['J23'] = score_in_words( ((science_subjects[0][value_item] + science_subjects[0][1])/2),max_mark=maxMark) if  science_subjects else ''
+                else:
+                    sheet2['G23'] = convert_avarage_to_words(science_subjects[0][value_item]) if science_subjects else ''
+                    sheet2['J23'] = score_in_words( science_subjects[0][value_item],max_mark=maxMark) if  science_subjects else ''
+
+                # التربية الفنية والموسيقية
+                art_subject = [value for key ,value in group_item['subject_sums'].items() if 'الفنية والموس' in key]
+                sheet2['C24'] = 100 if art_subject and len(art_subject[0]) != 0 else ''
+                sheet2['D24'] = art_subject[0][value_item] if art_subject and len(art_subject[0]) != 0 else ''
+                sheet2['E24'] = art_subject[0][1] if term2 and art_subject and len(art_subject[0]) != 0 else ''
+                sheet2['F24'] = (art_subject[0][value_item] + art_subject[0][1])/2 if term2 and art_subject and len(art_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G24'] = convert_avarage_to_words((art_subject[0][value_item] + art_subject[0][1])/2) if art_subject else ''
+                    sheet2['J24'] = score_in_words(((art_subject[0][value_item] + art_subject[0][1])/2) ) if art_subject else ''
+                else:
+                    sheet2['G24'] = convert_avarage_to_words(art_subject[0][value_item]) if art_subject else ''
+                    sheet2['J24'] = score_in_words(art_subject[0][value_item] ) if art_subject else ''
+
+                # التربية الرياضية
+                sport_subject = [value for key ,value in group_item['subject_sums'].items() if 'رياضية' in key]
+                sheet2['C25'] = 100 if sport_subject and len(sport_subject[0]) != 0 else ''
+                sheet2['D25'] = sport_subject[0][value_item] if sport_subject and len(sport_subject[0]) != 0 else ''
+                sheet2['E25'] = sport_subject[0][1] if term2 and sport_subject and len(sport_subject[0]) != 0 else ''
+                sheet2['F25'] = (sport_subject[0][value_item] + sport_subject[0][1])/2 if term2 and sport_subject and len(sport_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G25'] = convert_avarage_to_words((sport_subject[0][value_item] + sport_subject[0][1])/2) if sport_subject else ''
+                    sheet2['J25'] = score_in_words(((sport_subject[0][value_item] + sport_subject[0][1])/2) ) if sport_subject else ''
+                else:
+                    sheet2['G25'] = convert_avarage_to_words(sport_subject[0][value_item]) if sport_subject else ''
+                    sheet2['J25'] = score_in_words(sport_subject[0][value_item] ) if sport_subject else ''
+
+                # التربية المهنية 
+                vocational_subject = [value for key ,value in group_item['subject_sums'].items() if 'مهنية' in key]
+                sheet2['C26'] = 100 if vocational_subject and len(vocational_subject[0]) != 0 else ''
+                sheet2['D26'] = vocational_subject[0][value_item] if vocational_subject and len(vocational_subject[0]) != 0 else ''
+                sheet2['E26'] = vocational_subject[0][1] if term2 and vocational_subject and len(vocational_subject[0]) != 0 else ''
+                sheet2['F26'] = (vocational_subject[0][value_item] + vocational_subject[0][1])/2 if term2 and vocational_subject and len(vocational_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G26'] = convert_avarage_to_words((vocational_subject[0][value_item] + vocational_subject[0][1])/2) if vocational_subject else ''
+                    sheet2['J26'] = score_in_words(((vocational_subject[0][value_item] + vocational_subject[0][1])/2) ) if vocational_subject else ''
+                else:
+                    sheet2['G26'] = convert_avarage_to_words(vocational_subject[0][value_item]) if vocational_subject else ''
+                    sheet2['J26'] = score_in_words(vocational_subject[0][value_item] ) if vocational_subject else ''
+
+                # الحاسوب
+                computer_subject = [value for key ,value in group_item['subject_sums'].items() if 'حاسوب' in key]
+                sheet2['C27'] = 100 if computer_subject and len(computer_subject[0]) != 0 else ''
+                sheet2['D27'] = computer_subject[0][value_item] if computer_subject and len(computer_subject[0]) != 0 else ''
+                sheet2['E27'] = computer_subject[0][1] if term2 and computer_subject and len(computer_subject[0]) != 0 else ''
+                sheet2['F27'] = (computer_subject[0][value_item] + computer_subject[0][1])/2 if term2 and computer_subject and len(computer_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G27'] = convert_avarage_to_words((computer_subject[0][value_item] + computer_subject[0][1])/2) if computer_subject else ''
+                    sheet2['J27'] = score_in_words(((computer_subject[0][value_item] + computer_subject[0][1])/2) ) if computer_subject else ''
+                else:
+                    sheet2['G27'] = convert_avarage_to_words(computer_subject[0][value_item]) if computer_subject else ''
+                    sheet2['J27'] = score_in_words(computer_subject[0][value_item] ) if computer_subject else ''
+
+                # الثقافة المالية
+                financial_subject = [value for key ,value in group_item['subject_sums'].items() if 'مالية' in key]
+                sheet2['C28'] = 100 if financial_subject and len(financial_subject[0]) != 0 else ''
+                sheet2['D28'] = financial_subject[0][value_item] if financial_subject and len(financial_subject[0]) != 0 else ''
+                sheet2['E28'] = financial_subject[0][1] if term2 and financial_subject and len(financial_subject[0]) != 0 else ''
+                sheet2['F28'] = (financial_subject[0][value_item] + financial_subject[0][1])/2 if term2 and financial_subject and len(financial_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G28'] = convert_avarage_to_words((financial_subject[0][value_item] + financial_subject[0][1])/2) if financial_subject else ''
+                    sheet2['J28'] = score_in_words(((financial_subject[0][value_item] + financial_subject[0][1])/2) ) if financial_subject else ''
+                else:
+                    sheet2['G28'] = convert_avarage_to_words(financial_subject[0][value_item]) if financial_subject else ''
+                    sheet2['J28'] = score_in_words(financial_subject[0][value_item] ) if financial_subject else ''
+
+                # اللغة الفرنسية 
+                franch_subject = [value for key ,value in group_item['subject_sums'].items() if 'فرنسية' in key]
+                sheet2['C29'] = 100 if franch_subject and len(franch_subject[0]) != 0 else ''
+                sheet2['D29'] = franch_subject[0][value_item] if franch_subject and len(franch_subject[0]) != 0 else ''
+                sheet2['E29'] = franch_subject[0][1] if term2 and franch_subject and len(franch_subject[0]) != 0 else ''
+                sheet2['F29'] = (franch_subject[0][value_item] + franch_subject[0][1])/2 if term2 and franch_subject and len(franch_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G29'] = convert_avarage_to_words((franch_subject[0][value_item] + franch_subject[0][1])/2) if franch_subject else ''
+                    sheet2['J29'] = score_in_words(((franch_subject[0][value_item] + franch_subject[0][1])/2) ) if franch_subject else ''
+                else:
+                    sheet2['G29'] = convert_avarage_to_words(franch_subject[0][value_item]) if franch_subject else ''
+                    sheet2['J29'] = score_in_words(franch_subject[0][value_item] ) if franch_subject else ''
+
+                # الدين المسيحي
+                christian_subject = [value for key ,value in group_item['subject_sums'].items() if 'الدين المسيحي' in key]
+                sheet2['C30'] = 100 if christian_subject and len(christian_subject[0]) != 0 else ''
+                sheet2['D30'] = christian_subject[0][value_item] if christian_subject and len(christian_subject[0]) != 0 else ''
+                sheet2['E30'] = christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) != 0 else ''
+                sheet2['F30'] = (christian_subject[0][value_item] + christian_subject[0][1])/2 if term2 and christian_subject and len(christian_subject[0]) != 0 else ''
+                if term2:
+                    sheet2['G30'] = convert_avarage_to_words((christian_subject[0][value_item] + christian_subject[0][1])/2) if christian_subject else ''
+                    sheet2['J30'] = score_in_words(((christian_subject[0][value_item] + christian_subject[0][1])/2) ) if christian_subject else ''
+                else:
+                    sheet2['G30'] = convert_avarage_to_words(christian_subject[0][value_item]) if christian_subject else ''
+                    sheet2['J30'] = score_in_words(christian_subject[0][value_item] ) if christian_subject else ''
+
+                if term2 :
+                    # عدل المئوي بالرقام 
+                    sheet2['c32']= group_item['t1+t2+year_avarage'][2]
+                    #بالحروف
+                    sheet2['e32']= convert_avarage_to_words(group_item['t1+t2+year_avarage'][2]) if group_item else ''
+                    #ترتيب الطالب على الصف 
+                    sheet2['j32']= counter-1
+                    #النتيجة 
+                    sheet2['b33']= 'مقصر' if any(int(sum(item)/2) > 49 for item in [value for key , value in group_item['subject_sums'].items()] ) else score_in_words(int(group_item['t1+t2+year_avarage'][2]))
+                else:
+                    
+                    #المعدل المئوي بالرقام 
+                    sheet2['c32']= group_item['t1+t2+year_avarage'][0]
+                    #بالحروف
+                    sheet2['e32']= convert_avarage_to_words(group_item['t1+t2+year_avarage'][0]) if group_item else ''
+                    #ترتيب الطالب على الصف 
+                    sheet2['j32']= counter-1
+                    #النتيجة 
+                    sheet2['b33']= 'مقصر' if any(item < 49 for item in [value[0] for key , value in group_item['subject_sums'].items()] ) else score_in_words(int(group_item['t1+t2+year_avarage'][0]))
+                
+                #عدد ايام غياب الطالب 
+                sheet2['c35']= ''
+                #عدد ايام الدوام الرسمي الكامل 
+                sheet2['g35']= ''
+                #اسم و توقيع مربي الصف 
+                sheet2['j35']= ''
+                #التاريخ
+                sheet2['b36']= ''
+                #اسم و توقيع مدير المدرسة
+                sheet2['i36']= ''
+            template_file.remove(template_file['sheet'])
+            template_file.save(outdir+group[0]['student_class_name_letter']+'.xlsx')
 
 def create_coloured_certs_excel(grouped_list , term2=False ,template='./templet_files/نموذج شهادات ملونة.xlsx' , outdir='./send_folder/'):
     
@@ -3548,9 +3452,9 @@ def create_coloured_certs_ods(grouped_list , term2=False ,template='./templet_fi
                 sheet2[c['principal_name']].set_value( grouped_list['principle_name'] )
                 sheet2 = filler_sheet.copy(newname=str(sheet_number))
                 template_file.sheets += sheet2  
-                              
+            del template_file.sheets[-1]
             # template_file.remove(template_file['Sheet1'])
-            template_file.saveas(outdir+group[0]['student_class_name_letter']+'.xlsx')
+            template_file.saveas(outdir+group[0]['student_class_name_letter']+'.ods')
 
 def sort_dictionary_list_based_on(dictionary_list, dictionary_key='t1+t2+year_avarage', item_in_list=0, reverse=True, simple=True):
     if simple:
@@ -3655,7 +3559,7 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                     if 'ربية الاجتماعية و الوطنية' in key :
                         # print(key ,round(value[0]*2/3),1)
                         term_1_avarage +=round(value[0]/3,1)
-                        term_1_avarage +=round(value[1]/3,1)
+                        term_2_avarage +=round(value[1]/3,1)
                         # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
                     elif skip_art_sport :
                         if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
@@ -3672,8 +3576,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                 for key, value in item['subject_sums'].items():
                     if 'ربية الاجتماعية و الوطنية' in key :
                         # print(key ,round(value[0]*2/3),1)
-                        term_1_avarage +=round(value[0]*2/3,1)
-                        term_1_avarage +=round(value[1]*2/3,1)
+                        term_1_avarage += round(value[0]*2/3,1)
+                        term_2_avarage += round(value[1]*2/3,1)
                         # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
                     elif skip_art_sport :
                         if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
@@ -3691,7 +3595,7 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                     if 'ربية الاجتماعية و الوطنية' in key :
                         # print(key ,round(value[0]*2/3),1)
                         term_1_avarage +=round(value[0]*2/3,1)
-                        term_1_avarage +=round(value[1]*2/3,1)
+                        term_2_avarage +=round(value[1]*2/3,1)
                         # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
                     elif skip_art_sport :
                         if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
@@ -3709,7 +3613,7 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                     if 'ربية الاجتماعية و الوطنية' in key :
                         # print(key ,round(value[0]*2/3),1)
                         term_1_avarage +=round(value[0]*2/3,1)
-                        term_1_avarage +=round(value[1]*2/3,1)
+                        term_2_avarage +=round(value[1]*2/3,1)
                         # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
                     elif skip_art_sport :
                         if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
@@ -3723,22 +3627,23 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                 item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
             else:
-                for key, value in item['subject_sums'].items():
-                    if 'ربية الاجتماعية و الوطنية' in key :
-                        # print(key ,round(value[0]*2/3),1)
-                        term_1_avarage +=round(value[0]*2/3,1)
-                        term_1_avarage +=round(value[1]*2/3,1)
-                        # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    elif skip_art_sport :
-                        if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                            pass                        
-                    else:
-                        # print(key , value[0])
-                        term_1_avarage += value[0]
-                        term_2_avarage += value[1]
-                        # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+                if 'عشر' not in item['student_grade_name']:
+                    for key, value in item['subject_sums'].items():
+                        if 'ربية الاجتماعية و الوطنية' in key :
+                            # print(key ,round(value[0]*2/3),1)
+                            term_1_avarage +=round(value[0]*2/3,1)
+                            term_2_avarage +=round(value[1]*2/3,1)
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                        elif skip_art_sport :
+                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
+                                pass                        
+                        else:
+                            # print(key , value[0])
+                            term_1_avarage += value[0]
+                            term_2_avarage += value[1]
+                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
+                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
+                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
 def add_subject_sum_dictionary (grouped_dict_list):
     subject_sums = {}
@@ -3751,7 +3656,7 @@ def add_subject_sum_dictionary (grouped_dict_list):
                         # compute sum for science subjects
                         science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
                         science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'تاريخ' in i['subject_name']:
+                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'تاريخ' in i['subject_name'] or 'التربية الاجتماعية' in i['subject_name']:
                         # compute sum for social subjects
                         social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
                         social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
@@ -4175,38 +4080,38 @@ def assessments_commands_text(lst):
         text += '/All_asses تعبئة كل الامتحانات المتوفرة تلقائيا'
         return text
     
-def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None):
+def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None,session=None):
     if assessment_grade_id is None or class_subject is None:
-        required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username)
+        required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username,session=session)
         ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
-        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1]) for i in ass_data] for item in sublist if item.get('editable')==True]
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, i[0],i[1],session=session) for i in ass_data] for item in sublist if item.get('editable')==True]
         # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
         unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
         sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
         return sorted_dict
     else:
-        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, assessment_grade_id ,class_subject)] for item in sublist if item.get('editable')==True]
+        ass_data = [item for sublist in [get_all_assessments_periods_data2(auth, assessment_grade_id ,class_subject ,session=session)] for item in sublist if item.get('editable')==True]
         # unique_lst = [dict(t) for t in {tuple(sorted(d.items())) for d in lst}]
         unique_dict_list = [dict(t) for t in {tuple(sorted(d.items())) for d in ass_data}]
         sorted_dict = sorted(unique_dict_list , key=lambda x: x['code'])
         return sorted_dict    
        
-def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ):
+def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
     '''
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
-    return make_request(url,auth)
+    return make_request(url,auth,session=session)
 
-def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id):
+def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id,session=None):
     '''
          استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
     '''
-    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
+    terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id,session=session)['data']
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
     min_max=[]
@@ -4239,33 +4144,33 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,student_id= Student_id
                 ,assessment_period_id= assessment_period_id)
 
-def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id):
+def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
     '''
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
-    student_ids = [student['student_id'] for student in make_request(url,auth)['data']]
+    student_ids = [student['student_id'] for student in make_request(url,auth,session=session)['data']]
     return student_ids
 
-def get_required_data_to_enter_marks(auth ,username):
-    period_id = get_curr_period(auth)['data'][0]['id']
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    user_id = user_info(auth , username)['data'][0]['id']
-    years = get_curr_period(auth)
+def get_required_data_to_enter_marks(auth ,username,session=None):
+    period_id = get_curr_period(auth,session=session)['data'][0]['id']
+    inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
+    user_id = user_info(auth,username,session=session)['data'][0]['id']
+    years = get_curr_period(auth,session=session)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
     required_data_to_enter_marks = []
     
     for class_id in classes_id_1 : 
-        class_info = get_teacher_classes2( auth , class_id)['data']
+        class_info = get_teacher_classes2( auth , class_id,session=session)['data']
         dic = {'assessment_id':'','education_subject_id':'' ,'education_grade_id':'','institution_classes_id':'','students_ids':[] }
-        dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'])
+        dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'],session=session)
         dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
         dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
         dic['institution_classes_id'] = class_info[0]['institution_class_id']
-        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id)
+        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
 
         required_data_to_enter_marks.append(dic)
     
@@ -4281,9 +4186,9 @@ def get_grade_name_from_grade_id(auth , grade_id):
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
 
-def get_assessment_id_from_grade_id(auth , grade_id):
+def get_assessment_id_from_grade_id(auth , grade_id,session=None):
     
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
@@ -4364,7 +4269,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         for i in students_id_and_names:   
             for v in assessments_json['data']:
                 if v['student_id'] == i['student_id'] :  
-                    if v["marks"] is not None :
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
+                    # if v["marks"] is not None :
                         dic['id'] = i['student_id'] 
                         dic['name'] = i['student_name'] 
                         dic['assessments_periods_ides'].append(v['assessment_period_id'] )
@@ -4796,14 +4702,14 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
     return make_request(url,auth)
 
-def get_assessments_periods(auth ,term, assessment_id):
+def get_assessments_periods(auth ,term, assessment_id,session=None):
     '''
          استعلام عن تعريفات التقويمات في الفصل الدراسي 
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth)
+    return make_request(url,auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
     '''
@@ -4831,14 +4737,14 @@ def get_assessments_id( auth ,education_grade_id ):
         if assessment['education_grade_id'] == education_grade_id :
             return assessment['id']
 
-def get_AcademicTerms(auth,assessment_id):
+def get_AcademicTerms(auth,assessment_id,session=None):
     '''
     دالة لاستدعاء اسم الفصل 
     و عواملها التوكن و رقم تقيم الصف 
     و تعود باسماء الفصول على شكل جيسن
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth)        
+    return make_request(url,auth,session=session)        
 
 def draw_rect_top(page, page_width, fill_color , width=50):
     """
@@ -5070,7 +4976,7 @@ def my_jq(data):
     json_str = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False).encode('utf8')
     return highlight(json_str.decode('utf8'), JsonLexer(), TerminalFormatter())
 
-def make_request(url, auth ,session=None,timeout_seconds=20):
+def make_request(url, auth ,session=None,timeout_seconds=60):
     headers = {"Authorization": auth, "ControllerAction": "Results"}
     controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students']
     
@@ -5417,15 +5323,35 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
     return make_request(url,auth)
 
+def sort_send_folder_into_two_folders(folder='./send_folder'):
+    files = os.listdir(folder)
+    pdf_folder = os.path.join(folder, 'PDFs')
+    editable_folder = os.path.join(folder, 'قابل للتعديل')
+
+    os.makedirs(pdf_folder, exist_ok=True)
+    os.makedirs(editable_folder, exist_ok=True)
+
+    for file in files:
+        if not file.endswith('.json'):
+            file_path = os.path.join(folder, file)
+            if file.endswith('.pdf'):
+                shutil.move(file_path, pdf_folder)
+            else:
+                shutil.move(file_path, editable_folder)
+
 def main():
     print('starting script')
-
-    students_statistics_assesment_data = read_json_file('./templet_files/output.json')
-    create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
+    # students_statistics_assesment_data = read_json_file('./templet_files/مدرسة كعب بن عمير.json')
     # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
-    # create_coloured_certs_wrapper(9991014194,9991014194,term2=True)
+    # add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
+    # create_tables(get_auth(9971055725,9971055725),students_statistics_assesment_data['assessments_data'],term2=True)
+    # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
+    # create_coloured_certs_wrapper(9971055725,9971055725)
+    # create_certs(students_statistics_assesment_data['assessments_data'] , term2=True)
+    convert_files_to_pdf('./send_folder')
+    sort_send_folder_into_two_folders()
+    # create_tables_wrapper(9991014194 , 9991014194, term2=True)
     playsound()
-    # get_student_statistic_info(9971055725,9971055725)
 
 if __name__ == "__main__":
     main()

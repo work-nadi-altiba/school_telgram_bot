@@ -6,7 +6,8 @@ from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import production_bot  as token
+from keys import test_bot  as token
+import traceback
 import io
 
 print('Starting up bot...')
@@ -111,10 +112,10 @@ def get_marks_up_percentage(update, context):
     elif update.message.text == re.findall(r'.*', update.message.text) and update.message.text != '/cancel' :
         update.message.reply_text("انتظر لحظة لو سمحت") 
     else:
-        # if term == 'term1':
-        #     teachers_marks_upload_percentage_wrapper(auth,term=1,session=session)
-        # elif term == "term2":
-        #     teachers_marks_upload_percentage_wrapper(auth,term=2,session=session)
+        if term == 'term1':
+            teachers_marks_upload_percentage_wrapper(auth=auth,term=1,session=session)
+        elif term == "term2":
+            teachers_marks_upload_percentage_wrapper(auth=auth,term=2,session=session)
         generate_pdf(f'./send_folder/output.xlsx' , './send_folder' ,'output')            
         files = count_files()
         chat_id = update.message.chat.id
@@ -372,6 +373,7 @@ def help_command(update, context):
 
 # Log errors
 def error(update, context):
+    traceback.print_exc()    
     print(f'Update {update} caused error {context.error}')
 
 def cancel(update, context):
@@ -507,28 +509,34 @@ def init_tables (update, context):
     return CREDS
 
 def send_students_tables(update, context):
-    user = update.message.from_user
+    term = update.message.text.replace('/','')    
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
-        context.user_data['creds'] = update.message.text.split('/')
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
-        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
         print(username, password)
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
-            update.message.reply_text("هل تريد استخراج نتائج الفصل الثاني؟ نعم|لا")
-            if update.message.text == 'نعم':
+            update.message.reply_text("انتظر لحظة لو سمحت")
+            if term == 'term1':            
+                create_tables_wrapper(username, password)
+            elif term == "term2":
                 create_tables_wrapper(username, password, term2=True)
             else:
-                create_tables_wrapper(username, password)
+                func_text = '''اختر الفصل بالضغط عليه
+                /term1 الفصل الاول 
+                /term2 الفصل الثاني '''
+                
+                update.message.reply_text("لم تختر فصل ")
+                
+                update.message.reply_text(func_text)                                 
             files = count_files()
             chat_id = update.message.chat.id
             send_files(bot, chat_id, files)
             delete_send_folder()
-            return ConversationHandler.END
+            return ConversationHandler.END        
 
 def init_official_marks(update, context):
     update.message.reply_text("هل تريد سجل علامات رسمي ؟ \n قم باعطائي اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
@@ -645,7 +653,8 @@ if __name__ == '__main__':
     send_students_tables_conv = ConversationHandler(
                                         entry_points=[CommandHandler('tables', init_tables)],
                                         states={
-                                            CREDS : [MessageHandler(Filters.text , send_students_tables)]
+                                            CREDS_2 : [MessageHandler(Filters.text ,which_term)],
+                                            ASK_QUESTION : [MessageHandler(Filters.text , send_students_tables)]
                                         },
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
@@ -712,9 +721,9 @@ if __name__ == '__main__':
     dp.add_handler(fill_assess_arbitrary_marks_conv)
     dp.add_handler(fill_assess_arbitrary_empty_marks_conv)
     dp.add_handler(send_official_marks_doc_conv_offline)
-    # dp.add_handler(MessageHandler(Filters.document, receive_file))
     dp.add_handler(receive_file_handler_conv)
     dp.add_handler(send_students_certs_conv)
+    dp.add_handler(send_students_tables_conv)
     dp.add_handler(check_five_names_marks_conv)
     dp.add_handler(marks_up_percentage_conv)
     dp.add_handler(send_performance_side_marks_note_doc_conv)
