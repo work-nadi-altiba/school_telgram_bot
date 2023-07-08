@@ -43,6 +43,220 @@ import pdb
 import wfuzz
 from tqdm import tqdm
 
+def mark_all_students_as_present(term_days_dates,auth):
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:2600;institution_class_id:786118;education_grade_id:275;academic_period_id:13;attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+
+    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
+
+    print("All requests were successful!")
+    
+def mark_students_absent_in_dates():
+    auth = get_auth(9971055725,9971055725)
+    absent = '''4/7/9
+    5/25/26/9
+    7/11/9
+    8/13/9
+    11/29/9
+    15/12/13/9
+    17/26/9
+    18/7/9
+    19/13/9
+    22/12/9
+    26/11/9
+    2/24/10
+    3/11/10
+    4/4/10
+    6/24/10
+    11/10/10
+    18/19/10
+    20/10/10
+    21/25/10
+    27/4/10
+    444/24/10
+    5/10/10
+    2/3/21/28/11
+    3/15/11
+    4/3/22/11
+    5/22/27/11
+    7/15/27/11
+    8/1/15/11
+    9/22/11
+    11/7/11
+    13/7/11
+    15/7/10/14/15/22/27/11
+    17/7/11
+    18/3/11
+    19/3/11
+    20/7/20/28/11
+    21/3/6/22/11
+    22/30/11
+    23/2/13/22/11
+    24/7/11
+    25/3/16/20/22/11
+    27/2/3/10/11
+    444/1/16/11
+    555/14/15/11
+    9/5/12
+    15/5/12
+    19/5/12
+    25/5/12
+    555/5/12
+    2/21/2
+    16/22/2
+    21/13/16/23/27/2
+    555/21/26/2
+    2/19/3
+    3/19/3
+    4/7/3
+    5/20/21/3
+    7/21/3
+    8/19/3
+    9/7/3
+    13/28/3
+    15/8/28/3
+    18/7/28/3
+    19/19/28/29/3
+    21/2/6/8/14/22/3
+    22/20/3
+    25/7/8/19/3
+    26/1/6/20/3
+    27/19/3
+    444/7/16/29/3
+    555/2/6/20/21/3
+    5/20/3
+    2/3/12/26/4
+    3/26/4
+    4/26/4
+    5/13/4
+    7/3/4
+    9/26/4
+    11/3/26/4
+    15/14/26/4
+    16/26/4
+    18/26/4
+    19/3/4/26/4
+    20/4/12/4
+    26/26/4
+    27/26/3/9/4
+    444/26/3/4/4
+    555/26/4/4
+    2/3/5
+    3/8/5
+    4/21/5
+    5/16/21/24/5
+    8/17/21/5
+    9/16/21/5
+    10/16/5
+    11/4/9/16/21/29/5
+    12/16/5
+    13/16/5
+    15/16/5
+    444/21/5
+    555/21/5
+    26/18/21/5
+    27/16/21/24/5
+    444/21/30/5
+    16/16/21/5
+    17/16/5
+    18/16/21/5
+    19/16/21/24/5
+    20/16/21/5
+    21/16/21/5
+    22/16/5
+    23/16/5
+    24/21/5
+    25/16/5
+    '''.split('\n')
+
+    absent_days_list = [day.split('/') for day in absent if day]
+
+    # absent_days[1][1:-1]
+
+    students_names = ['احمد حسين عيسى الدغيمات','احمد خليل ابراهيم العونة','احمد خليل محمد الخنازره','احمد سفيان احمد الجعارات','امير لافي محمد النوايشه','ايهم عمر محمود الدغيمات','بشار عبد الله عيد الهويمل','جمال هارون ابراهيم الجعارات','جمعه كودابوكس محراب لونكا','زيد محمد عبد الرحيم العشوش','سراج زكريا خالد الهويمل','سلامة محمود سليمان الجعارات','سليمان احمد سليمان النوايشه','سليمان علي سليمان الهويمل','عمار رشيد عيد النوايشه','عمر جميل عوده الهويمل','عيد جميل عيد الجعارات','لؤي سلامه علي المراحله','لؤي موسى سليمان الهويمل','ليث محمد حسن الدغيمات','محمد امير عيد جميل الجعارات','محمد عبد الرزاق مصطفى العجالين','مدين سميح فلاح الدغيمات','معاذ جبرين سلامه الجعارات','نورالدين محمود راضي الدغيمات','يزن بكر عبد المحسن الدغيمات','يزن صالح احمد العجالين','يوسف امين احمد الهويمل']
+    students_ids = [10137540,7459083,7388854,7464726,10159305,6880369,7305148,7327218,7199282,7298162,7298198,7334184,7200052,7305606,7209214,7304956,7355630,7305448,7388970,7327780,7355120,7304522,7304554,7329162,3824166,7330736,7248432,7356766]
+
+    students_dictionary = {}
+    for idx, (name, student_id) in enumerate(zip(students_names, students_ids), start=1) :
+        
+        if (idx >= 8 and idx <= 14) or idx >= 20:
+            idx -=1
+            students_dictionary
+        else:    
+            idx = idx
+        
+        students_dictionary[idx]= [student_id,name , ]
+    students_dictionary[555] = [7305148,'بشار عبد الله عيد الهويمل']
+
+    # students_dictionary
+    year1 , year2 = 2022,2023
+    absent_data = []
+
+    for date in absent_days_list:
+        if '444' not in date:
+            student_id = str(students_dictionary[int(date[0])][0])
+            student_name = str(students_dictionary[int(date[0])][1])
+            year = year1 if int(date[-1]) in [9,10,11,12] else year2
+            
+            for day in date[1:-1]:
+                date_str = f"{year}-{date[-1]}-{day}"
+                print ( student_name  , date_str)
+                item = json.dumps({"student_id": student_id,
+                                    "institution_id": 2600,
+                                    "academic_period_id": 13,
+                                    "institution_class_id": 786118,
+                                    "absence_type_id": "2",
+                                    "student_absence_reason_id": None,
+                                    "comment": None,
+                                    "period": 1,
+                                    "date": date_str,
+                                    "subject_id": 0,
+                                    "education_grade_id": 275}).replace('}','')
+                absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
+
+    print("All requests were successful!")
+
+def term_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
+
+    present_days = []
+    start_date = datetime.date(2022, 8, 30)
+    end_date = datetime.date(2023, 6, 30)
+    skip_start_date = datetime.date(2023, 1, 1)
+    skip_end_date = datetime.date(2023, 2, 5)
+
+    current_date = start_date
+    while current_date <= end_date:
+        if current_date < skip_start_date or current_date > skip_end_date:
+            if current_date.weekday() not in [4, 5]:  # Exclude Friday (4) and Saturday (5)
+                present_days.append(current_date.strftime("%Y-%m-%d"))
+        current_date += datetime.timedelta(days=1)
+
+    return present_days
 
 def group_students(dic_list , i = None):
     # sort the list based on the 'class_name' key
@@ -61,7 +275,7 @@ def group_students(dic_list , i = None):
     else : 
         return grouped_list
 
-def wfuzz_function(fuzz_list,headers,body_postdata,method='POST'):
+def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
 
     Args:
@@ -78,12 +292,12 @@ def wfuzz_function(fuzz_list,headers,body_postdata,method='POST'):
             postfix=["uploaded mark", {"value": 0}]) as t:
             s = wfuzz.get_payloads([fuzz_list])
             for idx , r in enumerate(s.fuzz(
-                            url="https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json" ,
+                            url=url ,
                             # hc=[404] , 
                             # payloads=[("list",fuzz_list)] ,
                             headers=headers ,
                             postdata = body_postdata ,
-                            proxies=[("127.0.0.1","8080","HTTP")] ,
+                            proxies= proxies ,
                             method= method
                             ),start =1):
                     
@@ -164,8 +378,10 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
             'action_type': 'default'}).replace('}',', FUZZ }')
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
-
-    unsuccessful_requests = wfuzz_function(fuzz_postdata_list,headers,body_postdata)
+    
+    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
     while len(unsuccessful_requests) != 0:
         unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
@@ -1840,6 +2056,7 @@ def create_tables_wrapper(username , password ,term2=False):
     add_subject_sum_dictionary(grouped_list)
     add_averages_to_group_list(grouped_list ,skip_art_sport=False)
     
+    # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
         
 def create_certs_wrapper(username , password ,term2=False):
@@ -1996,6 +2213,22 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
                 marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3        
             else:
                 marks_sheet['a3'] = f'جدول العلامات الدراسية للصفوف من الأول الى السابع الأساسي ( {curr_year_code} )'
+                marks_sheet['h3'],marks_sheet['i3'],marks_sheet['j3'] = [100]*3
+                # عربية 
+                # k/l/m
+                marks_sheet['k3'],marks_sheet['l3'],marks_sheet['m3'] = [100]*3
+                # انجليزية 
+                # n/o/p
+                marks_sheet['n3'],marks_sheet['o3'],marks_sheet['p3'] = [100]*3
+                # رياضيات
+                # q/r/s
+                marks_sheet['q3'],marks_sheet['r3'],marks_sheet['s3'] = [100]*3
+                # اجتماعيات 
+                # t/u/v
+                marks_sheet['t3'],marks_sheet['u3'],marks_sheet['v3'] = [100]*3
+                # علوم
+                # w/x/y
+                marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [100]*3    
                 if 'سابع' in group[0]['student_grade_name']:
                     marks_sheet['a1'] = 1100
                 elif 'سادس' in group[0]['student_grade_name']:
@@ -3423,7 +3656,7 @@ def add_subject_sum_dictionary (grouped_dict_list):
                         # compute sum for science subjects
                         science_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
                         science_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
-                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'تاريخ' in i['subject_name']:
+                    elif 'التربية الوطنية و المدنية' in i['subject_name'] or 'الجغرافيا' in i['subject_name'] or 'تاريخ' in i['subject_name'] or 'التربية الاجتماعية' in i['subject_name']:
                         # compute sum for social subjects
                         social_sum +=  sum(int(i['term1'][key]) for key in i['term1'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term1'][key])
                         social_sum_t2 +=  sum(int(i['term2'][key]) for key in i['term2'] if re.compile(r'^assessment\d+$').match(key) and 'max_mark' not in key and i['term2'][key])
@@ -5108,15 +5341,16 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-    students_statistics_assesment_data = read_json_file('./templet_files/مدرسة المزرعة الثانوية للبنين.json')
-    add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
-    add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
+    # students_statistics_assesment_data = read_json_file('./templet_files/مدرسة كعب بن عمير.json')
+    # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
+    # add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
     # create_tables(get_auth(9971055725,9971055725),students_statistics_assesment_data['assessments_data'],term2=True)
     # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
     # create_coloured_certs_wrapper(9971055725,9971055725)
-    create_certs(students_statistics_assesment_data['assessments_data'] , term2=True)
+    # create_certs(students_statistics_assesment_data['assessments_data'] , term2=True)
     convert_files_to_pdf('./send_folder')
     sort_send_folder_into_two_folders()
+    # create_tables_wrapper(9991014194 , 9991014194, term2=True)
     playsound()
 
 if __name__ == "__main__":

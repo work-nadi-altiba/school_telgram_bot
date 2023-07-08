@@ -112,10 +112,10 @@ def get_marks_up_percentage(update, context):
     elif update.message.text == re.findall(r'.*', update.message.text) and update.message.text != '/cancel' :
         update.message.reply_text("انتظر لحظة لو سمحت") 
     else:
-        # if term == 'term1':
-        #     teachers_marks_upload_percentage_wrapper(auth,term=1,session=session)
-        # elif term == "term2":
-        #     teachers_marks_upload_percentage_wrapper(auth,term=2,session=session)
+        if term == 'term1':
+            teachers_marks_upload_percentage_wrapper(auth=auth,term=1,session=session)
+        elif term == "term2":
+            teachers_marks_upload_percentage_wrapper(auth=auth,term=2,session=session)
         generate_pdf(f'./send_folder/output.xlsx' , './send_folder' ,'output')            
         files = count_files()
         chat_id = update.message.chat.id
