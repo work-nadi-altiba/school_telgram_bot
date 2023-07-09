@@ -13,7 +13,7 @@ git clone https://github.com/Anas-jaf/school_telgram_bot.git
 
 you should use this code in linux machine/server and , to install the requirements use this command 
 
-`sudo apt install python3-docxtpl python3-fitz libreoffice ttf-mscorefonts-installer ; pip install docx2pdf num2words python-telegram-bot==13.7 hijri_converter fitz PyMuPDF ezodf PyPDF4`
+`sudo apt install python3-odf libcurl4-openssl-dev libssl-dev python3-docxtpl python3-fitz libreoffice ttf-mscorefonts-installer ; pip install docx2pdf num2words python-telegram-bot==13.7 hijri_converter fitz PyMuPDF ezodf PyPDF4 wfuzz pygments openpyxl webcolors PyPDF2`
 
 لتغير لغة الارقم من العربية الى الهندية CTLTextNumerals من صفر الى واحد
 ```
