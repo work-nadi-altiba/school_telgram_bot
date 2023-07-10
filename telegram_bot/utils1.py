@@ -4991,19 +4991,26 @@ def make_request(url, auth ,session=None,timeout_seconds=60):
         
     return ['Some Thing Wrong']
 
-def get_auth(username , password ):
+def get_auth(username , password ,proxies=None):
     ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
     url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
     payload = {
         "username": username,
         "password": password
     }
-    response = requests.request("POST", url, data=payload )
+    
+    proxies = proxies if not proxies else {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"}
+    
+    response = requests.request("POST",
+                                url, data=payload ,
+                                proxies=proxies,
+                                verify=False)
 
     if response.json()['data']['message'] == 'Invalid login creadential':
         return False
     else: 
         return response.json()['data']['token']    
+
     
 def inst_name(auth,session=None):
     '''
@@ -5348,8 +5355,8 @@ def main():
     # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
     # create_coloured_certs_wrapper(9971055725,9971055725)
     # create_certs(students_statistics_assesment_data['assessments_data'] , term2=True)
-    convert_files_to_pdf('./send_folder')
-    sort_send_folder_into_two_folders()
+    # convert_files_to_pdf('./send_folder')
+    # sort_send_folder_into_two_folders()
     # create_tables_wrapper(9991014194 , 9991014194, term2=True)
     playsound()
 
