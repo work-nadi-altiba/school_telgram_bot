@@ -4999,7 +4999,7 @@ def get_auth(username , password ,proxies=None):
         "password": password
     }
     
-    proxies = proxies if not proxies else {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"}
+    proxies = proxies if proxies else None
     
     response = requests.request("POST",
                                 url, data=payload ,
@@ -5358,6 +5358,7 @@ def main():
     # convert_files_to_pdf('./send_folder')
     # sort_send_folder_into_two_folders()
     # create_tables_wrapper(9991014194 , 9991014194, term2=True)
+    get_auth(9971055725,9971055725, proxies = {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"})
     playsound()
 
 if __name__ == "__main__":
