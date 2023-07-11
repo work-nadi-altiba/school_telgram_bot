@@ -42,6 +42,7 @@ from itertools import product
 import pdb
 import wfuzz
 from tqdm import tqdm
+from pprint import pprint
 
 def mark_all_students_as_present(term_days_dates,auth):
 
@@ -5004,13 +5005,12 @@ def get_auth(username , password ,proxies=None):
     response = requests.request("POST",
                                 url, data=payload ,
                                 proxies=proxies,
-                                verify=False)
+                                verify=False if proxies else True)
 
     if response.json()['data']['message'] == 'Invalid login creadential':
         return False
     else: 
         return response.json()['data']['token']    
-
     
 def inst_name(auth,session=None):
     '''
@@ -5358,8 +5358,9 @@ def main():
     # convert_files_to_pdf('./send_folder')
     # sort_send_folder_into_two_folders()
     # create_tables_wrapper(9991014194 , 9991014194, term2=True)
-    get_auth(9971055725,9971055725, proxies = {"http": "http://127.0.0.1:8080", "https": "http://127.0.0.1:8080"})
-    playsound()
+    session = requests.Session()
+    auth =get_auth(9971055725,9971055725)
+    teachers_marks_upload_percentage_wrapper(auth=auth,term=2,session=session)
 
 if __name__ == "__main__":
     main()
