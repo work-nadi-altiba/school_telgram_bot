@@ -1091,7 +1091,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
                     # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
-                    # if student_assessment_item["marks"] is not None :
+                    if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1314,7 +1314,7 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
             for student_assessment_item in assessments_json['data']:
                 if student_assessment_item['student_id'] == student_data_item['student_id'] :  
                     # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
-                    # if student_assessment_item["marks"] is not None :
+                    if student_assessment_item["marks"] is not None :
                         dic['id'] = student_data_item['student_id'] 
                         dic['name'] = student_data_item['student_name'] 
                         if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -1457,7 +1457,7 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
                 for student_assessment_item in assessments_json['data']:
                     if student_assessment_item['student_id'] == student_data_item['student_id'] :  
                     # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                        
-                        # if student_assessment_item["marks"] is not None :
+                        if student_assessment_item["marks"] is not None :
                             dic['id'] = student_data_item['student_id'] 
                             dic['name'] = student_data_item['student_name'] 
                             if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
@@ -4271,7 +4271,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
             for v in assessments_json['data']:
                 if v['student_id'] == i['student_id'] :  
                     # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
-                    # if v["marks"] is not None :
+                    if v["marks"] is not None :
                         dic['id'] = i['student_id'] 
                         dic['name'] = i['student_name'] 
                         dic['assessments_periods_ides'].append(v['assessment_period_id'] )
@@ -5348,19 +5348,7 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-    # students_statistics_assesment_data = read_json_file('./templet_files/مدرسة كعب بن عمير.json')
-    # add_subject_sum_dictionary(students_statistics_assesment_data['assessments_data'])
-    # add_averages_to_group_list(students_statistics_assesment_data['assessments_data'] ,skip_art_sport=False)
-    # create_tables(get_auth(9971055725,9971055725),students_statistics_assesment_data['assessments_data'],term2=True)
-    # create_coloured_certs_ods(students_statistics_assesment_data , term2=True)
-    # create_coloured_certs_wrapper(9971055725,9971055725)
-    # create_certs(students_statistics_assesment_data['assessments_data'] , term2=True)
-    # convert_files_to_pdf('./send_folder')
-    # sort_send_folder_into_two_folders()
-    # create_tables_wrapper(9991014194 , 9991014194, term2=True)
-    session = requests.Session()
-    auth =get_auth(9971055725,9971055725)
-    teachers_marks_upload_percentage_wrapper(auth=auth,term=2,session=session)
+
 
 if __name__ == "__main__":
     main()
