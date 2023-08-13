@@ -44,6 +44,84 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 
+def vacancies_dictionary2Html():
+    from jinja2 import Template
+    # from mydicts import dict_list1 ,dict_list2
+
+    table_data = dict_list1 + dict_list2
+
+
+    # Define the HTML table code as a string
+    table_template = '''
+    <style>
+    table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-left: auto;
+    margin-right: 0;
+    font-size: 20px;
+    font-family: 'Times New Roman', Times, serif;
+    }
+
+    th, td {
+    border: 1px solid black;
+    padding: 8px;
+    }
+
+    </style>
+
+    <table dir="rtl">
+    <thead>
+    <tr>
+    <th style="text-align: right;">اسم المدرسة</th>
+    <th style="text-align: right;">انصبة المدرسة</th>
+    <th style="text-align: right;">المعلمين</th>
+    <th style="text-align: right;">الصفوف</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in data %}
+    <tr>
+    <td style="text-align: right;">{{ item['school_name'] }}</td>
+    <td style="text-align: right;">{{ item['school_load'] | replace("\n", "<br>") }}</td>
+    <td style="text-align: right;">{{ item['teachers'] | replace("\n", "<br>") }}</td>
+    <td style="text-align: right;">{{ item['classes'] | replace("\n", "<br>") }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    '''
+
+    # format the data into the table template
+    table_html = Template(table_template).render(data=table_data)
+
+    html = f'''
+    <html lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>الشواغر</title>
+    </head>
+    <body>
+    {table_html}
+    </body>
+    </html>
+    '''
+
+
+
+    # Specify the file path and name
+    file_path = "تشكيلات.html"
+
+    # Open the file in write mode
+    with open(file_path, "w") as file:
+        # Write the content to the file
+        file.write(html)
+
+    # Confirmation message
+    print(f"Content saved to {file_path}.")
+
 def tor_code():
     '''
     دالة لمتصفح تور كتبتها لكي اتمكن من معالجة مشكلة السيرفر الذي يحتاج مني ان يكون عنوان جهازي امريكي
