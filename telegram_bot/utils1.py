@@ -577,7 +577,7 @@ def create_coloured_certs_wrapper(username , password ,term2=False):
     
     create_coloured_certs_ods(students_statistics_assesment_data , term2=term2)
 
-def convert_files_to_pdf(outdir):
+def convert_files_to_pdf(outdir,pages_range):
     """داله تقوم بتحويل الملفات في مجلد الى صيغة pdf 
 
     Args:
@@ -587,7 +587,10 @@ def convert_files_to_pdf(outdir):
 
     for file in files:
         if not file.endswith(".json"):
-            subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
+            if not pages_range:
+                subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, '--page-ranges', '1-2', f'{outdir}/{file}'])
+            else:
+                subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
 
 def column_index_from_string(column_string):
     """Converts a column letter to a column index."""
@@ -4374,7 +4377,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']]
+    classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []  
     assessments_period_data = []
@@ -4405,7 +4408,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
+        new_ws.title = (classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])).replace('/','~')
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -5507,7 +5510,10 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-
+    
+    get_students_info_subjectsMarks(9971055725,9971055725)
+    
+    
 
 if __name__ == "__main__":
     main()
