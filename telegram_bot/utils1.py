@@ -44,6 +44,84 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 
+def vacancies_dictionary2Html():
+    from jinja2 import Template
+    # from mydicts import dict_list1 ,dict_list2
+
+    table_data = dict_list1 + dict_list2
+
+
+    # Define the HTML table code as a string
+    table_template = '''
+    <style>
+    table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-left: auto;
+    margin-right: 0;
+    font-size: 20px;
+    font-family: 'Times New Roman', Times, serif;
+    }
+
+    th, td {
+    border: 1px solid black;
+    padding: 8px;
+    }
+
+    </style>
+
+    <table dir="rtl">
+    <thead>
+    <tr>
+    <th style="text-align: right;">اسم المدرسة</th>
+    <th style="text-align: right;">انصبة المدرسة</th>
+    <th style="text-align: right;">المعلمين</th>
+    <th style="text-align: right;">الصفوف</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for item in data %}
+    <tr>
+    <td style="text-align: right;">{{ item['school_name'] }}</td>
+    <td style="text-align: right;">{{ item['school_load'] | replace("\n", "<br>") }}</td>
+    <td style="text-align: right;">{{ item['teachers'] | replace("\n", "<br>") }}</td>
+    <td style="text-align: right;">{{ item['classes'] | replace("\n", "<br>") }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+    '''
+
+    # format the data into the table template
+    table_html = Template(table_template).render(data=table_data)
+
+    html = f'''
+    <html lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>الشواغر</title>
+    </head>
+    <body>
+    {table_html}
+    </body>
+    </html>
+    '''
+
+
+
+    # Specify the file path and name
+    file_path = "تشكيلات.html"
+
+    # Open the file in write mode
+    with open(file_path, "w") as file:
+        # Write the content to the file
+        file.write(html)
+
+    # Confirmation message
+    print(f"Content saved to {file_path}.")
+
 def tor_code():
     '''
     دالة لمتصفح تور كتبتها لكي اتمكن من معالجة مشكلة السيرفر الذي يحتاج مني ان يكون عنوان جهازي امريكي
@@ -499,7 +577,7 @@ def create_coloured_certs_wrapper(username , password ,term2=False):
     
     create_coloured_certs_ods(students_statistics_assesment_data , term2=term2)
 
-def convert_files_to_pdf(outdir):
+def convert_files_to_pdf(outdir,pages_range):
     """داله تقوم بتحويل الملفات في مجلد الى صيغة pdf 
 
     Args:
@@ -509,7 +587,10 @@ def convert_files_to_pdf(outdir):
 
     for file in files:
         if not file.endswith(".json"):
-            subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
+            if not pages_range:
+                subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, '--page-ranges', '1-2', f'{outdir}/{file}'])
+            else:
+                subprocess.run(['soffice', '--headless', '--convert-to', 'pdf:writer_pdf_Export', '--outdir', outdir, f'{outdir}/{file}'])
 
 def column_index_from_string(column_string):
     """Converts a column letter to a column index."""
@@ -4296,7 +4377,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']]
+    classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []  
     assessments_period_data = []
@@ -4327,7 +4408,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws = existing_wb.copy_worksheet(existing_ws)
 
         # rename the new worksheet
-        new_ws.title = classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])
+        new_ws.title = (classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])).replace('/','~')
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
@@ -5429,7 +5510,10 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-
+    
+    get_students_info_subjectsMarks(9971055725,9971055725)
+    
+    
 
 if __name__ == "__main__":
     main()
