@@ -634,7 +634,7 @@ if __name__ == '__main__':
                                                         ) 
 
     send_performance_side_marks_note_doc_conv = ConversationHandler(
-        entry_points=[CommandHandler('side_marks_note', init_performance_side_marks)],
+        entry_points=[CommandHandler('performance_side_marks_note', init_performance_side_marks)],
                                         states={
                                             CREDS : [MessageHandler(Filters.text , send_performance_side_marks_note_doc)]
                                         },
