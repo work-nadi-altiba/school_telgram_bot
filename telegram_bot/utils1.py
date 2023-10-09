@@ -5168,7 +5168,9 @@ def get_auth(username , password ,proxies=None):
     response = requests.request("POST",
                                 url, data=payload ,
                                 proxies=proxies,
-                                verify=False if proxies else True)
+                                verify=False
+                                # verify=False if proxies else True
+                                )
 
     if response.json()['data']['message'] == 'Invalid login creadential':
         return False
