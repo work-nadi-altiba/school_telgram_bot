@@ -36,6 +36,33 @@ help_text = '''
 /links رابط بنك اسئلة المواد لاضافة اسئلة
 /cancel لألغاء العملية
 '''
+
+def init_absent_doc(update, context):
+    update.message.reply_text("هل تريد طباعة سجل الحضور و الغياب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+    return CREDS
+
+def send_absent_notebook_doc(update, context):
+    if update.message.text == '/cancel':
+        return cancel(update, context)
+    else:
+        user = update.message.from_user
+        context.user_data['creds'] = update.message.text.split('/')
+        username = context.user_data['creds'][0]
+        password = context.user_data['creds'][1]
+        # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
+        print(username, password)
+        if get_auth(username, password) == False:
+            update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
+        else:
+            update.message.reply_text("انتظر لحظة لو سمحت") 
+            fill_student_absent_doc_wrapper(username, password)
+            files = count_files()
+            chat_id = update.message.chat.id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
+
+
 # https://forms.gle/1PMSeb75mQVJUEnw5
 def links(update, context):
     update.message.reply_text("رابط بنك الاسئلة : \nhttps://forms.gle/1PMSeb75mQVJUEnw5") 
@@ -361,7 +388,7 @@ def send_files(bot, chat_id, files , outdir='./send_folder',name="ملف مضغ�
     if len(files) >= 4:
         create_zip(files,zip_name=name)
         delete_files_except(name , outdir)
-        bot.send_document(chat_id=chat_id, document=open(outdir+'/'+name, 'rb'), timeout=900)
+        bot.send_document(chat_id=chat_id, document=open(f'{outdir}/{name}.rar', 'rb'), timeout=900)
     else:
         for file in files:
             bot.send_document(chat_id=chat_id, document=open(file, 'rb'), timeout=900)
@@ -676,7 +703,13 @@ if __name__ == '__main__':
                                         fallbacks=[CommandHandler('cancel', cancel)]
                                                         )
 
-    # send_students_absent_doc_conv = ConversationHandler(
+    send_students_absent_doc_conv = ConversationHandler(
+                                    entry_points=[CommandHandler('student_absent_document', init_absent_doc)],
+                                        states={
+                                            CREDS : [MessageHandler(Filters.text ,send_absent_notebook_doc)],
+                                        },
+                                        fallbacks=[CommandHandler('cancel', cancel)]
+                                                        )
     
     send_e_side_marks_note_doc_conv = ConversationHandler(
                                     entry_points=[CommandHandler('e_side_marks_note', init_e_side_marks)],
@@ -727,6 +760,7 @@ if __name__ == '__main__':
     dp.add_handler(check_five_names_marks_conv)
     dp.add_handler(marks_up_percentage_conv)
     dp.add_handler(send_performance_side_marks_note_doc_conv)
+    dp.add_handler(send_students_absent_doc_conv)
 
     # Run the bot
     updater.start_polling(1.0)
