@@ -44,6 +44,10 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 
+def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
+    student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
+    fill_student_absent_doc_name_days_cover(student_details , template , outdir )
+
 def vacancies_dictionary2Html():
     from jinja2 import Template
     # from mydicts import dict_list1 ,dict_list2
@@ -715,15 +719,31 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
                     15 : 'Y766=AP820', 14 : 'A766=V820' }
 
     year1 , year2 = student_details['year_code'].split('-')
+    for i in range(183,820,58):
+        sheet[f"AN{i}"].set_value(f'{year2} / {year1}')
 
     for counter,student_info in enumerate(students_data_lists, start=0):
         
         # row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
         row_idx = counter + 69
+        row_idx2 = counter + 128
+        birth_data = student_info['birth_date'].split('-')
         sheet[f"G{row_idx}"].set_value(student_info['first_name'])
         sheet[f"I{row_idx}"].set_value(student_info['second_name'])
         sheet[f"K{row_idx}"].set_value(student_info['third_name'])
         sheet[f"M{row_idx}"].set_value(student_info['last_name'])
+        sheet[f"O{row_idx}"].set_value(int(birth_data[2]))
+        sheet[f"P{row_idx}"].set_value(int(birth_data[1]))
+        sheet[f"Q{row_idx}"].set_value(birth_data[0])
+        sheet[f"S{row_idx}"].set_value(student_info['birthPlace_area'])
+        sheet[f"U{row_idx}"].set_value(student_info['nationality'])
+        sheet[f"Y{row_idx2}"].set_value(student_info['religion'])
+        sheet[f"AH{row_idx2}"].set_value(student_info['guardian_name'])
+        sheet[f"AJ{row_idx2}"].set_value(student_info['guardian_student_relationship'])
+        sheet[f"AL{row_idx2}"].set_value(student_info['guardian_employment'])
+        sheet[f"AN{row_idx2}"].set_value(student_info['guardian_phone_number'])
+        sheet[f"AO{row_idx2}"].set_value(student_info['address'])
+        sheet[f"AP{row_idx2}"].set_value(student_info['student_id']       )
         
     months_range = [14,16,18,20,22,24,4,6,8,10,12]
 
@@ -734,7 +754,6 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         if month in [26]:
             print('')
         
-
         if counter < 7 :
             year = int(year2) 
         elif counter == 7:
@@ -744,7 +763,6 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
             year = int(year1)
             counter+=1
         
-
         for column in range(8,24):
             day = column-7
             try :
@@ -780,8 +798,8 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
 
     doc.saveas(outdir+'one_step_more.ods' )
     
-    modeeriah = student_details['modeeriah'][0]
-    school_name = student_details['school_name_code'].split(' - ')[1]
+    modeeriah = student_details['school_bridge'].replace('لواء ' , '')
+    school_name = student_details['school_name_code'].split(' - ')[1].replace('مدرسة ', '')
     class_name = student_details['class_name'].split('-')[0].replace('الصف' , '')
     sec = student_details['class_name'].split('-')[1]
     teacher = student_details['teacher_incharge_name']
@@ -795,7 +813,14 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         'year' : f'{year1}  /  {year2}'
     }
 
-    fill_custom_shape(doc= outdir+'one_step_more.ods', sheet_name='الغلاف', custom_shape_values=custom_shapes, outfile= outdir+f'{class_name}.ods')
+    fill_custom_shape(doc= outdir+'one_step_more.ods', sheet_name='الغلاف', custom_shape_values=custom_shapes, outfile= outdir+f'/{class_name}-{sec}.ods')
+    
+    delete_file(outdir+'one_step_more.ods')
+
+    # outdir = './send_folder'
+    filename = f'{class_name}-{sec}.ods'
+    command = f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} "{outdir}/{filename}"'
+    os.system(command)
     
 def get_day_name_from_date(year, month, day):
     # Set the locale to Arabic (Egypt)
@@ -927,13 +952,15 @@ def fill_Template_With_basic_Student_info(student_details,template='./templet_fi
     # Save the workbook
     workbook.save(outdir+'/your_file.xlsx')
 
-def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False):
+def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False ):
     auth = get_auth(username,password)
     final_dict_info = []
     identity_types = get_IdentityTypes(auth, session=session)
     area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
     nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
-    class_data_url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id'
+    curr_period = get_curr_period(auth,session=None)['data'][0]['id']
+    inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
+    class_data_url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id&_finder=classesByInstitutionAndAcademicPeriod[institution_id:{inst_id};academic_period_id:{curr_period}]'
     class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
     academic_period_id, institution_id , institution_name_code ,modeeriah= class_data['academic_period_id'],class_data['institution_id'],class_data['institution']['code_name'], [i['name'] for i in area_data if i['id'] == class_data['institution']['area_administrative_id']][0]
     class_name ,teacher_incharge_name= '' , ['']*4
@@ -989,11 +1016,22 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
         # احضر بيانات الصف الي مع المعلم
         institution_class_id ,class_name = class_data['id'] , class_data['name']
         
-        teacher_incharge_name = [
-                        i['name_list'] 
-                        for i in working_teachers 
-                            if i['nat_id'] == str(username) or i['default_nat_id'] == str(username) 
-                        ][0]               
+        try : 
+            teacher_incharge_name = [
+                            i['name_list'] 
+                            for i in working_teachers 
+                                if i['nat_id'] == str(username) or i['default_nat_id'] == str(username) 
+                            ][0]
+        except :
+            t =make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=Staff.Users,Staff.Positions' )
+            
+            teacher_incharge_name = [
+                [i['user']['first_name'],
+                 i['user']['middle_name'],
+                 i['user']['third_name'],
+                 i['user']['last_name']] for i in t['data'][0]['staff'] 
+                                                if '9892006970' in i['staff_name']
+                                                ][0]
 
         # # احضر اسماء الطلاب في الصف
         url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}"
@@ -1018,7 +1056,7 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
             'school_name_code':institution_name_code ,
             'modeeriah' : modeeriah,
             'principle_name': principle_name[0]+' '+principle_name[1]+' '+principle_name[3],
-            'teacher_incharge_name': teacher_incharge_name[0]+' '+teacher_incharge_name[1]+' '+teacher_incharge_name[3] if not teacher_full_name else teacher_incharge_name['name'],
+            'teacher_incharge_name': teacher_incharge_name[0]+' '+teacher_incharge_name[1]+' '+teacher_incharge_name[3] if not teacher_full_name else ' '.join(teacher_incharge_name),
             'year_code': year_code,
             'school_address' :school_address ,
             'school_phone_number' :school_phone_number ,
@@ -1819,8 +1857,10 @@ def delete_pdf_page(input_path, output_path, page_number):
 
         print("Page deletion completed.")
 
-def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folder/'):
-    with zipfile.ZipFile(zip_path+zip_name, 'w') as zipf:
+def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folder/', extension='.rar'):
+    zip_file_path = os.path.join(zip_path, zip_name + extension)
+    
+    with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for file_path in file_paths:
             zipf.write(file_path , arcname=os.path.basename(file_path))
             
@@ -5147,9 +5187,9 @@ def make_request(url, auth ,session=None,timeout_seconds=60):
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
         if session is None :
-            response = requests.request("GET", url, headers=headers,timeout=timeout_seconds)
+            response = requests.request("GET", url, headers=headers,timeout=timeout_seconds , verify=False)
         else : 
-            response = session.get(url, headers=headers,timeout=timeout_seconds)
+            response = session.get(url, headers=headers,timeout=timeout_seconds, verify=False)
         if "403 Forbidden" not in response.text :
             return response.json()
         
@@ -5514,7 +5554,12 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
     
-    get_students_info_subjectsMarks(9971055725,9971055725)
+    # print(get_auth(9971055725,9971055725))
+    # find_default_teachers_creds(get_auth(9971055725,9971055725),nat_school=112779)
+    # fill_student_absent_doc_wrapper(3067161641,123456)
+    fill_student_absent_doc_wrapper(9842047510,123456)
+
+
     
     
 
