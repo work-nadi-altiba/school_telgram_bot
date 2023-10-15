@@ -1686,6 +1686,7 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
                 counter = 0
                 for item in marks_and_name :
                     context[f'name{counter}'] = item['student_name']
+                    counter+=1 
             else:
                 counter = 0
                 for item in marks_and_name :
@@ -1789,12 +1790,13 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
     for i in classes: 
         modified_classes.append(mawad_representations(i))
     
-    modified_classes = modified_classes if modified_classes else ' ، '.join(modified_classes)
-    modified_classes = sorted(set(modified_classes))
+    # modified_classes = modified_classes if modified_classes else ' ، '.join(modified_classes)
+    # modified_classes = sorted(set(modified_classes))
+    mawad = [madah.replace('أ', 'ا').replace('إ', 'ا') for madah in mawad]
     mawad = sorted(set(mawad))
     mawad = ' ، '.join(mawad)
     context = {'school':school_name 
-            ,'classes' : modified_classes 
+            ,'classes' : ' , '.join(modified_classes) 
             ,'subjects' : mawad
             ,'teacher' : teacher if teacher else userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name'] 
             ,'y1' : melady2 
