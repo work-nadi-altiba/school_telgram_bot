@@ -5554,14 +5554,8 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
     
-    # print(get_auth(9971055725,9971055725))
-    # find_default_teachers_creds(get_auth(9971055725,9971055725),nat_school=112779)
-    fill_student_absent_doc_wrapper(3067161641,123456)
-    fill_student_absent_doc_wrapper(9842047510,123456)
 
 
-    
-    
 
 if __name__ == "__main__":
     main()
