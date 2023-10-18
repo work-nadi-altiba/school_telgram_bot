@@ -44,7 +44,7 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 
-def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
+def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir )
 
