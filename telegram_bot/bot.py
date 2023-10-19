@@ -2,11 +2,13 @@
 # pip install python-telegram-bot==13.7
 
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters,ConversationHandler
+from tqdm.contrib.telegram import tqdm, trange
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import *
 from telegram import Bot
 from utils1 import *
-from keys import production_bot  as token
+from keys import production_bot , test_bot 
+import argparse
 import traceback
 import io
 
@@ -36,6 +38,16 @@ help_text = '''
 /links رابط بنك اسئلة المواد لاضافة اسئلة
 /cancel لألغاء العملية
 '''
+
+# اكتب الكود تحت هذا التعليق
+# write the function below here 
+
+def test_qt(update, context):
+    chat_id = update.message.chat.id
+    for i in trange(100, token=f'{token}', chat_id=f'{chat_id}'):
+        import time 
+        time.sleep(.5)
+        print(i)
 
 def init_absent_doc(update, context):
     update.message.reply_text("هل تريد طباعة سجل الحضور و الغياب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
@@ -623,6 +635,19 @@ def send_e_side_marks_note_doc(update, context):
 
 # Run the program
 if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='A script with command-line arguments.')
+    # Define command-line arguments
+    parser.add_argument('-t', '--test', action='store_true', help='Enable testing')
+    
+    # Parse the command-line arguments
+    args = parser.parse_args()
+    
+    if args.test:
+        token = test_bot
+    else:
+        token = production_bot
+    
     check_if_send_folder_exist()
     updater = Updater(token, use_context=True)
     dp = updater.dispatcher
@@ -633,6 +658,7 @@ if __name__ == '__main__':
     dp.add_handler(CommandHandler('help', help_command))
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('links', links))
+    dp.add_handler(CommandHandler('test_qt', test_qt))
     
     # Log all errors
     dp.add_error_handler(error)

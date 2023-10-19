@@ -723,6 +723,7 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
 
     year1 , year2 = student_details['year_code'].split('-')
     for i in range(183,820,58):
+        sheet[f"E{i}"].set_value(f'{class_name.replace("الصف" ,"")}')
         sheet[f"AN{i}"].set_value(f'{year2} / {year1}')
 
     for counter,student_info in enumerate(students_data_lists, start=0):
@@ -5558,6 +5559,7 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
+    
     
 
 
