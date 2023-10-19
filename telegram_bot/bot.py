@@ -62,7 +62,14 @@ def send_absent_notebook_doc(update, context):
             delete_send_folder()
             return ConversationHandler.END
 
-
+def check_if_send_folder_exist():
+    folder_name = "send_folder"
+    # Check if the folder exists
+    if not os.path.exists(folder_name):
+        # If it doesn't exist, create it
+        os.makedirs(folder_name)
+        print(f"Folder '{folder_name}' created.")
+        
 # https://forms.gle/1PMSeb75mQVJUEnw5
 def links(update, context):
     update.message.reply_text("رابط بنك الاسئلة : \nhttps://forms.gle/1PMSeb75mQVJUEnw5") 
@@ -616,6 +623,7 @@ def send_e_side_marks_note_doc(update, context):
 
 # Run the program
 if __name__ == '__main__':
+    check_if_send_folder_exist()
     updater = Updater(token, use_context=True)
     dp = updater.dispatcher
 
