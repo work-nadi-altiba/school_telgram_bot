@@ -44,8 +44,46 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
+import traceback
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+# Global variables should under her please
+secondery_students = []
+
+# New code should be under here please
+
+def bulk_e_side_note_marks(passwords):
+    for p in passwords.split('\n'):
+        # print(p,'-------<>')
+        try : 
+            username = p.split('/')[0]
+            password = p.split('/')[1]
+        except:
+            username ,password =[p]*2
+        # print(username , password)
+        # FIXME: صلح مشكلة السيشين في الريكيوست
+        # session = requests.Session()
+        try:
+            create_e_side_marks_doc(username , password )
+        except Exception as e:
+            
+            print("\033[91m There is error in \n{}/{}\033[00m" .format(username , password))
+            # print(username , password)
+            traceback.print_exc()
+        # if not get_auth(username , password): 
+        #     print(username , password)
+
+def read_all_xlsx_in_folder(directory_path='./send_folder'):
+    dic_list = []
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)  
+        dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
+    return dic_list
+
+def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods'):
+    dic_list = read_all_xlsx_in_folder(directory_path)
+    for file_content in dic_list:
+        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template )
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
@@ -4232,15 +4270,25 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'school_id' : school_id 
     }
     
-    required_data_mrks_dic_list = {
-                                    int(item.split('-')[0]): 
-                                        {
-                                            'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
-                                            'grade_id': int(item.split(',')[0].split('-')[2]), 
-                                            'assessments_period_ids': item.split(',')[1:]
+    try:
+        required_data_mrks_dic_list = {
+                                        int(item.split('-')[0]): 
+                                            {
+                                                'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
+                                                'grade_id': int(item.split(',')[0].split('-')[2]), 
+                                                'assessments_period_ids': item.split(',')[1:]
+                                            }
+                                        for item in required_data_mrks_text.split('\\\\')
+                                    }
+    except Exception as e:
+        required_data_mrks_dic_list = {
+                                        0:
+                                            {
+                                                'assessment_grade_id': 0,
+                                                'grade_id': 0, 
+                                                'assessments_period_ids': 0
+                                            }
                                         }
-                                    for item in required_data_mrks_text.split('\\\\')
-                                }
 
     read_file_output_dict = {'file_data': read_file_output_lists ,
                             'custom_shapes' : custom_shapes ,
@@ -4380,6 +4428,7 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
         dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
         dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
         dic['institution_classes_id'] = class_info[0]['institution_class_id']
+        dic['class_name'] = class_info[0]['institution_class']['name']
         dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
 
         required_data_to_enter_marks.append(dic)
@@ -4426,6 +4475,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
+    classes_id_2 =[lst for lst in classes_id_2 if lst]
     classes_id_3 = []  
     assessments_period_data = []
     
@@ -4436,9 +4486,9 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     existing_ws = existing_wb.active
 
     for class_info in classes_id_2:
-        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
+        classes_id_3.append([{'institution_class_id': class_info[0]['institution_class_id'] ,'sub_name': class_info[0]['institution_subject']['name'],'class_name': class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id'] , 'education_grade_id':class_info[0]['institution_subject']['education_grade_id']}])
 
-    for v in range(len(classes_id_1)):
+    for v in range(len(classes_id_2)):
         # id
         print (classes_id_3[v][0]['institution_class_id'])
         id = classes_id_3[v][0]['institution_class_id']
@@ -4464,7 +4514,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
                                     ,period_id
                                     ,classes_id_1[v]
                                     ,classes_id_3[v][0]['institution_class_id']
-                                    ,inst_id)
+                                    ,inst_id
+                                    ,classes_id_3[v][0]['education_grade_id'])
         students_names = sorted([i['user']['name'] for i in students['data']])
         print(students_names)
         students_id_and_names = []
@@ -4476,30 +4527,33 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         marks_and_name = []
 
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
-        for i in students_id_and_names:   
-            for v in assessments_json['data']:
-                if v['student_id'] == i['student_id'] :  
-                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
-                    dic['id'] = i['student_id'] 
-                    dic['name'] = i['student_name'] 
-                    if v["marks"] is not None :
-                        dic['assessments_periods_ides'].append(v['assessment_period_id'] )
-                        if v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment1'] = v["marks"] 
-                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment2']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment3']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment4']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment1']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment2']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment3']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = v["marks"]
+        for student_data_item in students_id_and_names:   
+            dic['id'] = student_data_item['student_id'] 
+            dic['name'] = student_data_item['student_name'] 
+            for student_assessment_item in assessments_json['data']:
+                if student_assessment_item['student_id'] == student_data_item['student_id'] :  
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء  
+                    # FIXME: ضع في الحسبان انه لا توجد علامات و تريد سحب الاسماء في اول الفصل                  
+                    if student_assessment_item["marks"] is not None :
+                        # dic['id'] = student_data_item['student_id'] 
+                        # dic['name'] = student_data_item['student_name'] 
+                        if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment1'] = student_assessment_item["marks"] 
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment4']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment1']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment4']  = student_assessment_item["marks"]
+
             marks_and_name.append(dic)
             dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
         # Set the font for the data rows
@@ -4508,6 +4562,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
         if 'عشر' in class_name :
+            assessments_period_data_text = ''
             students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
             for row_number, dataFrame in enumerate(students_id_and_names, start=3):
                 new_ws.cell(row=row_number, column=1).value = row_number-2
@@ -4518,7 +4573,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
             assessment_id = '' if  not assessments_json['data'] else assessment_data['assessment_id']
             education_grade_id = '' if  not assessments_json['data'] else assessment_data['education_grade_id']
             
-            assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : marks_and_name[0]['assessments_periods_ides']})
+            assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']})
             assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
             
             # Write data to the worksheet and calculate the sum of some columns in each row
@@ -4564,6 +4619,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
+    global secondery_students 
+    secondery_students = []
 
 def split_A3_pages(input_file, outdir):
     # Open the A3 PDF file in read-binary mode
@@ -4635,16 +4692,16 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx")or file.endswith(".xlsx") ):
             os.remove(os.path.join(dir_path, file))
 
-def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
+def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods'):
     ods_file = f'{ods_name}{ods_num}.ods'
-    copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
+    copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
     custom_shapes = lst['custom_shapes']
     
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
-    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
-    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
+    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/{custom_shapes['teacher']}.ods")
+    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/\"{custom_shapes["teacher"]}.ods\" ')
+    add_margins(f"{outdir}/{custom_shapes['teacher']}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
@@ -4653,11 +4710,13 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
     add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
     add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
-    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
     
-def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1):
+    if not do_not_delete_send_folder :
+        delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
+    
+def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods'):
     ods_file = f'{ods_name}{ods_num}.ods'
-    copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
+    copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
     custom_shapes = fill_official_marks_a3_two_face_doc2(username= usnername, password= password , ods_file=f'{outdir}/{ods_file}')
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
@@ -5193,9 +5252,18 @@ def make_request(url, auth ,session=None,timeout_seconds=60):
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
         if session is None :
-            response = requests.request("GET", url, headers=headers,timeout=timeout_seconds , verify=False)
+            response = requests.request("GET", 
+                                        url,
+                                        headers=headers,
+                                        timeout=timeout_seconds,
+                                        # verify=False
+                                        )
         else : 
-            response = session.get(url, headers=headers,timeout=timeout_seconds, verify=False)
+            response = session.get(url,
+                                   headers=headers,
+                                   timeout=timeout_seconds,
+                                #    verify=False
+                                   )
         if "403 Forbidden" not in response.text :
             return response.json()
         
@@ -5272,14 +5340,27 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     
     return make_request(url,auth,session=session)
 
-def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
+def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,education_grade_id,session=None):
     '''
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     '''
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
-    return make_request(url,auth,session=session)
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"    
+    data = make_request(url,auth,session=session)
+    if not data['total']:
+        try:
+            alt_url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&_finder=StudentResults[institution_id:{institution_id};institution_class_id:{institution_class_id};assessment_id:{get_assessment_id_from_grade_id(auth,education_grade_id)};academic_period_id:{academic_period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_contain=Users"
+            data = make_request(alt_url,auth,session=session)
+            if not data['total']:
+                raise IndexError
+        except IndexError:
+            global secondery_students 
+            if not len(secondery_students):
+                secondery_students =  get_school_students_ids(auth) 
+            data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id)]
+            data = {'data': data , 'total': len(data)}
+    return data
 
 def enter_mark(auth
                ,marks
@@ -5559,9 +5640,98 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-    
-    
 
+    # '''9752045067/2761975
+    # 9932039648/9932039648
+    # 9832049975/9832049975
+    # 9892023550/0772626275
+    # 9902044251/9902044251
+    # 9942011966/9942011966
+    # 9872556471/9872556471
+    # 1300902041/1300902041
+    # 9832041371/123456
+    # 9732044574/222222
+    # 9932039564/9932039564
+    # 9862045517/9862045517
+    # 9852045060/9852045060
+    # 9862055767/123456
+    # 9892023326/9892023326
+    # 2000223096/Besan@2001
+    # 9902050711/9902050711
+    # 9762045800/9762045800
+    # 9942022052/Aa@9942022052
+    # 9922052534/20182018
+    # 9942036547/9942036547
+    # 9842053654/654321
+    # 9962040167/9962040167E$e
+    # 9892055264/9892055264
+    # 9922052664/9922052664
+    # 1635857406/123456
+    # 9832008276/ANMSOA
+    # 9842053211/9842053211
+    # 9722011390/9722011390
+    # 9842048442/123456
+    # 9921009580/9921009580
+    # 9971055725/9971055725
+    # 9991039132/9991039132Mm@
+    # 9991014194/Zzaid#079079
+    # 9961055140/Mtm#123456789
+    # 9862053521
+    # 0772323488/weam@137342
+    # 9782051311/Aa@12345678
+    # 9762051028
+    # 9862049623/199435
+    # 9772015488
+    # 9692012484
+    # 9781053164'''
+    passwords = '''9781053164/9781053164'''
+
+    # تعمل في مؤسستين 
+    # 9892050032/Manar@100 
+    # فيها خلل غريب لا اعرف عنه 
+    # الي هو الرابط عندي فيه مشكلة غريبة
+    # 9892022099/9892022099 
+    # برضو هذي بدها تعديل و شغل 
+    # في صفوف بسحبهن api بس ما بظهرن على المنظومة (على الويب)
+    # في الصف التوجيهي ما بدقر عند رقم الاسيسمنت ما بقدر يحوله
+    # 2000223096/Besan@2001
+
+    # File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4464, in create_e_side_marks_doc
+    #     students = get_class_students(auth
+    # ما بعرف سبب هذا الخطأ
+    # 9942022052/Aa@9942022052
+
+    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 5622, in main
+    #     print(username , password)
+    #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4444, in create_e_side_marks_doc
+    #     print (classes_id_3[v][0]['institution_class_id'])
+    #            ~~~~~~~~~~~~^^^
+    # IndexError: list index out of range
+    # 9922052534/20182018
+
+    # There is error in 
+    # 9962040167/9962040167E$e
+    # There is error in 
+    # 9842053211/9842053211
+    # There is error in 
+    # 9842048442/123456
+    # There is error in 
+    # 9862053521/9862053521
+    # There is error in 
+    # 9782051311/Aa@12345678
+    # There is error in 
+    # 9762051028/9762051028
+    # There is error in 
+    # 9692012484/9692012484
+    # There is error in 
+    # 9781053164/9781053164
+
+    # bulk_e_side_note_marks(passwords)
+    
+    convert_to_marks_offline_from_send_folder()
+    
+    # read_all_xlsx_in_folder()
 
 
 if __name__ == "__main__":

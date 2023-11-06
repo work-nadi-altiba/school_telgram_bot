@@ -1,0 +1,44 @@
+## منطق دالة لقياس ادخال علامات المعلمين للصفوف 
+
+# تستطيع جمع معلومات عن الموظفين في المؤسسة عن طريق هذا الرابط
+https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id=2600&_contain=Staff.Users,Staff.Positions
+ثم ابحث في النتيجة عن 'staff_status_id': 1 ومعناها ان الموظف على راس عمله و اذا كان الرقم 2 فانه تقاعد وليس على راس عمله
+
+معلم الاضافي لاي يكون له position و لا يكون له user 
+# احضر نصاب كل معلم و مواد المعلم و صفوفه و ضعها في ملف واحد لكي تقوم بالعمل عليه لاحقا
+# اجمع اسماء الطلاب و نتائجهم في ملف و ابحث عن كل صفوف المعلم فيه لكي تستخرج نسبة ادخال كل معلم في كل صف 
+او 
+# يمكنك احضار نصاب و صفوف كل معلم و الكشف عن نسبة ادخال كل تقويم في كل صف
+
+# لاحضار اسم الصف استعمل رابط واجهة المستخدم هذا 
+https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_orWhere=institution_class_id:786118&_limit=0
+ و ضع في institution_class_id رقم الصف و ستظهر لك النتائج 
+ 
+ # لكي تحصل على الرقم التعريفي لكل طلاب المدرسة عليك استخدام رابط الواجهة
+ https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&institution_id=2600&academic_period_id=13&_fields=student_id
+ 
+ # لجمع بيانات علامات الطلاب لاستعمالها في تحضير الشهادات و الجداول استعمل رابط واجهة المستخدم هذا 
+ https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id=13&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&_orWhere=student_id:3152408,student_id:3171640,student_id:3279784,student_id:3297789,student_id:3350079,student_id:3358503,student_id:3387299,student_id:3390740,student_id:3439303,student_id:3458284,student_id:3640269,student_id:3644665,student_id:3669310,student_id:3715183,student_id:3723573,student_id:3738759,student_id:3791331,student_id:6738069,student_id:7248432,student_id:7540175,student_id:3147020,student_id:3173674,student_id:3279869,student_id:3294959,student_id:3353238&_limit=2
+ حيث student_id هو رقم الطالب و يفضل ان تحدد كم طالب تريد الاستعلام عنه في المثال السابق 28 و كانت النتيجة 725 امتحان
+ 
+ # لتسجيل حضور الطلاب في تاريخ معين استعمل هذا الرابط 
+ https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave%5Binstitution_id%3A2600%3Binstitution_class_id%3A786118%3Beducation_grade_id%3A275%3Bacademic_period_id%3A13%3Battendance_period_id%3A1%3Bday_id%3A2023-04-11%3Bweek_id%3Aundefined%3Bweek_start_day%3Aundefined%3Bweek_end_day%3Aundefined%3Bsubject_id%3A0%5D&_limit=0
+ 
+ # رابط استطيع استعماله لجمع اسماء و شعب كل طلاب المدرسة
+https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id=2057&academic_period_id=13&_limit=0&_contain=Users.Genders
+# رابط لا اعرف كيف استفيد منه 
+https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentBehaviours.json
+
+institution_id رقم اي دي المدرسة
+
+# لحساب نصاب كل المعلمين في المدرسة
+https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id=2600&_contain=Users,InstitutionSubjects&academic_period_id=13&_limit=0
+
+
+# باستخدام هذا الرابط يمكنك استخراج معلومات المدرسة
+https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:175402&_contain=InstitutionLands.CustomFieldValues
+اذا كان institution_sector_id يساوي 11 فالمدرسة حكومية
+
+# رابط تسجيل غياب الطالب
+
+
