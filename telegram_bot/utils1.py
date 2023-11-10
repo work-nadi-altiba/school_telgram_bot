@@ -52,6 +52,132 @@ secondery_students = []
 
 # New code should be under here please
 
+def extract_absent_dates_from_text(text , helper=False):
+    '''
+    نص الغياب يجب ان يتبع القواعد الاتية :
+    ان غياب كل طالب في سطر حسب رقمه على الاسماء التي تستخرجها دالة get_names_for_absent_purposes
+    الغياب يكون فيه اليوم ثم الشهر 
+    اذا كان الغياب بين ايام متواصلة استعمل علامة الناقص بين اليوم الاول و اليوم الاخير
+    اذا كانت الايام متفرقة استعمل بين كل يوم و يوم علامة الفاصلة 
+    كالمثال التالي:
+        8/11 5,7/10 17-19/10 23,25/10
+    '''
+    absent_days_list = []
+    absent_string_list = absent_string.split('\n')
+    for idx ,item in enumerate(absent_string_list ,start=1):
+        if helper:
+            print(idx)
+        dates = item.split(' ')
+        for date in dates :
+            if '-' in date:
+                start , end = date.split('/')[0].split('-')
+                month = date.split('/')[1]
+                e = [f"{idx}/{i}/{month}" for i in range(int(start), int(end)+1)] 
+                absent_days_list.extend(e)
+                if helper:
+                    print(' '.join(e),end=' ')
+                
+            elif ',' in date :
+                days ,month= date.split('/')
+                splitted_days = days.split(',')
+                d = [f"{idx}/{i}/{month}" for i in splitted_days]
+                absent_days_list.extend(d)
+                if helper:
+                    print(' '.join(d) ,end=' ')
+            else :
+                absent_days_list.append(f'{idx}/{date}')
+                if helper:
+                    print(f'{idx}/{date}' ,end=' ')
+        if helper:            
+            print('\n'+'-'*50)
+    return absent_days_list
+
+def get_period_days_dates(start_date_str, end_date_str, skip_dates=[], skip_weekend=True):
+    '''
+    اعطاء الايام الموجودة في فترة من الزمن و استثناء ايام العطل الرسمية بتوجيه المستخدم
+    # Example usage:
+    start_date_str = "2023-08-20"
+    end_date_str = "2023-11-12"
+    skip_dates = ["2023-09-27"]  # Specify dates to skip in "Y-m-d" format
+
+    # Convert skip_dates to datetime objects
+    skip_dates = [datetime.datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in skip_dates]
+
+    result_dates = get_period_days_dates(start_date_str, end_date_str, skip_dates, skip_weekend=True)
+
+    # len(result_dates)
+    print('\n'.join(result_dates))
+    # print(result_dates)
+    '''
+    start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
+    result_dates = []
+    current_date = start_date
+    delta = datetime.timedelta(days=1)
+
+    while current_date <= end_date:
+        if current_date.date() not in skip_dates:
+            if not (skip_weekend and current_date.weekday() in [4, 5]):
+                result_dates.append(current_date.strftime("%Y-%m-%d"))
+        
+        current_date += delta
+
+    return result_dates
+
+def contains_else_number_or_slash(text):
+    # Define a regular expression pattern to match characters other than "/", digits, and whitespace
+    pattern = re.compile(r'[^/\d\s]')
+    
+    # Search for the pattern in the text
+    match = pattern.search(text)
+    
+    # Return True if a match is found (i.e., special characters are present), False otherwise
+    return match is not None
+
+def intended_for_pytest_for_the_absent_text(absent_days_list):
+    for i in absent_days_list:
+        if contains_else_number_or_slash(i):
+            print(i)
+    # get the monthes of the proccessed text 
+    # لاحضار الاشهر التي تحتاج الى تعديل او المختلفة 
+    set([i.split('/')[2] for i in l])
+
+def get_names_for_absent_purposes(auth , session=None):
+    d = get_required_data_to_enter_absent(auth=auth)
+    institution_id = d['institution_id']
+    institution_class_id = d['institution_class_id']
+    academic_period_id = d['academic_period_id']
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    students_with_ids = make_request(url=url,auth=auth,session=session)
+    u_names_with_ids = set([(i['student_id'] ,i['user']['name']) for i in students_with_ids['data']])
+
+    sorted_list = sorted(u_names_with_ids, key=lambda x: x[1])
+    
+    return sorted_list
+
+def get_required_data_to_enter_absent(auth , session=None):
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses'
+    classes = make_request(url=url , auth=auth , session=session)
+    curr_per = get_curr_period(auth=auth, session=session)['data'][0]
+    academic_period_id =curr_per['id']
+    home_room_class = [i for i in classes['data'] if i['academic_period_id'] ==academic_period_id][0]
+
+    institution_class_id = home_room_class['id']
+    institution_id = home_room_class['institution_id']
+
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses.json?_finder=gradesByInstitutionAndAcademicPeriodAndInstitutionClass[institution_id:{institution_id};academic_period_id:{academic_period_id};institution_class_id:{institution_class_id}]&_limit=0'
+
+    education_grade_id = make_request(url=url , auth=auth, session=session)['data'][0]['id']
+
+    return {
+            'institution_id':institution_id,
+            'institution_class_id':institution_class_id,
+            'education_grade_id':education_grade_id,
+            'academic_period_id':academic_period_id,
+            'year1': curr_per['start_year'],
+            'year2': curr_per['end_year']
+            }
+
 def bulk_e_side_note_marks(passwords):
     for p in passwords.split('\n'):
         # print(p,'-------<>')
@@ -250,7 +376,14 @@ def tor_code():
 
 def mark_all_students_as_present(term_days_dates,auth):
 
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:2600;institution_class_id:786118;education_grade_id:275;academic_period_id:13;attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
+    session = requests.Session()
+    r_data = get_required_data_to_enter_absent(auth,session=session)
+    institution_id = r_data['institution_id']
+    institution_class_id = r_data['institution_class_id']
+    education_grade_id = r_data['education_grade_id']
+    academic_period_id = r_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:{institution_id};institution_class_id:{institution_class_id};education_grade_id:{education_grade_id};academic_period_id:{academic_period_id};attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
 
@@ -262,174 +395,54 @@ def mark_all_students_as_present(term_days_dates,auth):
 
     print("All requests were successful!")
     
-def mark_students_absent_in_dates():
-    auth = get_auth(9971055725,9971055725)
-    absent = '''4/7/9
-    5/25/26/9
-    7/11/9
-    8/13/9
-    11/29/9
-    15/12/13/9
-    17/26/9
-    18/7/9
-    19/13/9
-    22/12/9
-    26/11/9
-    2/24/10
-    3/11/10
-    4/4/10
-    6/24/10
-    11/10/10
-    18/19/10
-    20/10/10
-    21/25/10
-    27/4/10
-    444/24/10
-    5/10/10
-    2/3/21/28/11
-    3/15/11
-    4/3/22/11
-    5/22/27/11
-    7/15/27/11
-    8/1/15/11
-    9/22/11
-    11/7/11
-    13/7/11
-    15/7/10/14/15/22/27/11
-    17/7/11
-    18/3/11
-    19/3/11
-    20/7/20/28/11
-    21/3/6/22/11
-    22/30/11
-    23/2/13/22/11
-    24/7/11
-    25/3/16/20/22/11
-    27/2/3/10/11
-    444/1/16/11
-    555/14/15/11
-    9/5/12
-    15/5/12
-    19/5/12
-    25/5/12
-    555/5/12
-    2/21/2
-    16/22/2
-    21/13/16/23/27/2
-    555/21/26/2
-    2/19/3
-    3/19/3
-    4/7/3
-    5/20/21/3
-    7/21/3
-    8/19/3
-    9/7/3
-    13/28/3
-    15/8/28/3
-    18/7/28/3
-    19/19/28/29/3
-    21/2/6/8/14/22/3
-    22/20/3
-    25/7/8/19/3
-    26/1/6/20/3
-    27/19/3
-    444/7/16/29/3
-    555/2/6/20/21/3
-    5/20/3
-    2/3/12/26/4
-    3/26/4
-    4/26/4
-    5/13/4
-    7/3/4
-    9/26/4
-    11/3/26/4
-    15/14/26/4
-    16/26/4
-    18/26/4
-    19/3/4/26/4
-    20/4/12/4
-    26/26/4
-    27/26/3/9/4
-    444/26/3/4/4
-    555/26/4/4
-    2/3/5
-    3/8/5
-    4/21/5
-    5/16/21/24/5
-    8/17/21/5
-    9/16/21/5
-    10/16/5
-    11/4/9/16/21/29/5
-    12/16/5
-    13/16/5
-    15/16/5
-    444/21/5
-    555/21/5
-    26/18/21/5
-    27/16/21/24/5
-    444/21/30/5
-    16/16/21/5
-    17/16/5
-    18/16/21/5
-    19/16/21/24/5
-    20/16/21/5
-    21/16/21/5
-    22/16/5
-    23/16/5
-    24/21/5
-    25/16/5
-    '''.split('\n')
-
-    absent_days_list = [day.split('/') for day in absent if day]
-
-    # absent_days[1][1:-1]
-
-    students_names = ['احمد حسين عيسى الدغيمات','احمد خليل ابراهيم العونة','احمد خليل محمد الخنازره','احمد سفيان احمد الجعارات','امير لافي محمد النوايشه','ايهم عمر محمود الدغيمات','بشار عبد الله عيد الهويمل','جمال هارون ابراهيم الجعارات','جمعه كودابوكس محراب لونكا','زيد محمد عبد الرحيم العشوش','سراج زكريا خالد الهويمل','سلامة محمود سليمان الجعارات','سليمان احمد سليمان النوايشه','سليمان علي سليمان الهويمل','عمار رشيد عيد النوايشه','عمر جميل عوده الهويمل','عيد جميل عيد الجعارات','لؤي سلامه علي المراحله','لؤي موسى سليمان الهويمل','ليث محمد حسن الدغيمات','محمد امير عيد جميل الجعارات','محمد عبد الرزاق مصطفى العجالين','مدين سميح فلاح الدغيمات','معاذ جبرين سلامه الجعارات','نورالدين محمود راضي الدغيمات','يزن بكر عبد المحسن الدغيمات','يزن صالح احمد العجالين','يوسف امين احمد الهويمل']
-    students_ids = [10137540,7459083,7388854,7464726,10159305,6880369,7305148,7327218,7199282,7298162,7298198,7334184,7200052,7305606,7209214,7304956,7355630,7305448,7388970,7327780,7355120,7304522,7304554,7329162,3824166,7330736,7248432,7356766]
-
+def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list ,institution_id , institution_class_id , education_grade_id , academic_period_id , year1 , year2 , helper=False):
+    '''
+    usage:
+        auth = get_auth( xxxxxxxxxx , xxxxxxxxxx )
+        absent_days_list = extract_absent_dates_from_text(absent_string)
+        id_with_names = get_names_for_absent_purposes(auth)
+        required_data = get_required_data_to_enter_absent(auth)
+        # for i in f:
+        #     print(f"{i} = required_data['{i}']",end=', ')
+        mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] )
+    '''
     students_dictionary = {}
-    for idx, (name, student_id) in enumerate(zip(students_names, students_ids), start=1) :
-        
-        if (idx >= 8 and idx <= 14) or idx >= 20:
-            idx -=1
-            students_dictionary
-        else:    
-            idx = idx
-        
-        students_dictionary[idx]= [student_id,name , ]
-    students_dictionary[555] = [7305148,'بشار عبد الله عيد الهويمل']
+    for idx, (name, student_id) in enumerate(students_id_with_names, start=1) : 
+        students_dictionary[idx]= [student_id,name ]
+
+    absent_days_list = [day.split('/') for day in absent_days_list]
 
     # students_dictionary
-    year1 , year2 = 2022,2023
     absent_data = []
 
     for date in absent_days_list:
-        if '444' not in date:
-            student_id = str(students_dictionary[int(date[0])][0])
-            student_name = str(students_dictionary[int(date[0])][1])
-            year = year1 if int(date[-1]) in [9,10,11,12] else year2
-            
-            for day in date[1:-1]:
-                date_str = f"{year}-{date[-1]}-{day}"
+        student_name = str(students_dictionary[int(date[0])][0])
+        student_id = str(students_dictionary[int(date[0])][1])
+        year = year1 if int(date[-1]) in [9,10,11,12] else year2
+        
+        for day in date[1:-1]:
+            date_str = f"{year}-{date[-1].zfill(2)}-{day.zfill(2)}"
+            if helper:
                 print ( student_name  , date_str)
-                item = json.dumps({"student_id": student_id,
-                                    "institution_id": 2600,
-                                    "academic_period_id": 13,
-                                    "institution_class_id": 786118,
-                                    "absence_type_id": "2",
-                                    "student_absence_reason_id": None,
-                                    "comment": None,
-                                    "period": 1,
-                                    "date": date_str,
-                                    "subject_id": 0,
-                                    "education_grade_id": 275}).replace('}','')
-                absent_data.append(item)
+            item = json.dumps({"student_id": student_id,
+                                "institution_id": institution_id,
+                                "academic_period_id": academic_period_id,
+                                "institution_class_id": institution_class_id,
+                                "absence_type_id": "2",
+                                "student_absence_reason_id": None,
+                                "comment": None,
+                                "period": 1,
+                                "date": date_str,
+                                "subject_id": 0,
+                                "education_grade_id": education_grade_id}).replace('}','')
+            absent_data.append(item)
 
     # 'student_id': 7388854,
     # 'date': '2022-09-19',
 
     # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
-    pprint(absent_data[0])
+    if helper:
+        pprint(absent_data[0])
 
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
@@ -446,13 +459,13 @@ def mark_students_absent_in_dates():
 
     print("All requests were successful!")
 
-def term_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
+def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
 
     present_days = []
-    start_date = datetime.date(2022, 8, 30)
-    end_date = datetime.date(2023, 6, 30)
-    skip_start_date = datetime.date(2023, 1, 1)
-    skip_end_date = datetime.date(2023, 2, 5)
+    start_date = datetime.date(2022, 8, 30) if not start_date else datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = datetime.date(2023, 6, 30) if not end_date else datetime.strptime(end_date , "%Y-%m-%d")
+    skip_start_date = datetime.date(2023, 1, 1) if not skip_start_date else datetime.strptime(skip_start_date , "%Y-%m-%d")
+    skip_end_date = datetime.date(2023, 2, 5) if not skip_end_date else datetime.strptime(skip_end_date , "%Y-%m-%d")
 
     current_date = start_date
     while current_date <= end_date:
@@ -5346,7 +5359,7 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     '''
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"    
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
     data = make_request(url,auth,session=session)
     if not data['total']:
         try:
