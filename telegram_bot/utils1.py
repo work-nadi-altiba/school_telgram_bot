@@ -5684,7 +5684,7 @@ def main():
     # 9772015488
     # 9692012484
     # 9781053164'''
-    passwords = '''9781053164/9781053164'''
+    passwords = '''9822041975/Aa@9822041975'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
@@ -5729,7 +5729,7 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder()
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face.ods')
     
     # read_all_xlsx_in_folder()
 

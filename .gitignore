@@ -169,3 +169,4 @@ jupyter/
 logic.txt
 /telegram_bot/api_urls.py
 .git
+telegram_bot/__pycache__/*
