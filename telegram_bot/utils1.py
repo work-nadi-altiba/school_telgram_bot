@@ -51,6 +51,185 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+def mark_all_students_as_present(auth ,term_days_dates ,r_data = None , proxies = None):
+
+    session = requests.Session()
+    if not r_data:
+        r_data = get_required_data_to_enter_absent(auth,session=session)
+    institution_id = r_data['institution_id']
+    institution_class_id = r_data['institution_class_id']
+    education_grade_id = r_data['education_grade_id']
+    academic_period_id = r_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:{institution_id};institution_class_id:{institution_class_id};education_grade_id:{education_grade_id};academic_period_id:{academic_period_id};attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+
+    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,None,method='GET',proxies = proxies)
+
+    print("All requests were successful!")
+
+def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list ,institution_id , institution_class_id , education_grade_id , academic_period_id , year1 , year2 , helper=False ,proxies = None):
+    '''
+    usage:
+        required_data = get_required_data_to_enter_absent(auth)
+        # for i in f:
+        #     print(f"{i} = required_data['{i}']",end=', ')
+        mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] )
+    '''
+    students_dictionary = {}
+    for idx, (name, student_id) in enumerate(students_id_with_names, start=1) : 
+        students_dictionary[idx]= [student_id,name ]
+
+    absent_days_list = [day.split('/') for day in absent_days_list]
+
+    # students_dictionary
+    absent_data = []
+
+    for date in absent_days_list:
+        student_name = str(students_dictionary[int(date[0])][0])
+        student_id = str(students_dictionary[int(date[0])][1])
+        year = year1 if int(date[-1]) in [9,10,11,12] else year2
+        
+        for day in date[1:-1]:
+            date_str = f"{year}-{date[-1].zfill(2)}-{day.zfill(2)}"
+            if helper:
+                print ( student_name  , date_str)
+            item = json.dumps({"student_id": student_id,
+                                "institution_id": institution_id,
+                                "academic_period_id": academic_period_id,
+                                "institution_class_id": institution_class_id,
+                                "absence_type_id": "2",
+                                "student_absence_reason_id": None,
+                                "comment": None,
+                                "period": 1,
+                                "date": date_str,
+                                "subject_id": 0,
+                                "education_grade_id": education_grade_id}).replace('}','')
+            absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    if helper:
+        pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST', proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    print("All requests were successful!")
+
+def fill_students_absent_in_dates_wrapper(auth ,students_absent_multiline_string=None , random_values = False ,start_date_str = None , end_date_str = None , skip_dates_list = None , required_data=None, proxies = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    id_with_names = get_names_for_absent_purposes(auth)
+    if students_absent_multiline_string :
+        absent_days_list = extract_absent_dates_from_text(students_absent_multiline_string)
+    elif random_values :
+        days_list = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
+        absent_days_list = create_random_absent_list(days_list , id_with_names)
+    else:
+        print('give me absent_multiline_string value or choose random_values')
+    mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] ,proxies = proxies)
+
+def fill_all_students_present_wrapper(auth , start_date_str , end_date_str , skip_dates_list ,required_data=None ,proxies = None):
+    days_list = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
+    mark_all_students_as_present(auth , days_list , required_data ,proxies = proxies)
+
+def erase_students_absent_dates(auth ,required_data=None ,helper=False,proxies = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    absent_data_list = get_class_absent_days_with_id(auth ,required_data=required_data)
+    
+    institution_id=required_data['institution_id']
+    institution_class_id=required_data['institution_class_id']
+    education_grade_id=required_data['education_grade_id']
+    academic_period_id=required_data['academic_period_id']
+    
+    absent_data = []    
+    
+    for date_item in absent_data_list:
+        student_id = str(date_item[0])
+        date_str = date_item[1]
+
+        item = json.dumps({"student_id": student_id,
+                            "institution_id": institution_id,
+                            "academic_period_id": academic_period_id,
+                            "institution_class_id": institution_class_id,
+                            "absence_type_id": "0",
+                            "student_absence_reason_id": None,
+                            "comment": None,
+                            "period": 1,
+                            "date": date_str,
+                            "subject_id": 0,
+                            "education_grade_id": education_grade_id}).replace('}','')
+        absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    if helper:
+        pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    print("All requests were successful!")
+
+def get_class_absent_days_with_id(auth ,simple_list=True , required_data = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    
+    institution_id=required_data['institution_id']
+    institution_class_id=required_data['institution_class_id']
+    education_grade_id=required_data['education_grade_id']
+    academic_period_id=required_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id={institution_id}&institution_class_id={institution_class_id}&education_grade_id={education_grade_id}&academic_period_id={academic_period_id}&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id'
+    absent_data = make_request(auth=auth , url=url)
+    if simple_list:
+        absent_data = [[i['student_id'] , i['date']] for i in absent_data['data']]
+    return absent_data
+
+def create_random_absent_list(dates_list ,id_with_names):
+    number_of_the_students = len(id_with_names)
+    random_absent = []
+    for date in dates_list:
+        month , day = date.split('-')[1] , date.split('-')[2] 
+        number_of_absency = random.randint(1, 8)
+        random_students = []
+        for _ in range(number_of_absency):
+            random_student_index = random.randint(1, number_of_the_students)
+            random_students.append(f'{random_student_index}/{day}/{month}')
+        # print(random_students)
+        random_absent.extend(random_students)
+    return random_absent
 
 def extract_absent_dates_from_text(text , helper=False):
     '''
@@ -61,9 +240,14 @@ def extract_absent_dates_from_text(text , helper=False):
     اذا كانت الايام متفرقة استعمل بين كل يوم و يوم علامة الفاصلة 
     كالمثال التالي:
         8/11 5,7/10 17-19/10 23,25/10
+    المخرجات ستكون:
+    1    /    24    /     9
+    الشهر      اليوم      رقم
+    الطالب
+    المتسلسل        
     '''
     absent_days_list = []
-    absent_string_list = absent_string.split('\n')
+    absent_string_list = text.split('\n')
     for idx ,item in enumerate(absent_string_list ,start=1):
         if helper:
             print(idx)
@@ -75,8 +259,7 @@ def extract_absent_dates_from_text(text , helper=False):
                 e = [f"{idx}/{i}/{month}" for i in range(int(start), int(end)+1)] 
                 absent_days_list.extend(e)
                 if helper:
-                    print(' '.join(e),end=' ')
-                
+                    print(' '.join(e),end=' ')              
             elif ',' in date :
                 days ,month= date.split('/')
                 splitted_days = days.split(',')
@@ -92,18 +275,15 @@ def extract_absent_dates_from_text(text , helper=False):
             print('\n'+'-'*50)
     return absent_days_list
 
-def get_period_days_dates(start_date_str, end_date_str, skip_dates=[], skip_weekend=True):
+def get_period_days_dates(start_date_str, end_date_str, skip_dates_list=[], skip_weekend=True):
     '''
     اعطاء الايام الموجودة في فترة من الزمن و استثناء ايام العطل الرسمية بتوجيه المستخدم
     # Example usage:
     start_date_str = "2023-08-20"
     end_date_str = "2023-11-12"
-    skip_dates = ["2023-09-27"]  # Specify dates to skip in "Y-m-d" format
-
-    # Convert skip_dates to datetime objects
-    skip_dates = [datetime.datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in skip_dates]
-
-    result_dates = get_period_days_dates(start_date_str, end_date_str, skip_dates, skip_weekend=True)
+    skip_dates_list = ["2023-09-27"]  # Specify dates to skip in "Y-m-d" format
+    
+    result_dates = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
 
     # len(result_dates)
     print('\n'.join(result_dates))
@@ -111,12 +291,13 @@ def get_period_days_dates(start_date_str, end_date_str, skip_dates=[], skip_week
     '''
     start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
+    skip_dates_list = [datetime.datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in skip_dates_list]
     result_dates = []
     current_date = start_date
     delta = datetime.timedelta(days=1)
 
     while current_date <= end_date:
-        if current_date.date() not in skip_dates:
+        if current_date.date() not in skip_dates_list:
             if not (skip_weekend and current_date.weekday() in [4, 5]):
                 result_dates.append(current_date.strftime("%Y-%m-%d"))
         
@@ -140,7 +321,7 @@ def intended_for_pytest_for_the_absent_text(absent_days_list):
             print(i)
     # get the monthes of the proccessed text 
     # لاحضار الاشهر التي تحتاج الى تعديل او المختلفة 
-    set([i.split('/')[2] for i in l])
+    # set([i.split('/')[2] for i in l])
 
 def get_names_for_absent_purposes(auth , session=None):
     d = get_required_data_to_enter_absent(auth=auth)
@@ -373,91 +554,6 @@ def tor_code():
             print(term.format('error occured' , term.Color.RED))
 
         tor_process.kill()  # stops tor
-
-def mark_all_students_as_present(term_days_dates,auth):
-
-    session = requests.Session()
-    r_data = get_required_data_to_enter_absent(auth,session=session)
-    institution_id = r_data['institution_id']
-    institution_class_id = r_data['institution_class_id']
-    education_grade_id = r_data['education_grade_id']
-    academic_period_id = r_data['academic_period_id']
-    
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:{institution_id};institution_class_id:{institution_class_id};education_grade_id:{education_grade_id};academic_period_id:{academic_period_id};attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
-
-    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
-
-
-    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
-
-    while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
-
-    print("All requests were successful!")
-    
-def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list ,institution_id , institution_class_id , education_grade_id , academic_period_id , year1 , year2 , helper=False):
-    '''
-    usage:
-        auth = get_auth( xxxxxxxxxx , xxxxxxxxxx )
-        absent_days_list = extract_absent_dates_from_text(absent_string)
-        id_with_names = get_names_for_absent_purposes(auth)
-        required_data = get_required_data_to_enter_absent(auth)
-        # for i in f:
-        #     print(f"{i} = required_data['{i}']",end=', ')
-        mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] )
-    '''
-    students_dictionary = {}
-    for idx, (name, student_id) in enumerate(students_id_with_names, start=1) : 
-        students_dictionary[idx]= [student_id,name ]
-
-    absent_days_list = [day.split('/') for day in absent_days_list]
-
-    # students_dictionary
-    absent_data = []
-
-    for date in absent_days_list:
-        student_name = str(students_dictionary[int(date[0])][0])
-        student_id = str(students_dictionary[int(date[0])][1])
-        year = year1 if int(date[-1]) in [9,10,11,12] else year2
-        
-        for day in date[1:-1]:
-            date_str = f"{year}-{date[-1].zfill(2)}-{day.zfill(2)}"
-            if helper:
-                print ( student_name  , date_str)
-            item = json.dumps({"student_id": student_id,
-                                "institution_id": institution_id,
-                                "academic_period_id": academic_period_id,
-                                "institution_class_id": institution_class_id,
-                                "absence_type_id": "2",
-                                "student_absence_reason_id": None,
-                                "comment": None,
-                                "period": 1,
-                                "date": date_str,
-                                "subject_id": 0,
-                                "education_grade_id": education_grade_id}).replace('}','')
-            absent_data.append(item)
-
-    # 'student_id': 7388854,
-    # 'date': '2022-09-19',
-
-    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
-    if helper:
-        pprint(absent_data[0])
-
-
-    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
-
-    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
-
-
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
-
-    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
-
-    while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
-
-    print("All requests were successful!")
 
 def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
 
