@@ -390,7 +390,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
 def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
-        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
+        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color_name=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
@@ -4831,7 +4831,7 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
 
     add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color_name=color)
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)    
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)
     add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)  
     
     if not do_not_delete_send_folder :
@@ -4845,15 +4845,15 @@ def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outd
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
-    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color=color)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color=color)
+    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color_name=color)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
 
-    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color=color)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color=color)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color=color)    
-    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color=color)  
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)  
     delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
 
 def delete_file(file_path):
