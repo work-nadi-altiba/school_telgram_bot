@@ -11,7 +11,8 @@
         "program": "${file}",
         "console": "integratedTerminal",
         "cwd": "/opt/programming/school_programms1/telegram_bot",
-        "justMyCode": true
+        "justMyCode": true,
+        "args": ["-t"]
     },
     {
       "name": "Python: Current File",
@@ -19,7 +20,8 @@
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
-      "justMyCode": true
+      "justMyCode": true,
+
     }
   ]
 }

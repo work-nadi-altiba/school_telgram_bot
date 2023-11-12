@@ -44,10 +44,355 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-
+import traceback
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
+# Global variables should under her please
+secondery_students = []
+
+# New code should be under here please
+def mark_all_students_as_present(auth ,term_days_dates ,r_data = None , proxies = None):
+
+    session = requests.Session()
+    if not r_data:
+        r_data = get_required_data_to_enter_absent(auth,session=session)
+    institution_id = r_data['institution_id']
+    institution_class_id = r_data['institution_class_id']
+    education_grade_id = r_data['education_grade_id']
+    academic_period_id = r_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:{institution_id};institution_class_id:{institution_class_id};education_grade_id:{education_grade_id};academic_period_id:{academic_period_id};attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+
+    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,None,method='GET',proxies = proxies)
+
+    print("All requests were successful!")
+
+def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list ,institution_id , institution_class_id , education_grade_id , academic_period_id , year1 , year2 , helper=False ,proxies = None):
+    '''
+    usage:
+        required_data = get_required_data_to_enter_absent(auth)
+        # for i in f:
+        #     print(f"{i} = required_data['{i}']",end=', ')
+        mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] )
+    '''
+    students_dictionary = {}
+    for idx, (name, student_id) in enumerate(students_id_with_names, start=1) : 
+        students_dictionary[idx]= [student_id,name ]
+
+    absent_days_list = [day.split('/') for day in absent_days_list]
+
+    # students_dictionary
+    absent_data = []
+
+    for date in absent_days_list:
+        student_name = str(students_dictionary[int(date[0])][0])
+        student_id = str(students_dictionary[int(date[0])][1])
+        year = year1 if int(date[-1]) in [9,10,11,12] else year2
+        
+        for day in date[1:-1]:
+            date_str = f"{year}-{date[-1].zfill(2)}-{day.zfill(2)}"
+            if helper:
+                print ( student_name  , date_str)
+            item = json.dumps({"student_id": student_id,
+                                "institution_id": institution_id,
+                                "academic_period_id": academic_period_id,
+                                "institution_class_id": institution_class_id,
+                                "absence_type_id": "2",
+                                "student_absence_reason_id": None,
+                                "comment": None,
+                                "period": 1,
+                                "date": date_str,
+                                "subject_id": 0,
+                                "education_grade_id": education_grade_id}).replace('}','')
+            absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    if helper:
+        pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST', proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    print("All requests were successful!")
+
+def fill_students_absent_in_dates_wrapper(auth ,students_absent_multiline_string=None , random_values = False ,start_date_str = None , end_date_str = None , skip_dates_list = None , required_data=None, proxies = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    id_with_names = get_names_for_absent_purposes(auth)
+    if students_absent_multiline_string :
+        absent_days_list = extract_absent_dates_from_text(students_absent_multiline_string)
+    elif random_values :
+        days_list = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
+        absent_days_list = create_random_absent_list(days_list , id_with_names)
+    else:
+        print('give me absent_multiline_string value or choose random_values')
+    mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] ,proxies = proxies)
+
+def fill_all_students_present_wrapper(auth , start_date_str , end_date_str , skip_dates_list ,required_data=None ,proxies = None):
+    days_list = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
+    mark_all_students_as_present(auth , days_list , required_data ,proxies = proxies)
+
+def erase_students_absent_dates(auth ,required_data=None ,helper=False,proxies = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    absent_data_list = get_class_absent_days_with_id(auth ,required_data=required_data)
+    
+    institution_id=required_data['institution_id']
+    institution_class_id=required_data['institution_class_id']
+    education_grade_id=required_data['education_grade_id']
+    academic_period_id=required_data['academic_period_id']
+    
+    absent_data = []    
+    
+    for date_item in absent_data_list:
+        student_id = str(date_item[0])
+        date_str = date_item[1]
+
+        item = json.dumps({"student_id": student_id,
+                            "institution_id": institution_id,
+                            "academic_period_id": academic_period_id,
+                            "institution_class_id": institution_class_id,
+                            "absence_type_id": "0",
+                            "student_absence_reason_id": None,
+                            "comment": None,
+                            "period": 1,
+                            "date": date_str,
+                            "subject_id": 0,
+                            "education_grade_id": education_grade_id}).replace('}','')
+        absent_data.append(item)
+
+    # 'student_id': 7388854,
+    # 'date': '2022-09-19',
+
+    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
+    if helper:
+        pprint(absent_data[0])
+
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+
+    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
+
+
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
+
+    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests , headers ,body_postdata ,method='POST',proxies = proxies)
+
+    print("All requests were successful!")
+
+def get_class_absent_days_with_id(auth ,simple_list=True , required_data = None):
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    
+    institution_id=required_data['institution_id']
+    institution_class_id=required_data['institution_class_id']
+    education_grade_id=required_data['education_grade_id']
+    academic_period_id=required_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id={institution_id}&institution_class_id={institution_class_id}&education_grade_id={education_grade_id}&academic_period_id={academic_period_id}&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id'
+    absent_data = make_request(auth=auth , url=url)
+    if simple_list:
+        absent_data = [[i['student_id'] , i['date']] for i in absent_data['data']]
+    return absent_data
+
+def create_random_absent_list(dates_list ,id_with_names):
+    number_of_the_students = len(id_with_names)
+    random_absent = []
+    for date in dates_list:
+        month , day = date.split('-')[1] , date.split('-')[2] 
+        number_of_absency = random.randint(1, 8)
+        random_students = []
+        for _ in range(number_of_absency):
+            random_student_index = random.randint(1, number_of_the_students)
+            random_students.append(f'{random_student_index}/{day}/{month}')
+        # print(random_students)
+        random_absent.extend(random_students)
+    return random_absent
+
+def extract_absent_dates_from_text(text , helper=False):
+    '''
+    نص الغياب يجب ان يتبع القواعد الاتية :
+    ان غياب كل طالب في سطر حسب رقمه على الاسماء التي تستخرجها دالة get_names_for_absent_purposes
+    الغياب يكون فيه اليوم ثم الشهر 
+    اذا كان الغياب بين ايام متواصلة استعمل علامة الناقص بين اليوم الاول و اليوم الاخير
+    اذا كانت الايام متفرقة استعمل بين كل يوم و يوم علامة الفاصلة 
+    كالمثال التالي:
+        8/11 5,7/10 17-19/10 23,25/10
+    المخرجات ستكون:
+    1    /    24    /     9
+    الشهر      اليوم      رقم
+    الطالب
+    المتسلسل        
+    '''
+    absent_days_list = []
+    absent_string_list = text.split('\n')
+    for idx ,item in enumerate(absent_string_list ,start=1):
+        if helper:
+            print(idx)
+        dates = item.split(' ')
+        for date in dates :
+            if '-' in date:
+                start , end = date.split('/')[0].split('-')
+                month = date.split('/')[1]
+                e = [f"{idx}/{i}/{month}" for i in range(int(start), int(end)+1)] 
+                absent_days_list.extend(e)
+                if helper:
+                    print(' '.join(e),end=' ')              
+            elif ',' in date :
+                days ,month= date.split('/')
+                splitted_days = days.split(',')
+                d = [f"{idx}/{i}/{month}" for i in splitted_days]
+                absent_days_list.extend(d)
+                if helper:
+                    print(' '.join(d) ,end=' ')
+            else :
+                absent_days_list.append(f'{idx}/{date}')
+                if helper:
+                    print(f'{idx}/{date}' ,end=' ')
+        if helper:            
+            print('\n'+'-'*50)
+    return absent_days_list
+
+def get_period_days_dates(start_date_str, end_date_str, skip_dates_list=[], skip_weekend=True):
+    '''
+    اعطاء الايام الموجودة في فترة من الزمن و استثناء ايام العطل الرسمية بتوجيه المستخدم
+    # Example usage:
+    start_date_str = "2023-08-20"
+    end_date_str = "2023-11-12"
+    skip_dates_list = ["2023-09-27"]  # Specify dates to skip in "Y-m-d" format
+    
+    result_dates = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
+
+    # len(result_dates)
+    print('\n'.join(result_dates))
+    # print(result_dates)
+    '''
+    start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
+    end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
+    skip_dates_list = [datetime.datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in skip_dates_list]
+    result_dates = []
+    current_date = start_date
+    delta = datetime.timedelta(days=1)
+
+    while current_date <= end_date:
+        if current_date.date() not in skip_dates_list:
+            if not (skip_weekend and current_date.weekday() in [4, 5]):
+                result_dates.append(current_date.strftime("%Y-%m-%d"))
+        
+        current_date += delta
+
+    return result_dates
+
+def contains_else_number_or_slash(text):
+    # Define a regular expression pattern to match characters other than "/", digits, and whitespace
+    pattern = re.compile(r'[^/\d\s]')
+    
+    # Search for the pattern in the text
+    match = pattern.search(text)
+    
+    # Return True if a match is found (i.e., special characters are present), False otherwise
+    return match is not None
+
+def intended_for_pytest_for_the_absent_text(absent_days_list):
+    for i in absent_days_list:
+        if contains_else_number_or_slash(i):
+            print(i)
+    # get the monthes of the proccessed text 
+    # لاحضار الاشهر التي تحتاج الى تعديل او المختلفة 
+    # set([i.split('/')[2] for i in l])
+
+def get_names_for_absent_purposes(auth , session=None):
+    d = get_required_data_to_enter_absent(auth=auth)
+    institution_id = d['institution_id']
+    institution_class_id = d['institution_class_id']
+    academic_period_id = d['academic_period_id']
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    students_with_ids = make_request(url=url,auth=auth,session=session)
+    u_names_with_ids = set([(i['student_id'] ,i['user']['name']) for i in students_with_ids['data']])
+
+    sorted_list = sorted(u_names_with_ids, key=lambda x: x[1])
+    
+    return sorted_list
+
+def get_required_data_to_enter_absent(auth , session=None):
+    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses'
+    classes = make_request(url=url , auth=auth , session=session)
+    curr_per = get_curr_period(auth=auth, session=session)['data'][0]
+    academic_period_id =curr_per['id']
+    home_room_class = [i for i in classes['data'] if i['academic_period_id'] ==academic_period_id][0]
+
+    institution_class_id = home_room_class['id']
+    institution_id = home_room_class['institution_id']
+
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses.json?_finder=gradesByInstitutionAndAcademicPeriodAndInstitutionClass[institution_id:{institution_id};academic_period_id:{academic_period_id};institution_class_id:{institution_class_id}]&_limit=0'
+
+    education_grade_id = make_request(url=url , auth=auth, session=session)['data'][0]['id']
+
+    return {
+            'institution_id':institution_id,
+            'institution_class_id':institution_class_id,
+            'education_grade_id':education_grade_id,
+            'academic_period_id':academic_period_id,
+            'year1': curr_per['start_year'],
+            'year2': curr_per['end_year']
+            }
+
+def bulk_e_side_note_marks(passwords):
+    for p in passwords.split('\n'):
+        # print(p,'-------<>')
+        try : 
+            username = p.split('/')[0]
+            password = p.split('/')[1]
+        except:
+            username ,password =[p]*2
+        # print(username , password)
+        # FIXME: صلح مشكلة السيشين في الريكيوست
+        # session = requests.Session()
+        try:
+            create_e_side_marks_doc(username , password )
+        except Exception as e:
+            
+            print("\033[91m There is error in \n{}/{}\033[00m" .format(username , password))
+            # print(username , password)
+            traceback.print_exc()
+        # if not get_auth(username , password): 
+        #     print(username , password)
+
+def read_all_xlsx_in_folder(directory_path='./send_folder'):
+    dic_list = []
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)  
+        dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
+    return dic_list
+
+def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods' , color ="#8cd6e6"):
+    dic_list = read_all_xlsx_in_folder(directory_path)
+    for file_content in dic_list:
+        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
+
+def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir )
 
@@ -210,211 +555,13 @@ def tor_code():
 
         tor_process.kill()  # stops tor
 
-def mark_all_students_as_present(term_days_dates,auth):
-
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsenceSave[institution_id:2600;institution_class_id:786118;education_grade_id:275;academic_period_id:13;attendance_period_id:1;day_id:FUZZ;week_id:undefined;week_start_day:undefined;week_end_day:undefined;subject_id:0]&_limit=0'
-
-    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
-
-
-    unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
-
-    while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url , term_days_dates,headers,None,method='GET',proxies = [("127.0.0.1","8080","HTTP")])
-
-    print("All requests were successful!")
-    
-def mark_students_absent_in_dates():
-    auth = get_auth(9971055725,9971055725)
-    absent = '''4/7/9
-    5/25/26/9
-    7/11/9
-    8/13/9
-    11/29/9
-    15/12/13/9
-    17/26/9
-    18/7/9
-    19/13/9
-    22/12/9
-    26/11/9
-    2/24/10
-    3/11/10
-    4/4/10
-    6/24/10
-    11/10/10
-    18/19/10
-    20/10/10
-    21/25/10
-    27/4/10
-    444/24/10
-    5/10/10
-    2/3/21/28/11
-    3/15/11
-    4/3/22/11
-    5/22/27/11
-    7/15/27/11
-    8/1/15/11
-    9/22/11
-    11/7/11
-    13/7/11
-    15/7/10/14/15/22/27/11
-    17/7/11
-    18/3/11
-    19/3/11
-    20/7/20/28/11
-    21/3/6/22/11
-    22/30/11
-    23/2/13/22/11
-    24/7/11
-    25/3/16/20/22/11
-    27/2/3/10/11
-    444/1/16/11
-    555/14/15/11
-    9/5/12
-    15/5/12
-    19/5/12
-    25/5/12
-    555/5/12
-    2/21/2
-    16/22/2
-    21/13/16/23/27/2
-    555/21/26/2
-    2/19/3
-    3/19/3
-    4/7/3
-    5/20/21/3
-    7/21/3
-    8/19/3
-    9/7/3
-    13/28/3
-    15/8/28/3
-    18/7/28/3
-    19/19/28/29/3
-    21/2/6/8/14/22/3
-    22/20/3
-    25/7/8/19/3
-    26/1/6/20/3
-    27/19/3
-    444/7/16/29/3
-    555/2/6/20/21/3
-    5/20/3
-    2/3/12/26/4
-    3/26/4
-    4/26/4
-    5/13/4
-    7/3/4
-    9/26/4
-    11/3/26/4
-    15/14/26/4
-    16/26/4
-    18/26/4
-    19/3/4/26/4
-    20/4/12/4
-    26/26/4
-    27/26/3/9/4
-    444/26/3/4/4
-    555/26/4/4
-    2/3/5
-    3/8/5
-    4/21/5
-    5/16/21/24/5
-    8/17/21/5
-    9/16/21/5
-    10/16/5
-    11/4/9/16/21/29/5
-    12/16/5
-    13/16/5
-    15/16/5
-    444/21/5
-    555/21/5
-    26/18/21/5
-    27/16/21/24/5
-    444/21/30/5
-    16/16/21/5
-    17/16/5
-    18/16/21/5
-    19/16/21/24/5
-    20/16/21/5
-    21/16/21/5
-    22/16/5
-    23/16/5
-    24/21/5
-    25/16/5
-    '''.split('\n')
-
-    absent_days_list = [day.split('/') for day in absent if day]
-
-    # absent_days[1][1:-1]
-
-    students_names = ['احمد حسين عيسى الدغيمات','احمد خليل ابراهيم العونة','احمد خليل محمد الخنازره','احمد سفيان احمد الجعارات','امير لافي محمد النوايشه','ايهم عمر محمود الدغيمات','بشار عبد الله عيد الهويمل','جمال هارون ابراهيم الجعارات','جمعه كودابوكس محراب لونكا','زيد محمد عبد الرحيم العشوش','سراج زكريا خالد الهويمل','سلامة محمود سليمان الجعارات','سليمان احمد سليمان النوايشه','سليمان علي سليمان الهويمل','عمار رشيد عيد النوايشه','عمر جميل عوده الهويمل','عيد جميل عيد الجعارات','لؤي سلامه علي المراحله','لؤي موسى سليمان الهويمل','ليث محمد حسن الدغيمات','محمد امير عيد جميل الجعارات','محمد عبد الرزاق مصطفى العجالين','مدين سميح فلاح الدغيمات','معاذ جبرين سلامه الجعارات','نورالدين محمود راضي الدغيمات','يزن بكر عبد المحسن الدغيمات','يزن صالح احمد العجالين','يوسف امين احمد الهويمل']
-    students_ids = [10137540,7459083,7388854,7464726,10159305,6880369,7305148,7327218,7199282,7298162,7298198,7334184,7200052,7305606,7209214,7304956,7355630,7305448,7388970,7327780,7355120,7304522,7304554,7329162,3824166,7330736,7248432,7356766]
-
-    students_dictionary = {}
-    for idx, (name, student_id) in enumerate(zip(students_names, students_ids), start=1) :
-        
-        if (idx >= 8 and idx <= 14) or idx >= 20:
-            idx -=1
-            students_dictionary
-        else:    
-            idx = idx
-        
-        students_dictionary[idx]= [student_id,name , ]
-    students_dictionary[555] = [7305148,'بشار عبد الله عيد الهويمل']
-
-    # students_dictionary
-    year1 , year2 = 2022,2023
-    absent_data = []
-
-    for date in absent_days_list:
-        if '444' not in date:
-            student_id = str(students_dictionary[int(date[0])][0])
-            student_name = str(students_dictionary[int(date[0])][1])
-            year = year1 if int(date[-1]) in [9,10,11,12] else year2
-            
-            for day in date[1:-1]:
-                date_str = f"{year}-{date[-1]}-{day}"
-                print ( student_name  , date_str)
-                item = json.dumps({"student_id": student_id,
-                                    "institution_id": 2600,
-                                    "academic_period_id": 13,
-                                    "institution_class_id": 786118,
-                                    "absence_type_id": "2",
-                                    "student_absence_reason_id": None,
-                                    "comment": None,
-                                    "period": 1,
-                                    "date": date_str,
-                                    "subject_id": 0,
-                                    "education_grade_id": 275}).replace('}','')
-                absent_data.append(item)
-
-    # 'student_id': 7388854,
-    # 'date': '2022-09-19',
-
-    # {"student_id": 7388854, "institution_id": 2600, "academic_period_id": 13, "institution_class_id": 786118, "absence_type_id": "2", "student_absence_reason_id": null, "comment": null, "period": 1, "date": "2022-09-19", "subject_id": 0, "education_grade_id": 275,
-    pprint(absent_data[0])
-
-
-    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
-
-    body_postdata = json.dumps({ "action_type": "default"}).replace('{',' FUZZ ,')
-
-
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAbsencesPeriodDetails.json?_limit=0'
-
-    unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
-
-    while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url , absent_data , headers ,body_postdata ,method='POST',proxies = [("127.0.0.1","8080","HTTP")])
-
-    print("All requests were successful!")
-
-def term_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
+def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
 
     present_days = []
-    start_date = datetime.date(2022, 8, 30)
-    end_date = datetime.date(2023, 6, 30)
-    skip_start_date = datetime.date(2023, 1, 1)
-    skip_end_date = datetime.date(2023, 2, 5)
+    start_date = datetime.date(2022, 8, 30) if not start_date else datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = datetime.date(2023, 6, 30) if not end_date else datetime.strptime(end_date , "%Y-%m-%d")
+    skip_start_date = datetime.date(2023, 1, 1) if not skip_start_date else datetime.strptime(skip_start_date , "%Y-%m-%d")
+    skip_end_date = datetime.date(2023, 2, 5) if not skip_end_date else datetime.strptime(skip_end_date , "%Y-%m-%d")
 
     current_date = start_date
     while current_date <= end_date:
@@ -709,7 +856,7 @@ class RandomNumberGenerator:
         return ranges
 
 def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
-    doc = ezodf.opendoc(ods_file) 
+    doc = ezodf.opendoc(ods_file)
         
     sheet_name = 'Sheet1'
     sheet = doc.sheets[sheet_name]
@@ -723,6 +870,7 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
 
     year1 , year2 = student_details['year_code'].split('-')
     for i in range(183,820,58):
+        sheet[f"E{i}"].set_value(f'{class_name.replace("الصف" ,"")}')
         sheet[f"AN{i}"].set_value(f'{year2} / {year1}')
 
     for counter,student_info in enumerate(students_data_lists, start=0):
@@ -731,6 +879,8 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         row_idx = counter + 69
         row_idx2 = counter + 128
         birth_data = student_info['birth_date'].split('-')
+        years, months, days = calculate_age(student_info['birth_date'],student_details['start_date'] )
+        
         sheet[f"G{row_idx}"].set_value(student_info['first_name'])
         sheet[f"I{row_idx}"].set_value(student_info['second_name'])
         sheet[f"K{row_idx}"].set_value(student_info['third_name'])
@@ -741,6 +891,11 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         sheet[f"S{row_idx}"].set_value(student_info['birthPlace_area'])
         sheet[f"U{row_idx}"].set_value(student_info['nationality'])
         sheet[f"Y{row_idx2}"].set_value(student_info['religion'])
+        
+        sheet[f"AA{row_idx2}"].set_value(days)
+        sheet[f"AB{row_idx2}"].set_value(months)
+        sheet[f"AC{row_idx2}"].set_value(years)
+        
         sheet[f"AH{row_idx2}"].set_value(student_info['guardian_name'])
         sheet[f"AJ{row_idx2}"].set_value(student_info['guardian_student_relationship'])
         sheet[f"AL{row_idx2}"].set_value(student_info['guardian_employment'])
@@ -871,6 +1026,8 @@ def calculate_age(birth_date, target_date):
     # Print the age in years, months, and days
     print(f"Age on {target_date.strftime('%Y-%m-%d')}: {years} years, {months} months, {days} days")
     '''
+    birth_date = datetime.datetime.strptime(birth_date, '%Y-%m-%d').date()
+    target_date = datetime.datetime.strptime(target_date, '%Y-%m-%d').date()
     age = relativedelta(target_date, birth_date)
     return age.years, age.months, age.days
 
@@ -961,7 +1118,8 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
     identity_types = get_IdentityTypes(auth, session=session)
     area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
     nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
-    curr_period = get_curr_period(auth,session=None)['data'][0]['id']
+    curr_period_data = get_curr_period(auth,session=session)
+    curr_period = curr_period_data['data'][0]['id']
     inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
     class_data_url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id&_finder=classesByInstitutionAndAcademicPeriod[institution_id:{inst_id};academic_period_id:{curr_period}]'
     class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
@@ -1052,8 +1210,10 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
     # c['code'].split('-')[0]  ====> '2022'
     # c['code'].split('-')[1]  ====> '2023'
 
-    year_code = get_curr_period(auth , session=session)['data'][0]['code']
+    year_code = curr_period_data['data'][0]['code']
 
+    start_of_the_year_date = curr_period_data['data'][0]['start_date']
+    end_of_the_year_date = curr_period_data['data'][0]['end_date']
     return {'students_info':sorted_final_dict_info ,
             'class_name':class_name ,
             'school_name_code':institution_name_code ,
@@ -1067,7 +1227,9 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
             'school_directorate' :school_directorate ,
             'school_bridge' :school_bridge ,
             'academic_year_1':year_code.split('-')[0],
-            'academic_year_2':year_code.split('-')[1]
+            'academic_year_2':year_code.split('-')[1],
+            'start_date':start_of_the_year_date,
+            'end_date': end_of_the_year_date
             }
     
 def chunks(lst, n):
@@ -4231,15 +4393,25 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'school_id' : school_id 
     }
     
-    required_data_mrks_dic_list = {
-                                    int(item.split('-')[0]): 
-                                        {
-                                            'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
-                                            'grade_id': int(item.split(',')[0].split('-')[2]), 
-                                            'assessments_period_ids': item.split(',')[1:]
+    try:
+        required_data_mrks_dic_list = {
+                                        int(item.split('-')[0]): 
+                                            {
+                                                'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
+                                                'grade_id': int(item.split(',')[0].split('-')[2]), 
+                                                'assessments_period_ids': item.split(',')[1:]
+                                            }
+                                        for item in required_data_mrks_text.split('\\\\')
+                                    }
+    except Exception as e:
+        required_data_mrks_dic_list = {
+                                        0:
+                                            {
+                                                'assessment_grade_id': 0,
+                                                'grade_id': 0, 
+                                                'assessments_period_ids': 0
+                                            }
                                         }
-                                    for item in required_data_mrks_text.split('\\\\')
-                                }
 
     read_file_output_dict = {'file_data': read_file_output_lists ,
                             'custom_shapes' : custom_shapes ,
@@ -4379,6 +4551,7 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
         dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
         dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
         dic['institution_classes_id'] = class_info[0]['institution_class_id']
+        dic['class_name'] = class_info[0]['institution_class']['name']
         dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
 
         required_data_to_enter_marks.append(dic)
@@ -4425,6 +4598,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
+    classes_id_2 =[lst for lst in classes_id_2 if lst]
     classes_id_3 = []  
     assessments_period_data = []
     
@@ -4435,9 +4609,9 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     existing_ws = existing_wb.active
 
     for class_info in classes_id_2:
-        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
+        classes_id_3.append([{'institution_class_id': class_info[0]['institution_class_id'] ,'sub_name': class_info[0]['institution_subject']['name'],'class_name': class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id'] , 'education_grade_id':class_info[0]['institution_subject']['education_grade_id']}])
 
-    for v in range(len(classes_id_1)):
+    for v in range(len(classes_id_2)):
         # id
         print (classes_id_3[v][0]['institution_class_id'])
         id = classes_id_3[v][0]['institution_class_id']
@@ -4463,7 +4637,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
                                     ,period_id
                                     ,classes_id_1[v]
                                     ,classes_id_3[v][0]['institution_class_id']
-                                    ,inst_id)
+                                    ,inst_id
+                                    ,classes_id_3[v][0]['education_grade_id'])
         students_names = sorted([i['user']['name'] for i in students['data']])
         print(students_names)
         students_id_and_names = []
@@ -4475,30 +4650,33 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         marks_and_name = []
 
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
-        for i in students_id_and_names:   
-            for v in assessments_json['data']:
-                if v['student_id'] == i['student_id'] :  
-                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء                    
-                    dic['id'] = i['student_id'] 
-                    dic['name'] = i['student_name'] 
-                    if v["marks"] is not None :
-                        dic['assessments_periods_ides'].append(v['assessment_period_id'] )
-                        if v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment1'] = v["marks"] 
-                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment2']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment3']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الأول':
-                            dic['term1']['assessment4']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الأول' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment1']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثاني' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment2']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الثالث' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment3']  = v["marks"]
-                        elif v['assessment_period']['name'] == 'التقويم الرابع' and v['assessment_period']['academic_term'] == 'الفصل الثاني':
-                            dic['term2']['assessment4']  = v["marks"]
+        for student_data_item in students_id_and_names:   
+            dic['id'] = student_data_item['student_id'] 
+            dic['name'] = student_data_item['student_name'] 
+            for student_assessment_item in assessments_json['data']:
+                if student_assessment_item['student_id'] == student_data_item['student_id'] :  
+                    # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء  
+                    # FIXME: ضع في الحسبان انه لا توجد علامات و تريد سحب الاسماء في اول الفصل                  
+                    if student_assessment_item["marks"] is not None :
+                        # dic['id'] = student_data_item['student_id'] 
+                        # dic['name'] = student_data_item['student_name'] 
+                        if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment1'] = student_assessment_item["marks"] 
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            dic['term1']['assessment4']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment1']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment2']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment3']  = student_assessment_item["marks"]
+                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            dic['term2']['assessment4']  = student_assessment_item["marks"]
+
             marks_and_name.append(dic)
             dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
         # Set the font for the data rows
@@ -4507,6 +4685,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
         if 'عشر' in class_name :
+            assessments_period_data_text = ''
             students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
             for row_number, dataFrame in enumerate(students_id_and_names, start=3):
                 new_ws.cell(row=row_number, column=1).value = row_number-2
@@ -4517,7 +4696,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
             assessment_id = '' if  not assessments_json['data'] else assessment_data['assessment_id']
             education_grade_id = '' if  not assessments_json['data'] else assessment_data['education_grade_id']
             
-            assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : marks_and_name[0]['assessments_periods_ides']})
+            assessments_period_data.append({f'{id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']})
             assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
             
             # Write data to the worksheet and calculate the sum of some columns in each row
@@ -4563,6 +4742,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
+    global secondery_students 
+    secondery_students = []
 
 def split_A3_pages(input_file, outdir):
     # Open the A3 PDF file in read-binary mode
@@ -4634,43 +4815,45 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx")or file.endswith(".xlsx") ):
             os.remove(os.path.join(dir_path, file))
 
-def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1):
+def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods', color="#8cd6e6"):
     ods_file = f'{ods_name}{ods_num}.ods'
-    copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
+    copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
     custom_shapes = lst['custom_shapes']
     
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
-    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
-    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120)
+    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/{custom_shapes['teacher']}.ods")
+    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/\"{custom_shapes["teacher"]}.ods\" ')
+    add_margins(f"{outdir}/{custom_shapes['teacher']}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color_name=color)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
 
-    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
-    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
-    delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)  
     
-def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1):
+    if not do_not_delete_send_folder :
+        delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
+    
+def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods', color="#8cd6e6"):
     ods_file = f'{ods_name}{ods_num}.ods'
-    copy_ods_file('./templet_files/official_marks_doc_a3_two_face.ods' , f'{outdir}/{ods_file}')
+    copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
     custom_shapes = fill_official_marks_a3_two_face_doc2(username= usnername, password= password , ods_file=f'{outdir}/{ods_file}')
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
-    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120)
+    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color=color)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
 
-    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
-    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color=color)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color=color)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color=color)  
     delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
 
 def delete_file(file_path):
@@ -5192,9 +5375,18 @@ def make_request(url, auth ,session=None,timeout_seconds=60):
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
         if session is None :
-            response = requests.request("GET", url, headers=headers,timeout=timeout_seconds , verify=False)
+            response = requests.request("GET", 
+                                        url,
+                                        headers=headers,
+                                        timeout=timeout_seconds,
+                                        # verify=False
+                                        )
         else : 
-            response = session.get(url, headers=headers,timeout=timeout_seconds, verify=False)
+            response = session.get(url,
+                                   headers=headers,
+                                   timeout=timeout_seconds,
+                                #    verify=False
+                                   )
         if "403 Forbidden" not in response.text :
             return response.json()
         
@@ -5271,14 +5463,27 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     
     return make_request(url,auth,session=session)
 
-def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
+def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,education_grade_id,session=None):
     '''
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
-    return make_request(url,auth,session=session)
+    data = make_request(url,auth,session=session)
+    if not data['total']:
+        try:
+            alt_url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&_finder=StudentResults[institution_id:{institution_id};institution_class_id:{institution_class_id};assessment_id:{get_assessment_id_from_grade_id(auth,education_grade_id)};academic_period_id:{academic_period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_contain=Users"
+            data = make_request(alt_url,auth,session=session)
+            if not data['total']:
+                raise IndexError
+        except IndexError:
+            global secondery_students 
+            if not len(secondery_students):
+                secondery_students =  get_school_students_ids(auth) 
+            data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id)]
+            data = {'data': data , 'total': len(data)}
+    return data
 
 def enter_mark(auth
                ,marks
@@ -5558,8 +5763,99 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-    
 
+    # '''9752045067/2761975
+    # 9932039648/9932039648
+    # 9832049975/9832049975
+    # 9892023550/0772626275
+    # 9902044251/9902044251
+    # 9942011966/9942011966
+    # 9872556471/9872556471
+    # 1300902041/1300902041
+    # 9832041371/123456
+    # 9732044574/222222
+    # 9932039564/9932039564
+    # 9862045517/9862045517
+    # 9852045060/9852045060
+    # 9862055767/123456
+    # 9892023326/9892023326
+    # 2000223096/Besan@2001
+    # 9902050711/9902050711
+    # 9762045800/9762045800
+    # 9942022052/Aa@9942022052
+    # 9922052534/20182018
+    # 9942036547/9942036547
+    # 9842053654/654321
+    # 9962040167/9962040167E$e
+    # 9892055264/9892055264
+    # 9922052664/9922052664
+    # 1635857406/123456
+    # 9832008276/ANMSOA
+    # 9842053211/9842053211
+    # 9722011390/9722011390
+    # 9842048442/123456
+    # 9921009580/9921009580
+    # 9971055725/9971055725
+    # 9991039132/9991039132Mm@
+    # 9991014194/Zzaid#079079
+    # 9961055140/Mtm#123456789
+    # 9862053521
+    # 0772323488/weam@137342
+    # 9782051311/Aa@12345678
+    # 9762051028
+    # 9862049623/199435
+    # 9772015488
+    # 9692012484
+    # 9781053164'''
+    # passwords = '''9822041975/Aa@9822041975'''
+
+    # تعمل في مؤسستين 
+    # 9892050032/Manar@100 
+    # فيها خلل غريب لا اعرف عنه 
+    # الي هو الرابط عندي فيه مشكلة غريبة
+    # 9892022099/9892022099 
+    # برضو هذي بدها تعديل و شغل 
+    # في صفوف بسحبهن api بس ما بظهرن على المنظومة (على الويب)
+    # في الصف التوجيهي ما بدقر عند رقم الاسيسمنت ما بقدر يحوله
+    # 2000223096/Besan@2001
+
+    # File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4464, in create_e_side_marks_doc
+    #     students = get_class_students(auth
+    # ما بعرف سبب هذا الخطأ
+    # 9942022052/Aa@9942022052
+
+    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 5622, in main
+    #     print(username , password)
+    #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4444, in create_e_side_marks_doc
+    #     print (classes_id_3[v][0]['institution_class_id'])
+    #            ~~~~~~~~~~~~^^^
+    # IndexError: list index out of range
+    # 9922052534/20182018
+
+    # There is error in 
+    # 9962040167/9962040167E$e
+    # There is error in 
+    # 9842053211/9842053211
+    # There is error in 
+    # 9842048442/123456
+    # There is error in 
+    # 9862053521/9862053521
+    # There is error in 
+    # 9782051311/Aa@12345678
+    # There is error in 
+    # 9762051028/9762051028
+    # There is error in 
+    # 9692012484/9692012484
+    # There is error in 
+    # 9781053164/9781053164
+
+    # bulk_e_side_note_marks(passwords)
+    
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    
+    # read_all_xlsx_in_folder()
+    # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
 
 if __name__ == "__main__":
