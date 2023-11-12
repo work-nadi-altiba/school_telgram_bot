@@ -4837,7 +4837,7 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     if not do_not_delete_send_folder :
         delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
     
-def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#8cd6e6"):
+def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#ffffff"):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
