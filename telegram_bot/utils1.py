@@ -4864,7 +4864,7 @@ def copy_ods_file(source_file_path, destination_folder):
     """Copy an ODS file to a destination folder"""
     shutil.copy(source_file_path, destination_folder)
     
-def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
+def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=session):
     '''
     doc is the copy that you want to send 
     '''
@@ -4878,7 +4878,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ):
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     user_id = user_info(auth , username)['data'][0]['id']
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []
     
