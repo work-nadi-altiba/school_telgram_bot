@@ -4864,7 +4864,7 @@ def copy_ods_file(source_file_path, destination_folder):
     """Copy an ODS file to a destination folder"""
     shutil.copy(source_file_path, destination_folder)
     
-def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=session):
+def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=None):
     '''
     doc is the copy that you want to send 
     '''
