@@ -387,7 +387,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
         dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
     return dic_list
 
-def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods' , color ="#8cd6e6"):
+def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
         fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
@@ -4815,7 +4815,7 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx")or file.endswith(".xlsx") ):
             os.remove(os.path.join(dir_path, file))
 
-def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods', color="#8cd6e6"):
+def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#8cd6e6"):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
@@ -4837,7 +4837,7 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     if not do_not_delete_send_folder :
         delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
     
-def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods', color="#8cd6e6"):
+def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#8cd6e6"):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
