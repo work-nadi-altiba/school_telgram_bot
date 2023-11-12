@@ -4905,8 +4905,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     sheet = doc.sheets[sheet_name]
 
     for class_info in classes_id_2:
-        classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'sub_id' : class_info[0]['institution_subject']['education_subject_id']}])
-    institution_subjects_id = [i[0]["institution_class_id"] for i in classes_id_3]
+        classes_id_3.append([{'institution_class_id': class_info[0]['institution_class_id'] ,'sub_name': class_info[0]['institution_subject']['name'],'class_name': class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id'] , 'education_grade_id':class_info[0]['institution_subject']['education_grade_id']}])
 
     for v in range(len(classes_id_1)):
         # id
@@ -4924,7 +4923,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
                                     ,period_id
                                     ,classes_id_1[v]
                                     ,classes_id_3[v][0]['institution_class_id']
-                                    ,inst_id)
+                                    ,inst_id
+                                    ,classes_id_3[v][0]['education_grade_id'])
         # students_and_marks
         all1 = get_students_marks(auth
                                                 ,period_id
