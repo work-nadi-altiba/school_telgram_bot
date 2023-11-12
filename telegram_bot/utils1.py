@@ -4927,10 +4927,10 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
                                     ,classes_id_3[v][0]['education_grade_id'])
         # students_and_marks
         all1 = get_students_marks(auth
-                                                ,period_id
-                                                ,classes_id_3[v][0]['sub_id']
-                                                ,classes_id_3[v][0]['institution_class_id']
-                                                ,inst_id)   
+                                    ,period_id
+                                    ,classes_id_3[v][0]['subject_id']
+                                    ,classes_id_3[v][0]['institution_class_id']
+                                    ,inst_id)   
         students_names = []
         for IdAndName in students['data']:
             students_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
