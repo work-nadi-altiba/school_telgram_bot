@@ -5463,7 +5463,7 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     
     return make_request(url,auth,session=session)
 
-def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,education_grade_id,session=None):
+def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,education_grade_id=None,session=None):
     '''
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
