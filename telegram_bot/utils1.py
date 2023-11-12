@@ -387,12 +387,12 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
         dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
     return dic_list
 
-def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods'):
+def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods' , color ="#8cd6e6"):
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
-        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template )
+        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
-def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc.ods' , outdir='./send_folder' ,teacher_full_name=False):
+def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc.ods' , outdir='./send_folder/' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir )
 
@@ -856,7 +856,7 @@ class RandomNumberGenerator:
         return ranges
 
 def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
-    doc = ezodf.opendoc(ods_file) 
+    doc = ezodf.opendoc(ods_file)
         
     sheet_name = 'Sheet1'
     sheet = doc.sheets[sheet_name]
@@ -879,6 +879,8 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         row_idx = counter + 69
         row_idx2 = counter + 128
         birth_data = student_info['birth_date'].split('-')
+        years, months, days = calculate_age(student_info['birth_date'],student_details['start_date'] )
+        
         sheet[f"G{row_idx}"].set_value(student_info['first_name'])
         sheet[f"I{row_idx}"].set_value(student_info['second_name'])
         sheet[f"K{row_idx}"].set_value(student_info['third_name'])
@@ -889,6 +891,11 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         sheet[f"S{row_idx}"].set_value(student_info['birthPlace_area'])
         sheet[f"U{row_idx}"].set_value(student_info['nationality'])
         sheet[f"Y{row_idx2}"].set_value(student_info['religion'])
+        
+        sheet[f"AA{row_idx2}"].set_value(days)
+        sheet[f"AB{row_idx2}"].set_value(months)
+        sheet[f"AC{row_idx2}"].set_value(years)
+        
         sheet[f"AH{row_idx2}"].set_value(student_info['guardian_name'])
         sheet[f"AJ{row_idx2}"].set_value(student_info['guardian_student_relationship'])
         sheet[f"AL{row_idx2}"].set_value(student_info['guardian_employment'])
@@ -1019,6 +1026,8 @@ def calculate_age(birth_date, target_date):
     # Print the age in years, months, and days
     print(f"Age on {target_date.strftime('%Y-%m-%d')}: {years} years, {months} months, {days} days")
     '''
+    birth_date = datetime.datetime.strptime(birth_date, '%Y-%m-%d').date()
+    target_date = datetime.datetime.strptime(target_date, '%Y-%m-%d').date()
     age = relativedelta(target_date, birth_date)
     return age.years, age.months, age.days
 
@@ -1109,7 +1118,8 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
     identity_types = get_IdentityTypes(auth, session=session)
     area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
     nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
-    curr_period = get_curr_period(auth,session=None)['data'][0]['id']
+    curr_period_data = get_curr_period(auth,session=session)
+    curr_period = curr_period_data['data'][0]['id']
     inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
     class_data_url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id&_finder=classesByInstitutionAndAcademicPeriod[institution_id:{inst_id};academic_period_id:{curr_period}]'
     class_data = make_request(auth=auth , url=class_data_url ,session=session)['data'][0]
@@ -1200,8 +1210,10 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
     # c['code'].split('-')[0]  ====> '2022'
     # c['code'].split('-')[1]  ====> '2023'
 
-    year_code = get_curr_period(auth , session=session)['data'][0]['code']
+    year_code = curr_period_data['data'][0]['code']
 
+    start_of_the_year_date = curr_period_data['data'][0]['start_date']
+    end_of_the_year_date = curr_period_data['data'][0]['end_date']
     return {'students_info':sorted_final_dict_info ,
             'class_name':class_name ,
             'school_name_code':institution_name_code ,
@@ -1215,7 +1227,9 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
             'school_directorate' :school_directorate ,
             'school_bridge' :school_bridge ,
             'academic_year_1':year_code.split('-')[0],
-            'academic_year_2':year_code.split('-')[1]
+            'academic_year_2':year_code.split('-')[1],
+            'start_date':start_of_the_year_date,
+            'end_date': end_of_the_year_date
             }
     
 def chunks(lst, n):
@@ -4801,7 +4815,7 @@ def delete_files_except(filenames, dir_path):
         if file not in filenames and (file.endswith(".ods") or file.endswith(".pdf") or file.endswith(".bak") or file.endswith(".docx")or file.endswith(".xlsx") ):
             os.remove(os.path.join(dir_path, file))
 
-def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods'):
+def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_without_blue_colour.ods', color="#8cd6e6"):
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
@@ -4810,15 +4824,15 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/{custom_shapes['teacher']}.ods")
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/\"{custom_shapes["teacher"]}.ods\" ')
-    add_margins(f"{outdir}/{custom_shapes['teacher']}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120)
+    add_margins(f"{outdir}/{custom_shapes['teacher']}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color_name=color)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
 
-    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60)    
-    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120)  
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)    
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)  
     
     if not do_not_delete_send_folder :
         delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
@@ -5793,7 +5807,7 @@ def main():
     # 9772015488
     # 9692012484
     # 9781053164'''
-    passwords = '''9822041975/Aa@9822041975'''
+    # passwords = '''9822041975/Aa@9822041975'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
@@ -5838,9 +5852,10 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face.ods')
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
     # read_all_xlsx_in_folder()
+    # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
 
 if __name__ == "__main__":
