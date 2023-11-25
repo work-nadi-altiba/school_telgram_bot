@@ -390,7 +390,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
 def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
-        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color_name=color)
+        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
@@ -4423,22 +4423,54 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    fuzz_postdata_list = []
     
     for item in required_data_list : 
         for Student_id in item['students_ids']:
-            enter_mark(auth 
-                ,marks= str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else ''
-                ,assessment_grading_option_id= 8
-                ,assessment_id= item['assessment_id']
-                ,education_subject_id= item['education_subject_id']
-                ,education_grade_id= item['education_grade_id']
-                ,institution_id= inst_id
-                ,academic_period_id= period_id
-                ,institution_classes_id= item['institution_classes_id']
-                ,student_status_id= 1
-                ,student_id= Student_id
-                ,assessment_period_id= AssessId)
+            # enter_mark(auth 
+            #     ,marks= str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else ''
+            #     ,assessment_grading_option_id= 8
+            #     ,assessment_id= item['assessment_id']
+            #     ,education_subject_id= item['education_subject_id']
+            #     ,education_grade_id= item['education_grade_id']
+            #     ,institution_id= inst_id
+            #     ,academic_period_id= period_id
+            #     ,institution_classes_id= item['institution_classes_id']
+            #     ,student_status_id= 1
+            #     ,student_id= Student_id
+            #     ,assessment_period_id= AssessId)
+            fuzz_postdata = {
+                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else '',
+                                'assessment_id': item['assessment_id'],
+                                'education_subject_id': item['education_subject_id'],
+                                'education_grade_id': item['education_grade_id'],
+                                'institution_classes_id': item['institution_classes_id'],
+                                'student_id': Student_id,
+                                'assessment_period_id': AssessId,
+                                'action_type': 'default'
+                            }
+            fuzz_postdata_list.append(json.dumps(fuzz_postdata).replace('{','').replace('}',''))
                         
+    body_postdata = json.dumps({
+            'assessment_grading_option_id': 8,
+            'institution_id': inst_id,
+            'academic_period_id': period_id,
+            'student_status_id': 1,
+            'action_type': 'default'}).replace('}',', FUZZ }')
+
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
+    
+    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
+
+    while len(unsuccessful_requests) != 0:
+        unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
+
+    print("All requests were successful!")
+                
+            
+                                
 def assessments_commands_text(lst):
     S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
     S2 = [i for i in lst if i.get('SEname') =='الفصل الثاني']    
@@ -5806,8 +5838,11 @@ def main():
     # 9862049623/199435
     # 9772015488
     # 9692012484
-    # 9781053164'''
-    # passwords = '''9822041975/Aa@9822041975'''
+    # 9781053164
+    # 9822041975/Aa@9822041975'''
+    
+    passwords = '''9841008012/123456
+9931057574'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
