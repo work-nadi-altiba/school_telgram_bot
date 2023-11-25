@@ -4577,16 +4577,19 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     required_data_to_enter_marks = []
     
     for class_id in classes_id_1 : 
-        class_info = get_teacher_classes2( auth , class_id,session=session)['data']
-        dic = {'assessment_id':'','education_subject_id':'' ,'education_grade_id':'','institution_classes_id':'','students_ids':[] }
-        dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'],session=session)
-        dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
-        dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
-        dic['institution_classes_id'] = class_info[0]['institution_class_id']
-        dic['class_name'] = class_info[0]['institution_class']['name']
-        dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
+        try:
+            class_info = get_teacher_classes2( auth , class_id,session=session)['data']
+            dic = {'assessment_id':'','education_subject_id':'' ,'education_grade_id':'','institution_classes_id':'','students_ids':[] }
+            dic['assessment_id'] = get_assessment_id_from_grade_id(auth , class_info[0]['institution_subject']['education_grade_id'],session=session)
+            dic['education_subject_id'] = class_info[0]['institution_subject']['education_subject_id']
+            dic['education_grade_id'] = class_info[0]['institution_subject']['education_grade_id']
+            dic['institution_classes_id'] = class_info[0]['institution_class_id']
+            dic['class_name'] = class_info[0]['institution_class']['name']
+            dic['students_ids'] = get_class_students_ids(auth,period_id,class_info[0]['institution_subject_id'],class_info[0]['institution_class_id'],inst_id,session=session)
 
-        required_data_to_enter_marks.append(dic)
+            required_data_to_enter_marks.append(dic)
+        except IndexError:
+            pass
     
     return required_data_to_enter_marks
 
@@ -4599,7 +4602,7 @@ def get_grade_name_from_grade_id(auth , grade_id):
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
-
+ 
 def get_assessment_id_from_grade_id(auth , grade_id,session=None):
     
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
