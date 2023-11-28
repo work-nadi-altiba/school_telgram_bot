@@ -4468,9 +4468,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
         unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
 
     print("All requests were successful!")
-                
-            
-                                
+
 def assessments_commands_text(lst):
     S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
     S2 = [i for i in lst if i.get('SEname') =='الفصل الثاني']    
@@ -4951,8 +4949,12 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
         print (classes_id_3[v][0]['class_name'])
         mawad.append(classes_id_3[v][0]['sub_name'])
         classes.append(classes_id_3[v][0]['class_name'])
-        class_name = classes_id_3[v][0]['class_name'].split('-')[0].replace('الصف ' , '')
-        class_char = classes_id_3[v][0]['class_name'].split('-')[1]
+        if '-' not in classes_id_3[v][0]['class_name']:
+            class_name = ' '.join(class_name.split(' ')[:-1])
+            class_char = classes_id_3[v][0]['class_name'][-1]
+        else:
+            class_name = classes_id_3[v][0]['class_name'].split('-')[0].replace('الصف ' , '')
+            class_char = classes_id_3[v][0]['class_name'].split('-')[1]
         sub_name = classes_id_3[v][0]['sub_name']    
         students = get_class_students(auth
                                     ,period_id
