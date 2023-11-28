@@ -5065,6 +5065,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
         page += 2
 
     for i in classes: 
+        if '-' not in i:
+            i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
         modified_classes.append(mawad_representations(i))
         
     modified_classes = ' ، '.join(modified_classes)
@@ -5895,8 +5897,9 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
+    fill_official_marks_doc_wrapper(9912031912,9912031912,templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
