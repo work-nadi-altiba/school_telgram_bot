@@ -1376,19 +1376,20 @@ def five_names_every_class_wrapper(auth , emp_number ,term=1 , session=None):
     long_text = ''
 
     for subject in data['row_data']:
-        text =''
-        middle_index = len(subject['marks_and_name']) // 2
-        first_two = subject['marks_and_name'][:2]
-        middle_one = subject['marks_and_name'][middle_index]
-        last_two =data['row_data'][0]['marks_and_name'][-2:]
-        for item_dic in first_two : 
-            text +=  item_dic['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(item_dic[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(item_dic[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(item_dic[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(item_dic[term]['assessment4'])+'\n' 
-        text += '[ .......... ]'+'\n'        
-        text +=  middle_one['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(middle_one[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(middle_one[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(middle_one[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(middle_one[term]['assessment4']) +'\n' 
-        text += '[ .......... ]'+'\n'            
-        for item_dic in last_two : 
-            text +=  item_dic['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(item_dic[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(item_dic[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(item_dic[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(item_dic[term]['assessment4'])+'\n' 
-        long_text += '\n'+subject['subject']+'//'+subject['className']+'\n'+text + '-'*70
+         if ('عشر' not in subject['className']) and ('عاشر' not in subject['className']):
+            text =''
+            middle_index = len(subject['marks_and_name']) // 2
+            first_two = subject['marks_and_name'][:2]
+            middle_one = subject['marks_and_name'][middle_index]
+            last_two = subject['marks_and_name'][-2:]
+            for item_dic in first_two : 
+                text +=  item_dic['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(item_dic[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(item_dic[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(item_dic[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(item_dic[term]['assessment4'])+'\n' 
+            text += '[ .......... ]'+'\n'        
+            text +=  middle_one['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(middle_one[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(middle_one[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(middle_one[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(middle_one[term]['assessment4']) +'\n' 
+            text += '[ .......... ]'+'\n'            
+            for item_dic in last_two : 
+                text +=  item_dic['name'] +'\n'+'\t'+ ' ت1 ---> ' + str(item_dic[term]['assessment1']) +'\n'+'\t'+ ' ت2 ---> ' + str(item_dic[term]['assessment2'])+'\n'+'\t'+' ت3 ---> ' +str(item_dic[term]['assessment3']) +'\n'+'\t'+'النهائي ---> ' +str(item_dic[term]['assessment4'])+'\n' 
+            long_text += '\n'+subject['subject']+'//'+subject['className']+'\n'+text + '-'*70
         
     return long_text
 
@@ -1408,6 +1409,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']]
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
+    classes_id_2 =[lst for lst in classes_id_2 if lst]
     assessments = ['assessment1','assessment2','assessment3','assessment4']
     terms = ['term1','term2']
     upload_percentage,modified_classes,classes_id_3 ,classes,mawad,row_data =[],[],[],[],[],[]
@@ -1416,7 +1418,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
     for class_info in classes_id_2:
         classes_id_3.append([{"institution_class_id": class_info[0]['institution_class_id'] ,"sub_name": class_info[0]['institution_subject']['name'],"class_name": class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id']}])
 
-    for v in range(len(classes_id_1)):
+    for v in range(len(classes_id_2)):
         # id
         # print (classes_id_3[v][0]['institution_class_id'])
         # id = classes_id_3[v][0]['institution_class_id']
@@ -1486,7 +1488,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
         'term2':{'assessment1_percentage': '', 'assessment2_percentage': '', 'assessment3_percentage': '', 'assessment4_percentage': ''}}
         row_d={}        
         
-        if 'عشر' in class_name :
+        if 'عشر' in class_name or 'عاشر' in class_name :
             percent_dict ={'subject': '' , 'className' :'', 'term1' : {'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0} ,
                             'term2':{'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0}}
             
@@ -1779,6 +1781,7 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
         
         classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
         classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+        classes_id_2 =[lst for lst in classes_id_2 if lst]
         classes_id_3 = []  
 
         for class_info in classes_id_2:
@@ -4465,7 +4468,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
     while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,body_postdata)
 
     print("All requests were successful!")
 
@@ -4913,6 +4916,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
+    classes_id_2 =[lst for lst in classes_id_2 if lst]
     classes_id_3 = []
     
     user = user_info(auth , username)

@@ -270,6 +270,7 @@ def print_available_assessments_light_version(update, context):
 
 def print_available_assessments(update, context):
     user = update.message.from_user
+    session = requests.Session()
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
@@ -419,8 +420,11 @@ def help_command(update, context):
 
 # Log errors
 def error(update, context):
-    traceback.print_exc()    
+    update.message.reply_text(f"حصل هذا الخطا : {context.error} ")
+    traceback.print_exc()
     print(f'Update {update} caused error {context.error}')
+    return ConversationHandler.END
+    
 
 def cancel(update, context):
     user = update.message.from_user
@@ -450,9 +454,9 @@ def fill_assess_arbitrary(update, context):
             code ,range1 , range2 = response
         else:
             code = response[0]
-        update.message.reply_text("انتظر لحظة لو سمحت")         
-        editable_assessments = context.user_data['assessments'] 
-        data_to_enter_marks = context.user_data['data_to_enter_marks']  
+        update.message.reply_text("انتظر لحظة لو سمحت")
+        editable_assessments = context.user_data['assessments']
+        data_to_enter_marks = context.user_data['data_to_enter_marks']
         username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
         if code == 'All_asses':
             assess_data = [i for i in editable_assessments]
@@ -460,7 +464,7 @@ def fill_assess_arbitrary(update, context):
                 range1 , range2 = int(assessment['max_mark']*.75),assessment['max_mark']
             for assessment in assess_data:
                 wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
-                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'],range1,range2)
+                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'],int(range1),int(range2))
         else:
             assess_data = [i for i in editable_assessments if i.get('code') == code][0]
             wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
@@ -468,7 +472,7 @@ def fill_assess_arbitrary(update, context):
             wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
             if not len(range1):
                 range1 , range2 = assess_data['pass_mark'],assess_data['max_mark']
-            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'] ,range1 , range2)
+            enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assess_data['AssesId'] ,int(range1),int(range2))
             update.message.reply_text("هل تريد تعبئة علامات صف اخر؟ نعم | لا",reply_markup=ReplyKeyboardMarkup([['نعم', 'لا']], one_time_keyboard=True))
             return WAITING_FOR_RESPONSE            
         # End of conversation
