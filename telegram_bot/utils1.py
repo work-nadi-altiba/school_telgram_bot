@@ -2125,15 +2125,25 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
         'school_id': school_id
     }
 
-    required_data_mrks_dic_list = {
-        int(item.split('-')[0]):
-            {
-                'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
-                'grade_id': int(item.split(',')[0].split('-')[2]),
-                'assessments_period_ids': item.split(',')[1:]
-            }
-        for item in required_data_mrks_text.split('\\\\')
-    }
+    try:
+        required_data_mrks_dic_list = {
+                                        int(item.split('-')[0]): 
+                                            {
+                                                'assessment_grade_id': int(item.split('-')[1].split(',')[0]),
+                                                'grade_id': int(item.split(',')[0].split('-')[2]), 
+                                                'assessments_period_ids': item.split(',')[1:]
+                                            }
+                                        for item in required_data_mrks_text.split('\\\\')
+                                    }
+    except Exception as e:
+        required_data_mrks_dic_list = {
+                                        0:
+                                            {
+                                                'assessment_grade_id': 0,
+                                                'grade_id': 0, 
+                                                'assessments_period_ids': 0
+                                            }
+                                        }
 
     read_file_output_dict = {'file_data': read_file_output_lists,
                              'custom_shapes': custom_shapes,
