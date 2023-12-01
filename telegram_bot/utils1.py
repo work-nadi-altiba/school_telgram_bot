@@ -44,6 +44,7 @@ import wfuzz
 from tqdm import tqdm
 from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from itertools import groupby
 import traceback
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -4944,7 +4945,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     for class_info in classes_id_2:
         classes_id_3.append([{'institution_class_id': class_info[0]['institution_class_id'] ,'sub_name': class_info[0]['institution_subject']['name'],'class_name': class_info[0]['institution_class']['name'] , 'subject_id': class_info[0]['institution_subject']['education_subject_id'] , 'education_grade_id':class_info[0]['institution_subject']['education_grade_id']}])
 
-    for v in range(len(classes_id_1)):
+    for v in range(len(classes_id_3)):
         # id
         print (classes_id_3[v][0]['institution_class_id'])
         # subject name 
@@ -5518,6 +5519,10 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
         try:
             alt_url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&_finder=StudentResults[institution_id:{institution_id};institution_class_id:{institution_class_id};assessment_id:{get_assessment_id_from_grade_id(auth,education_grade_id)};academic_period_id:{academic_period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_contain=Users"
             data = make_request(alt_url,auth,session=session)
+            sorted_list = sorted(data['data'], key=lambda x: x['student_id'])
+            grouped_dicts = {k: next(v) for k, v in groupby(sorted_list, key=lambda x: x['student_id'])}
+            data['data'] = list(grouped_dicts.values())
+            # check if data is empty
             if not data['total']:
                 raise IndexError
         except IndexError:
