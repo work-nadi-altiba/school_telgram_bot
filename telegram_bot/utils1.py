@@ -2060,8 +2060,8 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                 dic = {
                     'id': int(row_data[1]),
                     'name': row_data[2],
-                    'term1': {'assessment1': int(row_data[3]) if row_data[3] != '' else '', 'assessment2': int(row_data[4]) if row_data[4] != '' else '', 'assessment3': int(row_data[5]) if row_data[5] != '' else '', 'assessment4': int(row_data[6]) if row_data[6] != '' else ''},
-                    'term2': {'assessment1': int(row_data[8]) if row_data[8] != '' else '', 'assessment2': int(row_data[9]) if row_data[9] != '' else '', 'assessment3': int(row_data[10]) if row_data[10] != '' else '', 'assessment4': int(row_data[11]) if row_data[11] != '' else ''}
+                    'term1': {'assessment1': int(row_data[3]) if not isinstance(row_data[3],str) else '', 'assessment2': int(row_data[4]) if not isinstance(row_data[4],str) else '', 'assessment3': int(row_data[5]) if not isinstance(row_data[5],str) else '', 'assessment4': int(row_data[6]) if not isinstance(row_data[6],str) else ''},
+                    'term2': {'assessment1': int(row_data[8]) if not isinstance(row_data[8],str) else '', 'assessment2': int(row_data[9]) if not isinstance(row_data[9],str) else '', 'assessment3': int(row_data[10]) if not isinstance(row_data[10],str) else '', 'assessment4': int(row_data[11]) if not isinstance(row_data[11],str) else ''}
                 }
                 data.append(dic)
 
