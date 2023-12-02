@@ -5539,8 +5539,11 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
             global secondery_students 
             if not len(secondery_students):
                 secondery_students =  get_school_students_ids(auth) 
-            data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id)]
+            data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] ==1]
             data = {'data': data , 'total': len(data)}
+            
+    enrolled = [i for i in data['data'] if i['student_status_id'] ==1]
+    data = {'data': enrolled , 'total': len(enrolled)}
     return data
 
 def enter_mark(auth
@@ -5918,7 +5921,7 @@ def main():
     
     # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
-    fill_official_marks_doc_wrapper(9912031912,9912031912,templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
+    fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
