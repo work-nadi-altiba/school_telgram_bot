@@ -384,8 +384,12 @@ def bulk_e_side_note_marks(passwords):
 def read_all_xlsx_in_folder(directory_path='./send_folder'):
     dic_list = []
     for item in os.listdir(directory_path):
-        item_path = os.path.join(directory_path, item)  
-        dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
+        if item.lower().endswith('.ods'):
+            item_path = os.path.join(directory_path, item)  
+            dic_list.append(Read_E_Side_Note_Marks_ods(file_path=item_path))    
+        else:
+            item_path = os.path.join(directory_path, item)  
+            dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
     return dic_list
 
 def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
@@ -5919,9 +5923,9 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods', color='#FFFFFF')
     
-    fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
+    # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
