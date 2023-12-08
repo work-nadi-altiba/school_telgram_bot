@@ -355,6 +355,7 @@ def receive_file(update, context ):
             
         receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
         /document طباعة سجل العلامات الرسمي من الملف فقط
+        /document1_3 طباعة سجل العلامات الرسمي من الملف فقط
         /marks ادخال العلامات من الملف فقط'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
@@ -388,6 +389,18 @@ def handle_question(update, context):
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
             elif file_extension == 'ods':
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END            
+        elif question == '/document1_3':
+            update.message.reply_text("انتظر لحظة لو سمحت")  
+            if file_extension == 'xlsx':           
+                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes),templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
+            elif file_extension == 'ods':
+                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes),templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
             files = count_files()
             chat_id = update.message.chat.id
             context.user_data['chat_id'] = chat_id

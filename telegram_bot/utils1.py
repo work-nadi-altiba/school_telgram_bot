@@ -4458,7 +4458,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
             #     ,student_id= Student_id
             #     ,assessment_period_id= AssessId)
             fuzz_postdata = {
-                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else '',
+                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else None,
                                 'assessment_id': item['assessment_id'],
                                 'education_subject_id': item['education_subject_id'],
                                 'education_grade_id': item['education_grade_id'],
@@ -5923,7 +5923,7 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods', color='#FFFFFF')
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
