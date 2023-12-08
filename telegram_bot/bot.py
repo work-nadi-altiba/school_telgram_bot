@@ -395,7 +395,7 @@ def handle_question(update, context):
             send_files(bot, chat_id, files)
             delete_send_folder()
             return ConversationHandler.END            
-        elif question == '/document1_3':
+        elif question == '/documentFirstThree':
             update.message.reply_text("انتظر لحظة لو سمحت")  
             if file_extension == 'xlsx':           
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes),templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
