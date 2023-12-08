@@ -355,7 +355,7 @@ def receive_file(update, context ):
             
         receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
         /document طباعة سجل العلامات الرسمي من الملف فقط
-        /document1_3 طباعة سجل العلامات الرسمي من الملف فقط
+        /documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
         /marks ادخال العلامات من الملف فقط'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
