@@ -189,6 +189,7 @@ def print_check_five_names_marks(update, context):
         return ConversationHandler.END
 
 def upload_marks_bot_version(update, context):
+    session = requests.Session()
     question = context.user_data['quetion']
     if update.message.text == '/cancel':
         return cancel(update, context)
@@ -204,8 +205,8 @@ def upload_marks_bot_version(update, context):
         else:
             update.message.reply_text("انتظر لحظة لو سمحت") 
             # TODO: handle empty editable_assessments list
-            editable_assessments = get_editable_assessments(auth ,username)
-            data_to_enter_marks = get_required_data_to_enter_marks(auth ,username)
+            editable_assessments = get_editable_assessments(auth ,username ,session)
+            data_to_enter_marks = get_required_data_to_enter_marks(auth ,username,session)
             string = assessments_commands_text(editable_assessments)
             update.message.reply_text(string)
             context.user_data['assessments'] = editable_assessments
@@ -229,10 +230,10 @@ def upload_marks_bot_version(update, context):
 
             # عبي التقويم من ملف سجل العلامات الجانبي
             if file_extension == 'xlsx':
-                upload_marks(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+                upload_marks_optimized(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)) if question == 'document_marks' else None
             elif file_extension == 'ods':
-                upload_marks(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+                upload_marks_optimized(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes)) if question == 'document_marks' else None
                 
             if question == 'document_marks' :
@@ -353,10 +354,9 @@ def receive_file(update, context ):
                 update.message.reply_text("تمام انتهينا")                
                 return ConversationHandler.END
             
-        receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
-        /document طباعة سجل العلامات الرسمي من الملف فقط
-        /documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
-        /marks ادخال العلامات من الملف فقط'''
+        receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا\n/document طباعة سجل العلامات الرسمي من الملف فقط
+/documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
+/marks ادخال العلامات من الملف فقط'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
     else:

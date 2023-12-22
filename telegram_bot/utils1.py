@@ -661,7 +661,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     for class_data in classess_data['file_data']:
         class_id = class_data['class_name'].split('=')[2] 
         class_subject = class_data['class_name'].split('=')[3]
-        class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+        class_name = class_data['class_name'].split('=')[0]
         if 'عشر' not in class_name : 
             students_marks_ids = class_data['students_data']
             assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
@@ -703,7 +703,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
     while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(unsuccessful_requests,headers,body_postdata)
+        unsuccessful_requests = wfuzz_function(url ,unsuccessful_requests,headers,body_postdata)
 
     print("All requests were successful!")
     
@@ -4445,20 +4445,8 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     
     for item in required_data_list : 
         for Student_id in item['students_ids']:
-            # enter_mark(auth 
-            #     ,marks= str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else ''
-            #     ,assessment_grading_option_id= 8
-            #     ,assessment_id= item['assessment_id']
-            #     ,education_subject_id= item['education_subject_id']
-            #     ,education_grade_id= item['education_grade_id']
-            #     ,institution_id= inst_id
-            #     ,academic_period_id= period_id
-            #     ,institution_classes_id= item['institution_classes_id']
-            #     ,student_status_id= 1
-            #     ,student_id= Student_id
-            #     ,assessment_period_id= AssessId)
             fuzz_postdata = {
-                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else None,
+                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else 'null',
                                 'assessment_id': item['assessment_id'],
                                 'education_subject_id': item['education_subject_id'],
                                 'education_grade_id': item['education_grade_id'],
@@ -4544,11 +4532,28 @@ def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
     min_max=[]
-    for i in assessments_periods_min_max_mark(auth , assessment_id, education_subject_id)['data']:
-        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )                    
+    for i in assessments_periods_min_max_mark(auth , assessment_id, education_subject_id,session=session)['data']:
+        min_max.append({'id': i['assessment_period_id'] , 'pass_mark':i['assessment_grading_type']['pass_mark'] , 'max_mark' : i['assessment_grading_type']['max'] } )
     for term in terms:
-        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id)['data']:
-            dic = {'SEname': asses["academic_term"], 'AssesName': asses["name"], 'AssesId': asses["id"] , 'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'max_mark' : [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0] , 'editable':asses['editable'], 'code': asses['code'], 'gradeId':asses['assessment_id']}
+        for asses in get_assessments_periods(auth, term['name'], assessment_id=assessment_id,session=session)['data']:
+            dic = {
+                    # Key: 'SEname', Value: Academic term from the 'asses' dictionary
+                    'SEname': asses["academic_term"],
+                    # Key: 'AssesName', Value: Name from the 'asses' dictionary
+                    'AssesName': asses["name"],
+                    # Key: 'AssesId', Value: ID from the 'asses' dictionary
+                    'AssesId': asses["id"],
+                    # Key: 'pass_mark', Value: Pass mark from the 'min_max' list where the 'id' matches the 'asses' dictionary's ID
+                    'pass_mark': [dictionary['pass_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0],
+                    # Key: 'max_mark', Value: Max mark from the 'min_max' list where the 'id' matches the 'asses' dictionary's ID
+                    'max_mark': [dictionary['max_mark'] for dictionary in min_max if dictionary.get('id') == asses["id"]][0],
+                    # Key: 'editable', Value: Editable flag from the 'asses' dictionary
+                    'editable': asses['editable'],
+                    # Key: 'code', Value: Code from the 'asses' dictionary
+                    'code': asses['code'],
+                    # Key: 'gradeId', Value: Assessment ID from the 'asses' dictionary
+                    'gradeId': asses['assessment_id']
+                }
             season_assessments.append(dic)
     return season_assessments
 
@@ -4736,7 +4741,6 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
         if 'عشر' in class_name :
-            assessments_period_data_text = ''
             students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
             for row_number, dataFrame in enumerate(students_id_and_names, start=3):
                 new_ws.cell(row=row_number, column=1).value = row_number-2
