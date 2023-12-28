@@ -325,7 +325,7 @@ def intended_for_pytest_for_the_absent_text(absent_days_list):
     # set([i.split('/')[2] for i in l])
 
 def get_names_for_absent_purposes(auth , session=None):
-    d = get_required_data_to_enter_absent(auth=auth)
+    d = get_required_data_to_enter_absent(auth=auth, session=session)
     institution_id = d['institution_id']
     institution_class_id = d['institution_class_id']
     academic_period_id = d['academic_period_id']
@@ -361,6 +361,7 @@ def get_required_data_to_enter_absent(auth , session=None):
             }
 
 def bulk_e_side_note_marks(passwords):
+    session = requests.Session()
     for p in passwords.split('\n'):
         # print(p,'-------<>')
         try : 
@@ -372,7 +373,7 @@ def bulk_e_side_note_marks(passwords):
         # FIXME: صلح مشكلة السيشين في الريكيوست
         # session = requests.Session()
         try:
-            create_e_side_marks_doc(username , password )
+            create_e_side_marks_doc(username , password ,session=session)
         except Exception as e:
             
             print("\033[91m There is error in \n{}/{}\033[00m" .format(username , password))
@@ -1903,7 +1904,7 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
     else:
         student_details = classes_data
         school_name = student_details['custom_shapes']['school']
-        modified_classes =student_details['custom_shapes']['classes']
+        # modified_classes =student_details['custom_shapes']['classes']
         teacher = student_details['custom_shapes']['teacher'] 
         melady2 = student_details['custom_shapes']['melady1']
         melady1 = student_details['custom_shapes']['melady2']
@@ -4643,7 +4644,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     school_name_id = f'{school_name}={inst_id}'
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-    modeeriah = inst_area(auth)['data'][0]['Areas']['name']
+    modeeriah = inst_area(auth , session=session)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth,session=session)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
     hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
@@ -4694,14 +4695,15 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
                                     ,classes_id_1[v]
                                     ,classes_id_3[v][0]['institution_class_id']
                                     ,inst_id
-                                    ,classes_id_3[v][0]['education_grade_id'])
+                                    ,classes_id_3[v][0]['education_grade_id']
+                                    ,session=session)
         students_names = sorted([i['user']['name'] for i in students['data']])
         print(students_names)
         students_id_and_names = []
         for IdAndName in students['data']:
             students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
 
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects',session=session)
 
         marks_and_name = []
 
@@ -4716,21 +4718,21 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
                     if student_assessment_item["marks"] is not None :
                         # dic['id'] = student_data_item['student_id'] 
                         # dic['name'] = student_data_item['student_name'] 
-                        if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                        if 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term1']['assessment1'] = student_assessment_item["marks"] 
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                        elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term1']['assessment2']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                        elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term1']['assessment3']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                        elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term1']['assessment4']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        elif 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term2']['assessment1']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term2']['assessment2']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term2']['assessment3']  = student_assessment_item["marks"]
-                        elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                        elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                             dic['term2']['assessment4']  = student_assessment_item["marks"]
 
             marks_and_name.append(dic)
@@ -5430,7 +5432,7 @@ def my_jq(data):
     json_str = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False).encode('utf8')
     return highlight(json_str.decode('utf8'), JsonLexer(), TerminalFormatter())
 
-def make_request(url, auth ,session=None,timeout_seconds=60):
+def make_request(url, auth ,session=None,timeout_seconds=500):
     headers = {"Authorization": auth, "ControllerAction": "Results"}
     controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students']
     
@@ -5543,7 +5545,7 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
             # check if data is empty
             if not data['total']:
                 raise IndexError
-        except IndexError:
+        except :
             global secondery_students 
             if not len(secondery_students):
                 secondery_students =  get_school_students_ids(auth) 
@@ -5881,8 +5883,7 @@ def main():
     # 9931057574
     # '''
     
-    passwords = '''9841008012/123456
-9931057574'''
+    passwords = '''9891009452/9891009452'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
@@ -5925,9 +5926,9 @@ def main():
     # There is error in 
     # 9781053164/9781053164
 
-    # bulk_e_side_note_marks(passwords)
+    bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()

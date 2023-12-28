@@ -231,17 +231,17 @@ def upload_marks_bot_version(update, context):
             # عبي التقويم من ملف سجل العلامات الجانبي
             if file_extension == 'xlsx':
                 upload_marks_optimized(username,password,Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
-                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)) if question == 'document_marks' else None
+                # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)) if question == 'document_marks' else None
             elif file_extension == 'ods':
                 upload_marks_optimized(username,password,Read_E_Side_Note_Marks_ods(file_content=file_bytes))
-                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes)) if question == 'document_marks' else None
+                # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes)) if question == 'document_marks' else None
                 
-            if question == 'document_marks' :
-                files = count_files()
-                chat_id = update.message.chat.id
-                context.user_data['chat_id'] = chat_id
-                send_files(bot, chat_id, files)
-                delete_send_folder()
+            # if question == 'document_marks' :
+            #     files = count_files()
+            #     chat_id = update.message.chat.id
+            #     context.user_data['chat_id'] = chat_id
+            #     send_files(bot, chat_id, files)
+            #     delete_send_folder()
             
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
@@ -354,8 +354,11 @@ def receive_file(update, context ):
                 update.message.reply_text("تمام انتهينا")                
                 return ConversationHandler.END
             
-        receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا\n/document طباعة سجل العلامات الرسمي من الملف فقط
+        receive_file_massage = '''/document_marks  طباعة سجل العلامات و ادخال العلامات معا
+/document طباعة سجل العلامات الرسمي من الملف فقط
 /documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
+/side_notes_first_term طباعة الكشف الجانبي الفصل الاول
+/side_notes_second_term طباعة الكشف الجانبي الفصل الثاني 
 /marks ادخال العلامات من الملف فقط'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
@@ -377,11 +380,16 @@ def handle_question(update, context):
         return cancel(update, context)
     else:       
         if question == 'document_marks':
-            update.message.reply_text("انتظر لحظة لو سمحت")  
+            update.message.reply_text("انتظر لحظة لو سمحت \nو اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456")
             if file_extension == 'xlsx':           
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
             elif file_extension == 'ods':
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
             return CREDS_2
         elif question == 'document':
             update.message.reply_text("انتظر لحظة لو سمحت")  
@@ -407,6 +415,30 @@ def handle_question(update, context):
             send_files(bot, chat_id, files)
             delete_send_folder()
             return ConversationHandler.END            
+        elif question == 'side_notes_first_term':
+            update.message.reply_text("انتظر لحظة لو سمحت")  
+            if file_extension == 'xlsx':           
+                side_marks_document_with_marks(term=1,classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            elif file_extension == 'ods':
+                side_marks_document_with_marks(term=1,classes_data=Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END  
+        elif question == 'side_notes_second_term':
+            update.message.reply_text("انتظر لحظة لو سمحت")  
+            if file_extension == 'xlsx':           
+                side_marks_document_with_marks(term=2,classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            elif file_extension == 'ods':
+                side_marks_document_with_marks(term=2,classes_data=Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END                 
         elif question == 'marks':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
             return CREDS_2
