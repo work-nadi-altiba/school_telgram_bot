@@ -1835,21 +1835,21 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
                         if student_assessment_item["marks"] is not None :
                             dic['id'] = student_data_item['student_id'] 
                             dic['student_name'] = student_data_item['student_name'] 
-                            if student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            if 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term1']['assessment1'] = student_assessment_item["marks"] 
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term1']['assessment2']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term1']['assessment3']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الأول':
+                            elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term1']['assessment4']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الأول' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            elif 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term2']['assessment1']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثاني' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term2']['assessment2']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الثالث' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term2']['assessment3']  = student_assessment_item["marks"]
-                            elif student_assessment_item['assessment_period']['name'] == 'التقويم الرابع' and student_assessment_item['assessment_period']['academic_term'] == 'الفصل الثاني':
+                            elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
                                 dic['term2']['assessment4']  = student_assessment_item["marks"]
                 marks_and_name.append(dic)
                 dic = {'id':'' ,'student_name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} }
@@ -1920,6 +1920,29 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
                 counter = 0
                 for item in students_data_list['students_data'] :
                     context[f'name{counter}'] = item['name']
+                    if not names_only :
+                        assessments = [
+                                    item[f'term{term}']['assessment1'],
+                                    item[f'term{term}']['assessment2'],
+                                    item[f'term{term}']['assessment3'],
+                                    item[f'term{term}']['assessment4']
+                                    ]
+                        context[f'A1_{counter}'] = item[f'term{term}']['assessment1']
+                        context[f'A2_{counter}'] = item[f'term{term}']['assessment2']
+                        context[f'A3_{counter}'] = item[f'term{term}']['assessment3']
+                        context[f'A4_{counter}'] = item[f'term{term}']['assessment4']
+                        SUM = sum(int(assessment) if assessment != '' else 0 for assessment in assessments)                    
+                        context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                        total = item[f'term{term}']['assessment3']
+
+                        try :                    
+                            variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
+                            variables.append(total - sum(variables))       
+                            context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
+                        except : 
+                            context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4                        
+                    counter+=1 
+                    context['teacher'] = teacher                    
             else:
                 counter = 0
                 for item in students_data_list['students_data'] :
