@@ -674,6 +674,7 @@ def init_e_side_marks(update, context):
 
 def send_e_side_marks_note_doc(update, context):
     user = update.message.from_user
+    session = requests.Session()
     if update.message.text == '/cancel':
         return cancel(update, context)
     else:
@@ -685,7 +686,7 @@ def send_e_side_marks_note_doc(update, context):
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
-            create_e_side_marks_doc(username, password)
+            create_e_side_marks_doc(username, password , session =session)
             files = count_files()
             chat_id = update.message.chat.id
             send_files(bot, chat_id, files)
