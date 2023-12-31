@@ -52,14 +52,39 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
-def sort_assessement_ids(auth ,assessment_id ,marks_data , session=None):
-    assessments= make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?	assessment_id={assessment_id}&_limit=0' , session=session)
+def offline_sort_assessement_ids(auth ,assessment_id ,marks_data ,assessments, session=None):
     sorted_values = []
-    codes = sorted([i['code'][2:] for i in assessments['data']])
+    codes = sorted([i['code'][-4:] for i in assessments['data']])
     for code in codes:
         target_id = str([i['id'] for i in assessments['data'] if code in i['code']][0])
         target_value = [i for i in marks_data if i['assessment_period_id'] == target_id]
+        # Add code to each dictionary in target_value
+        for item in target_value:
+            # Add your code here
+            item['code'] = code
         sorted_values.extend(target_value)
+    # Check if the length is less than 8
+    while len(sorted_values) < 8:
+        # Add dictionaries with the value {'mark': None}
+        sorted_values.append({'mark': None , 'assessment_period_id': None})
+    return sorted_values
+
+def sort_assessement_ids(auth ,assessment_id ,marks_data , session=None):
+    assessments= make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?assessment_id={assessment_id}&_limit=0' , session=session)
+    sorted_values = []
+    codes = sorted([i['code'][-4:] for i in assessments['data']])
+    for code in codes:
+        target_id = str([i['id'] for i in assessments['data'] if code in i['code']][0])
+        target_value = [i for i in marks_data if i['assessment_period_id'] == target_id]
+        # Add code to each dictionary in target_value
+        for item in target_value:
+            # Add your code here
+            item['code'] = code
+        sorted_values.extend(target_value)
+    # Check if the length is less than 8
+    while len(sorted_values) < 8:
+        # Add dictionaries with the value {'mark': None}
+        sorted_values.append({'mark': None , 'assessment_period_id': None})
     return sorted_values
 
 def offline_get_assessment_id_from_grade_id(grade_id , grades_info):
@@ -634,7 +659,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
                             postdata = body_postdata ,
                             proxies= proxies ,
                             method= method,
-                            # delay=timout_req_delay,
+                            delay=timout_req_delay,
                             # req_delay= timout_req_delay
                             ),start =1):
                     
@@ -4692,6 +4717,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     melady2 = str(school_year[0]['end_year'])
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
+    assessments = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
@@ -4767,20 +4793,18 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         for id , values in grouped_students.items():
             dic['id'] = id
             dic['name'] = values[0]['the_student_name']
-            if len(values) != 8: 
-                print('values is not what you expect and it should be 8 lists')
-                raise ValueError
-            values = sort_assessement_ids(auth , assessment_id , values , session=session)
-            dic['assessments_periods_ides'] = [int(i['assessment_period_id']) for i in values]
-            
-            dic['term1']['assessment1'] = int(float(values[0]["mark"])) if values[0]["mark"] is not None else ''
-            dic['term1']['assessment2'] = int(float(values[1]["mark"])) if values[1]["mark"] is not None else ''
-            dic['term1']['assessment3'] = int(float(values[2]["mark"])) if values[2]["mark"] is not None else ''
-            dic['term1']['assessment4'] = int(float(values[3]["mark"])) if values[3]["mark"] is not None else ''
-            dic['term2']['assessment1'] = int(float(values[4]["mark"])) if values[4]["mark"] is not None else ''
-            dic['term2']['assessment2'] = int(float(values[5]["mark"])) if values[5]["mark"] is not None else ''
-            dic['term2']['assessment3'] = int(float(values[6]["mark"])) if values[6]["mark"] is not None else ''
-            dic['term2']['assessment4'] = int(float(values[7]["mark"])) if values[7]["mark"] is not None else ''
+
+            if 'عشر' not in class_name :            
+                values = offline_sort_assessement_ids(auth , assessment_id , values ,assessments, session=session)
+                dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
+                dic['term1']['assessment1'] = int(float(values[0]["mark"])) if values[0]["mark"] is not None else ''
+                dic['term1']['assessment2'] = int(float(values[1]["mark"])) if values[1]["mark"] is not None else ''
+                dic['term1']['assessment3'] = int(float(values[2]["mark"])) if values[2]["mark"] is not None else ''
+                dic['term1']['assessment4'] = int(float(values[3]["mark"])) if values[3]["mark"] is not None else ''
+                dic['term2']['assessment1'] = int(float(values[4]["mark"])) if values[4]["mark"] is not None else ''
+                dic['term2']['assessment2'] = int(float(values[5]["mark"])) if values[5]["mark"] is not None else ''
+                dic['term2']['assessment3'] = int(float(values[6]["mark"])) if values[6]["mark"] is not None else ''
+                dic['term2']['assessment4'] = int(float(values[7]["mark"])) if values[7]["mark"] is not None else ''
             # for student_assessment_item in assessments_json['data']:
             #     if student_assessment_item['student_id'] == student_data_item['student_id'] :  
             #         # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء  
@@ -5959,14 +5983,12 @@ def main():
     # 9962041555/S.sara123
     # 9892014106/F.fatmeh123
     # 9892060209/H.heba123
+    # 2000258435
+    # 9841021668/Aa@9841021668
+    # 9951036266
     # '''
     
-    passwords = '''9941034173
-9951012856
-99310068300/99310068300@Mm
-2000258435
-9841021668/Aa@9841021668
-9951036266'''
+    passwords = '''9891009452/9891009452'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
@@ -6009,9 +6031,9 @@ def main():
     # There is error in 
     # 9781053164/9781053164
 
-    bulk_e_side_note_marks(passwords)
+    # bulk_e_side_note_marks(passwords)
     
-    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()

@@ -42,3 +42,5 @@ https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_lim
 # رابط تسجيل غياب الطالب
 
 
+# رابط تجميع الشهادات الجديد و السريع
+https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id=15&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id=2600
