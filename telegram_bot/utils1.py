@@ -4248,7 +4248,7 @@ def get_students_info_subjectsMarks(username,password,session=None):
 
     class_name_letter = list(set([i['student_class_name_letter'] for i in dic_list if i['student_class_name_letter'] != '' ]))
     joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in class_name_letter])
-    classes_data = make_request(session=session,auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']            
+    classes_data = make_request(session=session,auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
     class_list = []
     for i in classes_data:
         class_list.append({'class_id': i['institution_class_id'] , 'class_name': i['institution_class']['name'] })
@@ -4293,9 +4293,9 @@ def get_students_info_subjectsMarks(username,password,session=None):
     return dic_list
 
 def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
-    if inst_id is not None:
+    if inst_id is None:
         inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
-    if curr_year is not None:
+    if curr_year is None:
         curr_year = get_curr_period(auth,session=session)['data'][0]['id']
     students = [
                 i['student_id'] 
