@@ -52,11 +52,24 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
-def offline_sort_assessement_ids(auth ,assessment_id ,marks_data ,assessments, session=None):
+
+def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None ,session=None):
+    global secondery_students 
+    if not len(secondery_students):
+        secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year , session=session) 
+    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] ==1]
+    data = {'data': data , 'total': len(data)}
+            
+    enrolled = [i for i in data['data'] if i['student_status_id'] ==1]
+    data = {'data': enrolled , 'total': len(enrolled)}
+    return data
+
+def offline_sort_assessement_ids(assessment_id ,marks_data ,assessments):
     sorted_values = []
-    codes = sorted([i['code'][-4:] for i in assessments['data']])
+    codes = sorted([i['code'][-4:] for i in assessments['data'] if i['assessment_id'] == assessment_id])
+    assessments = [i for i in assessments['data'] if i['assessment_id'] == assessment_id]
     for code in codes:
-        target_id = str([i['id'] for i in assessments['data'] if code in i['code']][0])
+        target_id = str([i['id'] for i in assessments if code in i['code']][0])
         target_value = [i for i in marks_data if i['assessment_period_id'] == target_id]
         # Add code to each dictionary in target_value
         for item in target_value:
@@ -2176,6 +2189,10 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
         'hejri_20_2': hejri2,
         'melady_20_1': melady1,
         'melady_20_2': melady2,
+        'hejri_20_5': hejri1,
+        'hejri_20_6': hejri2,
+        'melady_20_7': melady1,
+        'melady_20_8': melady2,        
         'baldah_20_2': baldah,
         'school_20_2': school_name,
         'classes_20_2': modified_classes,
@@ -4275,9 +4292,11 @@ def get_students_info_subjectsMarks(username,password,session=None):
 
     return dic_list
 
-def get_school_students_ids(auth,session=None):
-    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    curr_year = get_curr_period(auth)['data'][0]['id']
+def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
+    if inst_id is not None:
+        inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
+    if curr_year is not None:
+        curr_year = get_curr_period(auth,session=session)['data'][0]['id']
     students = [
                 i['student_id'] 
                 for i in make_request(session=session ,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data']
@@ -4286,7 +4305,7 @@ def get_school_students_ids(auth,session=None):
                 ]
     InstitutionClassStudents = [
                                 i 
-                                for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data'] 
+                                for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users',session=session)['data'] 
                                 
                                     if i['student_status_id'] == 1 and i['student_id'] in students
                                 ]
@@ -4767,23 +4786,6 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         new_ws.sheet_view.rightToLeft = True    
         existing_ws.sheet_view.rightToLeft = True   
 
-
-        students = get_class_students(auth
-                                    ,period_id
-                                    ,institution_subject_id
-                                    ,institution_class_id
-                                    ,inst_id
-                                    ,education_grade_id
-                                    ,session=session)
-        students_names = sorted([i['user']['name'] for i in students['data']])
-        print(students_names)
-        students_id_and_names = []
-        for IdAndName in students['data']:
-            students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
-
-        # assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id='+str(classes_id_3[v][0]['subject_id'])+'&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects',session=session)
-        # assessments_json =make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={subject_id}&institution_classes_id={id}&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects',session=session)
-        
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
         grouped_students = {key: list(group) for key, group in groupby(assessments_json['data'], key=lambda x: x['student_id'])}
         
@@ -4795,7 +4797,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
             dic['name'] = values[0]['the_student_name']
 
             if 'عشر' not in class_name :            
-                values = offline_sort_assessement_ids(auth , assessment_id , values ,assessments, session=session)
+                values = offline_sort_assessement_ids(assessment_id , values ,assessments)
                 dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
                 dic['term1']['assessment1'] = int(float(values[0]["mark"])) if values[0]["mark"] is not None else ''
                 dic['term1']['assessment2'] = int(float(values[1]["mark"])) if values[1]["mark"] is not None else ''
@@ -4836,13 +4838,23 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
         marks_and_name = [d for d in marks_and_name if d['name'] != '']
         marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
+        # print([d['name'] for d in marks_and_name if d['name'] != ''])
+        
         if 'عشر' in class_name :
+            students = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,session=session)
+            students_names = sorted([i['user']['name'] for i in students['data']])
+            print(students_names)
+            students_id_and_names = []
+            for IdAndName in students['data']:
+                students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
             students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
             for row_number, dataFrame in enumerate(students_id_and_names, start=3):
                 new_ws.cell(row=row_number, column=1).value = row_number-2
                 new_ws.cell(row=row_number, column=2).value = dataFrame['student_id']
                 new_ws.cell(row=row_number, column=3).value = dataFrame['student_name']
         else:
+            print([d['name'] for d in marks_and_name if d['name'] != ''])
             # assessment_data = '' if  not assessments_json['data'] else assessments_json['data'][0]
             # assessment_id = '' if  not assessments_json['data'] else assessment_data['assessment_id']
             # education_grade_id = '' if  not assessments_json['data'] else assessment_data['education_grade_id']
@@ -5986,9 +5998,15 @@ def main():
     # 2000258435
     # 9841021668/Aa@9841021668
     # 9951036266
+    # 9891009452
+    # 9861043795
+    # 2000358321
+    # 2000258435
     # '''
     
-    passwords = '''9891009452/9891009452'''
+    passwords = '''9861043795
+2000358321
+2000258435'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
