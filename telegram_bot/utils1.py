@@ -672,8 +672,8 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
                             postdata = body_postdata ,
                             proxies= proxies ,
                             method= method,
-                            delay=timout_req_delay,
-                            # req_delay= timout_req_delay
+                            # delay=timout_req_delay,
+                            req_delay= timout_req_delay
                             ),start =1):
                     
                 t.postfix[1]["value"] = idx
