@@ -5271,7 +5271,7 @@ def get_assessments_periods(auth ,term, assessment_id,session=None):
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     '''
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
-    return make_request(url,auth,session=session)
+    return make_request(url=url,auth=auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
     '''
