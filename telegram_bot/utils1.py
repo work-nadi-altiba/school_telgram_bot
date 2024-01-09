@@ -54,6 +54,19 @@ secondery_students = []
 # New code should be under here please
 
 def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None ,session=None):
+    """
+    Retrieves secondary students enrolled in a specific institution class.
+
+    Parameters:
+    - auth (str): Authorization token.
+    - institution_class_id (int): Identifier for the institution class.
+    - inst_id (int, optional): Identifier for the institution (default is None).
+    - curr_year (int, optional): Current academic year (default is None).
+    - session (requests.Session, optional): Session object for making HTTP requests (default is None).
+
+    Returns:
+    - dict: Dictionary containing data about enrolled secondary students.
+    """    
     global secondery_students 
     if not len(secondery_students):
         secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year , session=session) 
@@ -65,6 +78,17 @@ def get_secondery_students(auth , institution_class_id , inst_id=None , curr_yea
     return data
 
 def offline_sort_assessement_ids(assessment_id ,marks_data ,assessments):
+    """
+    Offline sorting of assessment IDs based on their codes.
+
+    Parameters:
+    - assessment_id (str): Identifier for the assessment.
+    - marks_data (list): List of dictionaries containing marks data.
+    - assessments (dict): Dictionary containing assessment data.
+
+    Returns:
+    - list: Sorted list of dictionaries based on assessment codes.
+    """    
     sorted_values = []
     codes = sorted([i['code'][-4:] for i in assessments['data'] if i['assessment_id'] == assessment_id])
     assessments = [i for i in assessments['data'] if i['assessment_id'] == assessment_id]
@@ -83,6 +107,18 @@ def offline_sort_assessement_ids(assessment_id ,marks_data ,assessments):
     return sorted_values
 
 def sort_assessement_ids(auth ,assessment_id ,marks_data , session=None):
+    """
+    Sorting of assessment IDs based on their codes.
+
+    Parameters:
+    - auth (str): Authorization token.
+    - assessment_id (str): Identifier for the assessment.
+    - marks_data (list): List of dictionaries containing marks data.
+    - session (requests.Session, optional): Session object for making HTTP requests (default is None).
+
+    Returns:
+    - list: Sorted list of dictionaries based on assessment codes.
+    """
     assessments= make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?assessment_id={assessment_id}&_limit=0' , session=session)
     sorted_values = []
     codes = sorted([i['code'][-4:] for i in assessments['data']])
@@ -101,11 +137,31 @@ def sort_assessement_ids(auth ,assessment_id ,marks_data , session=None):
     return sorted_values
 
 def offline_get_assessment_id_from_grade_id(grade_id , grades_info):
+    """
+    Offline retrieval of assessment ID based on the education grade ID.
+
+    Parameters:
+    - grade_id (int): Identifier for the education grade.
+    - grades_info (list): List of dictionaries containing grades information.
+
+    Returns:
+    - str: Identifier for the assessment corresponding to the education grade ID.
+    """    
     return [d['id'] for d in grades_info if d.get('education_grade_id') == grade_id][0]
-    offline_get_assessment_id_from_grade_id
     
 def mark_all_students_as_present(auth ,term_days_dates ,r_data = None , proxies = None):
+    """
+    Marks all students as present on specified dates.
 
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - term_days_dates (list): List of dates to mark all students as present.
+    - r_data (dict): Dictionary containing required data, fetched using get_required_data_to_enter_absent.
+    - proxies (dict): Optional. Dictionary of proxy settings for requests.
+
+    Returns:
+    None
+    """
     session = requests.Session()
     if not r_data:
         r_data = get_required_data_to_enter_absent(auth,session=session)
@@ -127,13 +183,31 @@ def mark_all_students_as_present(auth ,term_days_dates ,r_data = None , proxies 
     print("All requests were successful!")
 
 def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list ,institution_id , institution_class_id , education_grade_id , academic_period_id , year1 , year2 , helper=False ,proxies = None):
-    '''
+    """
+    Marks students absent on specified dates.
+
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - students_id_with_names (list): List containing tuples of (student_name, student_id).
+    - absent_days_list (list): List of dates in "student_id/day/month" format for marking absent.
+    - institution_id (int): ID of the institution.
+    - institution_class_id (int): ID of the institution class.
+    - education_grade_id (int): ID of the education grade.
+    - academic_period_id (int): ID of the academic period.
+    - year1 (int): Starting year of the academic period.
+    - year2 (int): Ending year of the academic period.
+    - helper (bool): If True, prints student names and dates for each iteration.
+    - proxies (dict): Optional. Dictionary of proxy settings for requests.
+
     usage:
         required_data = get_required_data_to_enter_absent(auth)
         # for i in f:
         #     print(f"{i} = required_data['{i}']",end=', ')
         mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] )
-    '''
+
+    Returns:
+    None
+    """
     students_dictionary = {}
     for idx, (name, student_id) in enumerate(students_id_with_names, start=1) : 
         students_dictionary[idx]= [student_id,name ]
@@ -188,6 +262,22 @@ def mark_students_absent_in_dates(auth ,students_id_with_names, absent_days_list
     print("All requests were successful!")
 
 def fill_students_absent_in_dates_wrapper(auth ,students_absent_multiline_string=None , random_values = False ,start_date_str = None , end_date_str = None , skip_dates_list = None , required_data=None, proxies = None):
+    """
+    Fills attendance for students based on provided absent dates.
+
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - students_absent_multiline_string (str): Multiline string containing absent dates in the specified format.
+    - random_values (bool): If True, generates random absent dates for students within the specified date range.
+    - start_date_str (str): Start date of the attendance period in "Y-m-d" format (for random_values).
+    - end_date_str (str): End date of the attendance period in "Y-m-d" format (for random_values).
+    - skip_dates_list (list): List of dates to skip during the attendance period in "Y-m-d" format (for random_values).
+    - required_data (dict): Optional. Required data for entering absent days, retrieved by get_required_data_to_enter_absent.
+    - proxies (dict): Optional. Dictionary of proxy settings for requests.
+
+    Returns:
+    None
+    """
     if not required_data:
         required_data = get_required_data_to_enter_absent(auth)
     id_with_names = get_names_for_absent_purposes(auth)
@@ -201,10 +291,36 @@ def fill_students_absent_in_dates_wrapper(auth ,students_absent_multiline_string
     mark_students_absent_in_dates(auth , id_with_names, absent_days_list, institution_id = required_data['institution_id'], institution_class_id = required_data['institution_class_id'], education_grade_id = required_data['education_grade_id'], academic_period_id = required_data['academic_period_id'], year1 = required_data['year1'], year2 = required_data['year2'] ,proxies = proxies)
 
 def fill_all_students_present_wrapper(auth , start_date_str , end_date_str , skip_dates_list ,required_data=None ,proxies = None):
+    """
+    Fills attendance for all students as present within a specified date range.
+
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - start_date_str (str): Start date of the attendance period in "Y-m-d" format.
+    - end_date_str (str): End date of the attendance period in "Y-m-d" format.
+    - skip_dates_list (list): List of dates to skip during the attendance period in "Y-m-d" format.
+    - required_data (dict): Optional. Required data for entering absent days, retrieved by get_required_data_to_enter_absent.
+    - proxies (dict): Optional. Dictionary of proxy settings for requests.
+
+    Returns:
+    None
+    """
     days_list = get_period_days_dates(start_date_str, end_date_str, skip_dates_list, skip_weekend=True)
     mark_all_students_as_present(auth , days_list , required_data ,proxies = proxies)
 
 def erase_students_absent_dates(auth ,required_data=None ,helper=False,proxies = None):
+    """
+    Erases the absent dates for students in a specific class.
+
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - required_data (dict): Optional. Required data for entering absent days, retrieved by get_required_data_to_enter_absent.
+    - helper (bool): Optional. If True, prints the structure of the first absent data item.
+    - proxies (dict): Optional. Dictionary of proxy settings for requests.
+
+    Returns:
+    None
+    """    
     if not required_data:
         required_data = get_required_data_to_enter_absent(auth)
     absent_data_list = get_class_absent_days_with_id(auth ,required_data=required_data)
@@ -256,6 +372,17 @@ def erase_students_absent_dates(auth ,required_data=None ,helper=False,proxies =
     print("All requests were successful!")
 
 def get_class_absent_days_with_id(auth ,simple_list=True , required_data = None):
+    """
+    Gets the list of absent days for each student in a specific class with their IDs.
+
+    Parameters:
+    - auth (str): Authentication token for making requests.
+    - simple_list (bool): Optional. If True, returns a simplified list containing student IDs and absent dates.
+    - required_data (dict): Optional. Required data for entering absent days, retrieved by get_required_data_to_enter_absent.
+
+    Returns:
+    - list: List of absent days for each student in the specified class with their IDs.
+    """    
     if not required_data:
         required_data = get_required_data_to_enter_absent(auth)
     
@@ -271,6 +398,16 @@ def get_class_absent_days_with_id(auth ,simple_list=True , required_data = None)
     return absent_data
 
 def create_random_absent_list(dates_list ,id_with_names):
+    """
+    Generates a random list of absent students for given dates and student IDs.
+
+    Parameters:
+    - dates_list (list): List of dates in "MM-DD" format.
+    - id_with_names (list): List of student IDs with corresponding names.
+
+    Returns:
+    - list: Random list of absent students with formatted dates.
+    """    
     number_of_the_students = len(id_with_names)
     random_absent = []
     for date in dates_list:
@@ -297,7 +434,28 @@ def extract_absent_dates_from_text(text , helper=False):
     1    /    24    /     9
     الشهر      اليوم      رقم
     الطالب
-    المتسلسل        
+    المتسلسل       
+
+    Extracts absent dates from a text following specific rules:
+    - Each student's absence is in a separate line, indexed by their number.
+    - The absence format is day/month.
+    - For consecutive days, use the hyphen (-) between the first and last day.
+    - For separate days, use a comma (,) between each day.
+    
+    Example:
+    8/11 5,7/10 17-19/10 23,25/10
+    
+    Outputs:
+    1/24/9
+    - Day   - Month   - Student Number
+    - Student Serial
+    
+    Parameters:
+    - text (str): The absent text following the specified rules.
+    - helper (bool): Optional. If True, prints additional information for debugging.
+
+    Returns:
+    - list: List of formatted absent dates.     
     '''
     absent_days_list = []
     absent_string_list = text.split('\n')
@@ -329,9 +487,21 @@ def extract_absent_dates_from_text(text , helper=False):
     return absent_days_list
 
 def get_period_days_dates(start_date_str, end_date_str, skip_dates_list=[], skip_weekend=True):
-    '''
+    """
+    Generates a list of days within a specified time period, excluding skipped dates and weekends.
+
+    Parameters:
+    - start_date_str (str): Start date in "YYYY-MM-DD" format.
+    - end_date_str (str): End date in "YYYY-MM-DD" format.
+    - skip_dates_list (list): Optional. List of dates to skip.
+    - skip_weekend (bool): Optional. If True, skips weekends.
+
+    Returns:
+    - list: List of formatted days within the specified period.
+
+    Example Usage:
+    ```
     اعطاء الايام الموجودة في فترة من الزمن و استثناء ايام العطل الرسمية بتوجيه المستخدم
-    # Example usage:
     start_date_str = "2023-08-20"
     end_date_str = "2023-11-12"
     skip_dates_list = ["2023-09-27"]  # Specify dates to skip in "Y-m-d" format
@@ -341,7 +511,8 @@ def get_period_days_dates(start_date_str, end_date_str, skip_dates_list=[], skip
     # len(result_dates)
     print('\n'.join(result_dates))
     # print(result_dates)
-    '''
+    ```
+    """
     start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
     end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
     skip_dates_list = [datetime.datetime.strptime(date_str, "%Y-%m-%d").date() for date_str in skip_dates_list]
@@ -359,6 +530,15 @@ def get_period_days_dates(start_date_str, end_date_str, skip_dates_list=[], skip
     return result_dates
 
 def contains_else_number_or_slash(text):
+    """
+    Checks if a text contains characters other than digits, "/", and whitespace.
+
+    Parameters:
+    - text (str): Input text to check.
+
+    Returns:
+    - bool: True if special characters are present, False otherwise.
+    """    
     # Define a regular expression pattern to match characters other than "/", digits, and whitespace
     pattern = re.compile(r'[^/\d\s]')
     
@@ -369,6 +549,15 @@ def contains_else_number_or_slash(text):
     return match is not None
 
 def intended_for_pytest_for_the_absent_text(absent_days_list):
+    """
+    Prints items in a list that contain characters other than digits, "/", and whitespace.
+
+    Parameters:
+    - absent_days_list (list): List of absent days.
+
+    Returns:
+    - None
+    """    
     for i in absent_days_list:
         if contains_else_number_or_slash(i):
             print(i)
@@ -377,6 +566,16 @@ def intended_for_pytest_for_the_absent_text(absent_days_list):
     # set([i.split('/')[2] for i in l])
 
 def get_names_for_absent_purposes(auth , session=None):
+    """
+    Retrieves a list of student names and IDs for absent purposes based on institution, class, and academic period.
+
+    Parameters:
+    - auth (str): Authentication token.
+    - session: Optional. Requests Session object.
+
+    Returns:
+    - list: Sorted list of tuples containing student IDs and names.
+    """    
     d = get_required_data_to_enter_absent(auth=auth, session=session)
     institution_id = d['institution_id']
     institution_class_id = d['institution_class_id']
@@ -390,6 +589,31 @@ def get_names_for_absent_purposes(auth , session=None):
     return sorted_list
 
 def get_required_data_to_enter_absent(auth , session=None):
+    '''
+    Retrieves the required data to enter student absences on the EMIS system.
+
+    This function fetches essential data needed to enter student absences, including
+    information about the current academic period, home room class, and education grade.
+
+    Parameters:
+    - auth (str): The authentication token for accessing the API.
+    - session (requests.Session): An optional session object to reuse existing connections.
+
+    Returns:
+    - dict: A dictionary containing the following keys:
+      - 'institution_id': The ID of the institution.
+      - 'institution_class_id': The ID of the home room class.
+      - 'education_grade_id': The ID of the education grade.
+      - 'academic_period_id': The ID of the current academic period.
+      - 'year1': The start year of the academic period.
+      - 'year2': The end year of the academic period.
+
+    Example Usage:
+    ```python
+    auth_token = get_auth('your_username', 'your_password')
+    required_data = get_required_data_to_enter_absent(auth_token)
+    ```
+    '''    
     url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses'
     classes = make_request(url=url , auth=auth , session=session)
     curr_per = get_curr_period(auth=auth, session=session)['data'][0]
@@ -413,6 +637,24 @@ def get_required_data_to_enter_absent(auth , session=None):
             }
 
 def bulk_e_side_note_marks(passwords):
+    '''
+    Generate E-Side Note marks documents for multiple users.
+
+    This function iterates over a list of username/password combinations and generates
+    E-Side Note marks documents for each user.
+
+    Parameters:
+    - passwords (str): A string containing username/password combinations separated by '\n'.
+
+    Returns:
+    None
+
+    Example Usage:
+    ```python
+    bulk_e_side_note_marks('username1/password1\nusername2/password2\n...')
+    ```
+
+    '''    
     session = requests.Session()
     for p in passwords.split('\n'):
         # print(p,'-------<>')
@@ -435,6 +677,24 @@ def bulk_e_side_note_marks(passwords):
         #     print(username , password)
 
 def read_all_xlsx_in_folder(directory_path='./send_folder'):
+    '''
+    Reads all Excel files (ODS or XLSX) in the specified folder and returns a list of dictionaries.
+
+    This function scans the specified directory for Excel files and reads their contents. It distinguishes
+    between ODS (OpenDocument Spreadsheet) and XLSX (Excel) files and uses appropriate parsers accordingly.
+    The resulting data is stored in a list of dictionaries.
+
+    Parameters:
+    - directory_path (str): The path to the folder containing Excel files. Default is './send_folder'.
+
+    Returns:
+    - list: A list of dictionaries, each containing the data read from an Excel file.
+
+    Example Usage:
+    ```python
+    dic_list = read_all_xlsx_in_folder(directory_path='./send_folder')
+    ```
+    '''    
     dic_list = []
     for item in os.listdir(directory_path):
         if not os.path.isdir(f'{directory_path}/{item}'):
@@ -447,15 +707,75 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
     return dic_list
 
 def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
+    '''
+    Converts data from multiple Excel files in a specified folder to official marks documents.
+
+    This function reads Excel files from the specified directory and converts the data
+    into official marks documents using a provided template. The resulting documents are saved
+    in the same directory with the prefix "official_marks_" added to their original file names.
+
+    Parameters:
+    - directory_path (str): The path to the folder containing Excel files. Default is './send_folder'.
+    - do_not_delete_send_folder (bool): If True, the 'send_folder' directory will not be deleted after processing.
+                                        Default is True.
+    - template (str): The path to the template file (ODS format) used for generating official marks documents.
+                     Default is './templet_files/official_marks_doc_a3_two_face_white_cover.ods'.
+    - color (str): The background color for cells in the generated documents. Default is "#8cd6e6".
+
+    Example Usage:
+    ```python
+    convert_to_marks_offline_from_send_folder(directory_path='./send_folder', do_not_delete_send_folder=True,
+                                              template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods',
+                                              color="#8cd6e6")
+    ```
+    '''
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
         fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
+    '''
+    Fills the student absent notebook document template with data and saves it.
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+    - template (str): Path to the ODS template file (default: './templet_files/new_empty_absence_notebook_doc_white_cover.ods').
+    - outdir (str): Directory to save the filled document (default: './send_folder/').
+    - teacher_full_name (bool): Flag to include teacher's full name in the document (default: False).
+
+    Example Usage:
+    ```python
+    fill_student_absent_doc_wrapper('your_username', 'your_password', teacher_full_name=True)
+    ```
+
+    Note:
+    - This function fetches student statistical information using the provided credentials.
+    - It then uses the data to fill the specified ODS template with student details and saves the filled document.
+    - The filled document is saved in the specified output directory.
+
+    '''
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir )
 
 def vacancies_dictionary2Html():
+    '''
+    Generates an HTML table from dictionaries and saves it to a file.
+
+    The function combines data from two dictionaries (dict_list1 and dict_list2)
+    into an HTML table and saves the resulting HTML to a file named "تشكيلات.html".
+
+    Note:
+    - The data is formatted using the Jinja2 templating engine.
+    - The table includes columns for school name, school position, teachers, and classes.
+    - The generated HTML is saved to a file, and a confirmation message is printed.
+
+    Example Usage:
+    ```python
+    vacancies_dictionary2Html()
+    ```
+
+    '''
     from jinja2 import Template
     # from mydicts import dict_list1 ,dict_list2
 
@@ -615,7 +935,33 @@ def tor_code():
         tor_process.kill()  # stops tor
 
 def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
+    '''
+    Generates a list of dates representing the school year days within a specified range, excluding weekends and specified skip dates.
 
+    Parameters:
+    - start_date (str or None): Start date of the school year (format: "YYYY-MM-DD") or None to use the default (2022-08-30).
+    - end_date (str or None): End date of the school year (format: "YYYY-MM-DD") or None to use the default (2023-06-30).
+    - skip_start_date (str or None): Start date of any skip period (format: "YYYY-MM-DD") or None to use the default (2023-01-01).
+    - skip_end_date (str or None): End date of any skip period (format: "YYYY-MM-DD") or None to use the default (2023-02-05).
+
+    Returns:
+    - list: A list of date strings in the format "YYYY-MM-DD" representing the school year days.
+
+    Example Usage:
+    ```python
+    # Using default dates
+    year_days = get_year_days_dates()
+
+    # Specifying custom dates and skip periods
+    custom_year_days = get_year_days_dates(start_date="2022-09-01", end_date="2023-06-01", skip_start_date="2023-01-01", skip_end_date="2023-02-05")
+    ```
+
+    Note:
+    - The function excludes weekends (Friday and Saturday).
+    - The default start_date is 2022-08-30, and the default end_date is 2023-06-30.
+    - The default skip period is from 2023-01-01 to 2023-02-05.
+
+    '''
     present_days = []
     start_date = datetime.date(2022, 8, 30) if not start_date else datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.date(2023, 6, 30) if not end_date else datetime.strptime(end_date , "%Y-%m-%d")
@@ -632,6 +978,32 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
     return present_days
 
 def group_students(dic_list , i = None):
+    '''
+    Groups a list of dictionaries by the 'student_class_name_letter' key.
+
+    Parameters:
+    - dic_list (list): List of dictionaries to be grouped.
+    - i (int or None): If provided, prints the count and first 'student_class_name_letter' for each group (default is None).
+
+    Returns:
+    - list or int: If i is None, returns a list of grouped dictionaries. If i is provided, returns 0.
+
+    Example Usage:
+    ```python
+    # Assuming dic_list is a list of dictionaries containing student information
+    grouped_students = group_students(dic_list)
+    ```
+
+    If you want to print the count and 'student_class_name_letter' for each group, you can provide the 'i' parameter:
+    ```python
+    group_students(dic_list, i=1)
+    ```
+
+    Note:
+    The function uses the 'student_class_name_letter' key to group the list of dictionaries.
+    If 'i' is provided, it prints the count and first 'student_class_name_letter' for each group.
+
+    '''    
     # sort the list based on the 'class_name' key
     sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
 
@@ -687,14 +1059,32 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
 
 def upload_marks_optimized(username , password , classess_data , empty = False):
     '''
+    Uploads student marks to the EMIS system for the specified classes and assessments.
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+    - classess_data (dict): Dictionary containing class data, including student information and marks.
+    - empty (bool): If True, marks will be uploaded as empty (default is False).
+
+    Returns:
+    None
+
+    Example Usage:
+    ```python
     file_name = 'علي المحاميد-9901024120(6).ods'
     student_details = Read_E_Side_Note_Marks_ods('./'+file_name)
-    
     fuzz_list = upload_marks_optimized(9901024120 , 9901024120 , student_details ,empty=False)
-    
-    هذه الدالة خطيرة و تحتاج الى تغيير بعض الاشياء و التاكد من الاشياء التالية
-    1- تحتاج الى التكاد من جسم الرد على الطلب ان يكون جيسون و ان لا يكون فيه خطاء
-    2- تغير وايل لوب جملة التكرار بينما الى جملة التكرار فور و تكرار الكود داخلها اقصى حد خمس مرات و الخروج من جملة التكرار
+    ```
+
+    Note:
+    This function utilizes the EMIS API to upload student marks. It is crucial to handle authentication properly and ensure that the API responses are in JSON format without errors.
+
+    **Important:**
+    - This function is powerful and requires careful consideration and modification of certain aspects.
+    - The response body from the request should be in JSON format and should not contain errors.
+    - Modify the while loop from a `for` loop to a `while` loop with a maximum of five iterations, ensuring code repetition within it does not exceed the maximum limit.
+
     '''
     fuzz_postdata_list = []
     session = requests.Session()
@@ -764,16 +1154,76 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     print("All requests were successful!")
     
 def read_json_file(file_path):
+    '''
+    Reads a JSON file and returns its content as a Python dictionary.
+
+    Parameters:
+    - file_path (str): The path to the JSON file.
+
+    Returns:
+    - dict: The content of the JSON file as a dictionary.
+
+    Example Usage:
+    ```python
+    data = read_json_file('./input_data/data.json')
+    print(data)
+    ```
+
+    '''    
     with open(file_path, 'r', encoding='utf-8') as file:
         dictionary = json.load(file)
     return dictionary
 
 def save_dictionary_to_json_file(dictionary, file_path='./send_folder/output.json', indent=None):
+    '''
+    Saves a Python dictionary to a JSON file.
 
+    Parameters:
+    - dictionary (dict): The dictionary to be saved.
+    - file_path (str): The path to the JSON file. Default is './send_folder/output.json'.
+    - indent (int or None): The number of spaces to use for indentation. If None, the JSON is compact. Default is None.
+
+    Returns:
+    - None
+
+    Example Usage:
+    ```python
+    save_dictionary_to_json_file(my_dict, file_path='./output_data/data.json', indent=4)
+    ```
+    '''    
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(dictionary, file, indent=indent, ensure_ascii=False)
         
 def create_coloured_certs_wrapper(username , password ,term2=False):
+    '''
+    Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
+
+    The function performs the following steps:
+    1. Establishes a session using the provided username and password.
+    2. Retrieves student information and subject marks using the established session.
+    3. Groups students based on their information.
+    4. Adds subject sum dictionary to the grouped list.
+    5. Calculates and adds averages to the grouped list.
+    6. Saves the dictionary containing assessment data and statistics to a JSON file.
+    7. Generates colored certificates using the saved data.
+
+    Example Usage:
+    ```python
+    create_coloured_certs_wrapper(username, password, term2=False)
+    ```
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+    - term2 (bool): Flag indicating whether to consider term 2. Default is False.
+
+    Returns:
+    - None
+
+    Side Effect:
+    - Saves colored certificates in the current working directory.
+
+    '''
     session = requests.Session()
     auth = get_auth(username , password)
     student_info_marks = get_students_info_subjectsMarks( username , password , session=session)
@@ -827,6 +1277,31 @@ def get_column_letter(column_index):
     return column_letter
 
 def strategy_ladder ( ):
+    '''
+    Processes and fills a strategy ladder template with assessment data for each student.
+
+    Assumes an existing strategy ladder template at './ods_strategy_ladder/SL-5,6,7.ods'.
+    Reads student data from an Excel file obtained using the Read_E_Side_Note_Marks_ods function.
+    Generates random numbers for specific assessment cells based on provided ranges.
+
+    Example Usage:
+    ```python
+    strategy_ladder()
+    ```
+
+    Note:
+    Ensure that the file specified by Read_E_Side_Note_Marks_ods('./'+file_name) returns the expected student details.
+
+    Parameters:
+    - None
+
+    Returns:
+    - None
+
+    Side Effect:
+    - Saves individual strategy ladder sheets for each class in the './send_folder' directory.
+
+    '''    
     doc = ezodf.opendoc('./ods_strategy_ladder/SL-5,6,7.ods')
     sheet = doc.sheets[0] # Assuming you want to work with the first sheet
 
@@ -887,6 +1362,10 @@ def strategy_ladder ( ):
 
 class RandomNumberGenerator:
     '''
+    A class for generating random numbers with a specified sum and individual ranges.
+
+    Example Usage:
+    ```python
     total_sum = 18
     numbers = [3, 2, 4, 5, 1, 3]
     ranges = RandomNumberGenerator.convert_to_ranges(numbers)  # ranges = [(0, 3), (0, 3), (0, 5), (0, 5), (0, 2), (0, 2)]
@@ -894,6 +1373,30 @@ class RandomNumberGenerator:
     generator = RandomNumberGenerator(total_sum, ranges)
     result = generator.generate_numbers_with_sum()
     print(result)
+    ```
+
+    Attributes:
+    - total_sum (int): The desired sum of the generated numbers.
+    - ranges (list): A list of tuples representing the minimum and maximum values for each number.
+
+    Methods:
+    - `generate_numbers(self)`: Generates a list of random numbers based on the specified ranges.
+    - `check_sum(self, numbers)`: Checks if the sum of the given list of numbers is equal to the specified total_sum.
+    - `generate_numbers_with_sum(self)`: Generates a set of numbers that satisfy the specified sum and ranges.
+
+    Static Methods:
+    - `convert_to_ranges(numbers)`: Converts a list of numbers into a list of ranges represented as tuples.
+
+    Example Usage:
+    ```python
+    total_sum = 18
+    numbers = [3, 2, 4, 5, 1, 3]
+    ranges = RandomNumberGenerator.convert_to_ranges(numbers)
+    
+    generator = RandomNumberGenerator(total_sum, ranges)
+    result = generator.generate_numbers_with_sum()
+    print(result)
+    ```
     '''
     def __init__(self, total_sum, ranges):
         self.total_sum = total_sum
@@ -917,6 +1420,38 @@ class RandomNumberGenerator:
         return ranges
 
 def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
+    """
+    Fill an OpenDocument Spreadsheet (ODS) file with student information and generate corresponding documents.
+
+    Parameters:
+    - student_details (dict): A dictionary containing information about students.
+    - ods_file (str): The path to the input ODS file.
+    - outdir (str): The directory where the generated documents will be saved.
+
+    Returns:
+    None
+
+    This function opens an ODS file, fills it with student details, and then saves the modified file.
+    It generates additional documents with custom shapes based on the provided information.
+    The generated documents include student details, attendance data, and cover information.
+
+    The 'student_details' dictionary should have the following keys:
+    - 'students_info': A list of dictionaries containing individual student information.
+    - 'class_name': The class name.
+    - 'year_code': The academic year code.
+    - 'start_date': The start date of the academic year.
+    - 'school_bridge': The school bridge information.
+    - 'school_name_code': The school name and code.
+    - 'teacher_incharge_name': The name of the teacher in charge.
+
+    The 'ods_file' parameter is the path to the input ODS file that will be modified.
+
+    The 'outdir' parameter specifies the directory where the generated documents will be saved.
+    The generated documents include ODS files and corresponding PDF files.
+
+    Example Usage:
+    fill_student_absent_doc_name_days_cover(student_details, 'input.ods', 'output_directory')
+    """    
     doc = ezodf.opendoc(ods_file)
         
     sheet_name = 'Sheet1'
@@ -1042,6 +1577,21 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
     os.system(command)
     
 def get_day_name_from_date(year, month, day):
+    '''
+    Gets the day name in Arabic for a given date.
+
+    Parameters:
+    - year (int): The year of the date.
+    - month (int): The month of the date.
+    - day (int): The day of the date.
+
+    Returns:
+    - str: The day name in Arabic.
+
+    Example:
+    - day_name = get_day_name_from_date(2024, 1, 9)
+      print(day_name)  # Output: 'الثلاثاء'
+    '''    
     # Set the locale to Arabic (Egypt)
     locale.setlocale(locale.LC_ALL, 'ar_EG.utf8')
 
@@ -1057,6 +1607,18 @@ class InvalidPageRangeError(Exception):
     pass
 
 def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
+    '''
+    Prints page pairs based on either a specified number of pairs or a range of pages.
+
+    Parameters:
+    - pair_pages (int): The number of page pairs to print. Should be even.
+    - start_page (int): The starting page number when range is used.
+    - end_page (int): The ending page number when range is used. Should be even.
+
+    Example:
+    - print_page_pairs(pair_pages=4)
+    - print_page_pairs(start_page=1, end_page=8)
+    '''    
     if pair_pages is not None:
         if pair_pages % 2 != 0 :
             raise InvalidPageRangeError("Invalid pair pages range: pair_pages should be even")
@@ -1079,13 +1641,20 @@ def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
 
 def calculate_age(birth_date, target_date):
     '''
-    # Example usage
-    birth_date = datetime.date(2007, 6, 29)
-    target_date = datetime.date(2022, 9,1)
-    years, months, days = calculate_age(birth_date, target_date)
+    Calculates the age in years, months, and days between two dates.
 
-    # Print the age in years, months, and days
-    print(f"Age on {target_date.strftime('%Y-%m-%d')}: {years} years, {months} months, {days} days")
+    Parameters:
+    - birth_date (str): The birth date in the format 'YYYY-MM-DD'.
+    - target_date (str): The target date for age calculation in the format 'YYYY-MM-DD'.
+
+    Returns:
+    - tuple: A tuple containing the age in years, months, and days.
+
+    Example:
+    - birth_date = '2007-06-29'
+      target_date = '2022-09-01'
+      years, months, days = calculate_age(birth_date, target_date)
+      print(f"Age on {target_date}: {years} years, {months} months, {days} days")
     '''
     birth_date = datetime.datetime.strptime(birth_date, '%Y-%m-%d').date()
     target_date = datetime.datetime.strptime(target_date, '%Y-%m-%d').date()
@@ -1093,6 +1662,28 @@ def calculate_age(birth_date, target_date):
     return age.years, age.months, age.days
 
 def fill_Template_With_basic_Student_info(student_details,template='./templet_files/كشف البيانات الاساسية للطلاب.xlsx' ,outdir='./send_folder' ):
+    '''
+    Fills an Excel template with basic student information.
+
+    Parameters:
+    - student_details (dict): Dictionary containing student details, including class information, school name, and student information.
+    - template (str): Path to the Excel template file.
+    - outdir (str): Directory where the filled Excel file will be saved.
+
+    Example:
+    - student_details = {
+        'class_name': 'الصف الثاني عشر - علمي',
+        'school_name_code': '123456 - مدرسة العلوم الثانوية',
+        'teacher_incharge_name': 'Teacher Name',
+        'principle_name': 'Principal Name',
+        'students_info': [
+            {'student_id': '123', 'identity_type': 'ID', ...},
+            {'student_id': '456', 'identity_type': 'ID', ...},
+            ...
+        ]
+    }
+    - fill_Template_With_basic_Student_info(student_details, './templet_files/كشف البيانات الاساسية للطلاب.xlsx', './send_folder')
+    '''
     # Load the Excel workbook
     workbook = openpyxl.load_workbook(template)
 
@@ -1174,6 +1765,23 @@ def fill_Template_With_basic_Student_info(student_details,template='./templet_fi
     workbook.save(outdir+'/your_file.xlsx')
 
 def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False ):
+    """
+    The function `get_student_statistic_info` retrieves statistical information about students based on
+    various parameters.
+    
+    :param username: The username is a string that represents the username of the user who is trying to
+    access the student statistic information. This is typically used for authentication purposes
+    :param password: The password parameter is used to authenticate the user and verify their identity
+    :param identity_nos: A list of identity numbers of the students for which you want to retrieve
+    statistics information. If not provided, statistics information will be retrieved for all students
+    :param students_openemis_nos: A list of OpenEMIS numbers of the students for which you want to
+    retrieve statistics information
+    :param student_ids: A list of student IDs for which you want to retrieve statistics information
+    :param session: The session parameter is used to specify the session of the student. It can be a
+    specific session or None to get the statistic info for all sessions
+    :param teacher_full_name: A boolean value indicating whether to include the teacher's full name in
+    the output, defaults to False (optional)
+    """
     auth = get_auth(username,password)
     final_dict_info = []
     identity_types = get_IdentityTypes(auth, session=session)
@@ -1299,6 +1907,22 @@ def chunks(lst, n):
         yield lst[i:i + n]
 
 def process_students_info(students_info_data, identity_types, nationality_data , area_data):
+    """
+    The function "process_students_info" takes in four parameters and does some processing on student
+    information data.
+    
+    :param students_info_data: This parameter is a list of dictionaries containing information about
+    students. Each dictionary represents a student and contains keys such as "name", "age",
+    "identity_type", "identity_number", "nationality", and "area"
+    :param identity_types: A list of different types of identities that a student can have, such as
+    "student ID", "passport number", etc
+    :param nationality_data: The nationality_data parameter is a data structure that contains
+    information about different nationalities. It could be a dictionary, list, or any other data
+    structure that allows you to store and retrieve information about nationalities
+    :param area_data: The area_data parameter is a dictionary that contains information about different
+    areas or regions. It could include details such as the area name, population, location, and any
+    other relevant information about each area
+    """
     dic_list=[]
     options_values_dic ={88: 'اعزب',89: 'متزوج',90: 'ارمل',91: 'مطلقة',124: 'نظامية',125: 'منزلية',80: 'امي',81: 'اساسي',82: 'ثانوي',83: 'كلية مجتمع',84: 'بكالوريوس',85: 'دلوم عالي'
                         ,86: 'ماجستير',87: 'دكتوراة',92: 'امي',93: 'اساسي',94: 'ثانوي',95: 'كلية مجتمع',96: 'بكالوريوس',97: 'دلوم عالي',98: 'ماجستير',99: 'دكتوراة',115: 'اب',116: 'ام'
@@ -1385,6 +2009,15 @@ def process_students_info(students_info_data, identity_types, nationality_data ,
     return dic_list
 
 def find_parent_info(item_id ,area_data):
+    """
+    The function find_parent_info takes an item_id and area_data as input and returns information about
+    the parent of the item with the given item_id.
+    
+    :param item_id: The unique identifier of the item for which you want to find the parent information
+    :param area_data: The area_data parameter is a dictionary that contains information about different
+    areas. Each key in the dictionary represents an area ID, and the corresponding value is a dictionary
+    that contains information about that area
+    """
     for item in area_data:
         if item['id'] == item_id:
             parent_id = item['parent_id']
@@ -1395,6 +2028,15 @@ def find_parent_info(item_id ,area_data):
     return None, None
 
 def find_area_chain(id,area_data):
+    """
+    The function "find_area_chain" takes an ID and a dictionary of area data and returns the chain of
+    areas associated with that ID.
+    
+    :param id: The id parameter is a unique identifier for a specific chain
+    :param area_data: A list of dictionaries containing information about different areas. Each
+    dictionary in the list represents an area and has the following keys: 'id' (unique identifier for
+    the area), 'name' (name of the area), and 'chain' (name of the chain the area belongs to)
+    """
     names = []
 
     while id is not None:
@@ -1407,14 +2049,47 @@ def find_area_chain(id,area_data):
     return output
 
 def get_AreaAdministrativeLevels(auth,session=None):
+    """
+    The function retrieves the administrative levels for a given area.
+    
+    :param auth: The auth parameter is used for authentication purposes. It typically contains
+    information such as an API key or credentials that are required to access certain resources or
+    perform certain actions
+    :param session: The `session` parameter is an optional parameter that allows you to pass an existing
+    session object to the `get_AreaAdministrativeLevels` function. A session object is typically used to
+    persist certain data or settings across multiple requests to a server. If you don't provide a
+    session object, the function
+    """
     url='https://emis.moe.gov.jo/openemis-core/restful/v2/Area-AreaAdministratives?_limit=0&_contain=AreaAdministrativeLevels&_fields=id,name,parent_id,area_administrative_level_id'
     return make_request(auth=auth , url= url,session=session)
 
 def get_IdentityTypes(auth,session=None):
+    """
+    The function `get_IdentityTypes` retrieves the identity types using the provided authentication and
+    session.
+    
+    :param auth: The auth parameter is used to authenticate the user. It could be a token,
+    username/password combination, or any other form of authentication required by the system you are
+    working with
+    :param session: The `session` parameter is an optional parameter that represents the user's session.
+    It can be used to maintain state or store user-specific information throughout multiple requests.
+    """
     url='https://emis.moe.gov.jo/openemis-core/restful/v2/FieldOption-IdentityTypes.json?_limit=0&_fields=id,name'
     return { i['id'] : i['name']  for i in make_request(auth=auth , url=url ,session=session)['data']}
     
 def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
+    """
+    The function "find_default_teachers_creds" is used to find the default credentials of teachers based
+    on the provided parameters.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or a
+    username/password combination
+    :param id: The ID of the school where you want to find the default credentials
+    :param nat_school: The parameter "nat_school" is used to specify the national school to search for
+    default teachers' credentials
+    :param session: The session parameter is used to specify the current session or term for which the
+    default teachers' credentials are being searched
+    """
     if id == None:
         teachers = get_school_teachers(auth,nat_school=nat_school,session=session)['staff']
     else:
@@ -1432,6 +2107,17 @@ def find_default_teachers_creds(auth ,id=None , nat_school=None ,session=None):
     return {'institution_staff': teachers , 'found_creds': found_creds ,'unfound_creds': unfound_creds}
 
 def five_names_every_class_wrapper(auth , emp_number ,term=1 , session=None):
+    """
+    This function is a wrapper that takes in authentication, employee number, term, and session as
+    parameters.
+    
+    :param auth: An authentication token or object that verifies the user's identity and permissions
+    :param emp_number: The employee number of the person accessing the function
+    :param term: The term parameter represents the current term or semester of the class. It is an
+    optional parameter with a default value of 1, defaults to 1 (optional)
+    :param session: The session parameter is an optional parameter that represents the requests.Session
+    that will make fetching data faster, it will default to None
+    """
     data = five_names_every_class(auth , emp_number ,session=session)
     term = 'term1' if term == 1 else 'term2'
     long_text = ''
@@ -1455,6 +2141,16 @@ def five_names_every_class_wrapper(auth , emp_number ,term=1 , session=None):
     return long_text
 
 def five_names_every_class(auth, emp_username ,session=None ):
+    """
+    The function takes in authentication, employee username, and an optional session parameter and
+    returns a list of five names for every class.
+    
+    :param auth: This parameter is likely used for authentication purposes. It could be a token or a
+    username/password combination that is used to verify the identity of the user making the request
+    :param emp_username: The username of the employee who is accessing the function
+    :param session: An optional parameter that represents the current session of the user. It is used to
+    maintain the state of the user's interaction with the system
+    """
     period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , emp_username,session=session)
     userInfo = user['data'][0]
@@ -1577,6 +2273,24 @@ def five_names_every_class(auth, emp_username ,session=None ):
     return {'teacher': userInfo['name'] ,'upload_percentage' :upload_percentage , 'row_data':row_data}
 
 def convert_official_marks_doc(ods_name='send', outdir='./send_folder' ,ods_num=1,file_path=None, file_content=None , color="#ffffff"):
+    """
+    The function `convert_official_marks_doc` converts an official marks document to a specified format
+    and saves it in a specified directory.
+    
+    :param ods_name: The name of the ODS file to be converted. If not provided, it will default to
+    'send', defaults to send (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the converted document will be
+    saved. The default value is "./send_folder", which means the converted document will be saved in a
+    folder named "send_folder" in the current directory, defaults to ./send_folder (optional)
+    :param ods_num: The parameter `ods_num` is used to specify the number of the ODS (Open Document
+    Spreadsheet) file. It is an optional parameter with a default value of 1, defaults to 1 (optional)
+    :param file_path: The file path of the document that needs to be converted. This parameter is
+    optional if the file content is provided
+    :param file_content: The content of the file that needs to be converted. This can be provided as a
+    string
+    :param color: The color parameter is used to specify the background color of the converted document.
+    The default value is "#ffffff", which represents white, defaults to #ffffff (optional)
+    """
     ods_file = f'{ods_name}{ods_num}.ods'
     
     if file_content is None:
@@ -1603,6 +2317,13 @@ def convert_official_marks_doc(ods_name='send', outdir='./send_folder' ,ods_num=
     delete_files_except([f"سجل العلامات الرسمي.pdf",f"سجل العلامات الرسمي_A4.pdf"], outdir)
     
 def check_file_if_official_marks_file(file_path=None, file_content=None):
+    """
+    The function checks if a file is an official marks file.
+    
+    :param file_path: The file path is the location of the file on the computer's file system. It is a
+    string that specifies the directory and file name of the file
+    :param file_content: The content of the file that you want to check if it is an official marks file
+    """
     if file_content is None:
         doc = ezodf.opendoc(file_path)
     else:
@@ -1616,12 +2337,31 @@ def check_file_if_official_marks_file(file_path=None, file_content=None):
     return exists
 
 def teachers_marks_upload_percentage_wrapper(auth ,term=1 ,inst_id=None , inst_nat=None , session=None , template='./templet_files/كشف نسبة الادخال معدل.xlsx' ,outdir='./send_folder/' ):
-    # percent_dict ={'subject': '' , 'className' :'', 'term1' : {'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0} ,
-    #                             'term2':{'assessment1_percentage': 0, 'assessment2_percentage': 0, 'assessment3_percentage': 0, 'assessment4_percentage': 0}}
-    # assessments = ['assessment1','assessment2','assessment3','assessment4']
-    # terms = ['term1','term2']
-    # terms = 'term2'
-    # session = requests.Session()
+    """
+    The `teachers_marks_upload_percentage_wrapper` function calculates the percentage of marks uploaded
+    by teachers and saves the results in an Excel file.
+    
+    :param auth: The `auth` parameter is used for authentication purposes. It could be a token or any
+    other form of authentication required to access the necessary data
+    :param term: The term parameter specifies the term for which the marks upload percentage is being
+    calculated. It can be either 1 or 2, representing term 1 or term 2 respectively. The default value
+    is 1, defaults to 1 (optional)
+    :param inst_id: The `inst_id` parameter is the ID of the institution for which you want to calculate
+    the marks upload percentage. If it is not provided, the function will use the ID of the institution
+    associated with the authenticated user
+    :param inst_nat: The `inst_nat` parameter is used to specify the nationality of the institution. It
+    is an optional parameter that can be used to filter the list of teachers based on their nationality
+    :param session: The `session` parameter is used to maintain the user's session throughout the
+    function. It is typically a session object that stores information about the user's authentication
+    and session state
+    :param template: The `template` parameter is the file path of the Excel template that will be used
+    as a basis for the output file. It should be in the format `./templet_files/كشف نسبة الادخال
+    معدل.xlsx`, defaults to ./templet_files/كشف نسبة الادخال معدل.xlsx (optional)
+    :param outdir: The `outdir` parameter is the directory where the output file will be saved. It
+    specifies the folder path where the generated Excel file will be stored, defaults to ./send_folder/
+    (optional)
+    """
+    
     term = 'term1' if term == 1 else 'term2'
     if inst_id is None and inst_nat is None : 
         inst_id = inst_name(auth ,session=session)['data'][0]['Institutions']['id']
@@ -1677,8 +2417,29 @@ def teachers_marks_upload_percentage_wrapper(auth ,term=1 ,inst_id=None , inst_n
     existing_wb.save( outdir + f'output.xlsx')
     
     playsound()
-        
+
 def teachers_marks_upload_percentage(auth, emp_username, template='./templet_files/side_marks_note_2.docx' ,outdir='./send_folder/' ,first_page='side_mark_first_page.docx', template_dir='./templet_files/',term=1 ,session=None ):
+    """
+    The function `teachers_marks_upload_percentage` is used to upload teachers' marks percentage using a
+    specified template and directory.
+    
+    :param auth: The authentication token or credentials required to access the system or API
+    :param emp_username: The username of the employee who is uploading the marks
+    :param template: The template parameter is the path to the template file that will be used for
+    generating the marks upload document. It is set to './templet_files/side_marks_note_2.docx' by
+    default, defaults to ./templet_files/side_marks_note_2.docx (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated files will be
+    saved, defaults to ./send_folder/ (optional)
+    :param first_page: The parameter `first_page` is the file name of the first page of the document
+    that will be generated. It is a Word document file (.docx) and is located in the `template_dir`
+    directory. This file will be used as the first page of the final document, defaults to
+    side_mark_first_page.docx (optional)
+    :param template_dir: The directory where the template files are located. By default, it is set to
+    './templet_files/', defaults to ./templet_files/ (optional)
+    :param term: The term parameter represents the current term or semester for which the marks are
+    being uploaded. It is an integer value, defaults to 1 (optional)
+    :param session: The session parameter is used to make the fetching data multiple times faster 
+    """
     period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , emp_username,session=session)
     userInfo = user['data'][0]
@@ -2092,6 +2853,13 @@ def get_pdf_files(directory):
     return pdf_files
 
 def delete_pdf_page(input_path, output_path, page_number):
+    """
+    The function deletes a specific page from a PDF file and saves the modified file to a new location.
+    
+    :param input_path: The path to the input PDF file that you want to delete a page from
+    :param output_path: The path where the modified PDF file will be saved
+    :param page_number: The page number of the PDF page you want to delete
+    """
     with open(input_path, 'rb') as file:
         pdf_reader = PyPDF4.PdfFileReader(file)
         total_pages = len(pdf_reader.pages)
@@ -2112,6 +2880,20 @@ def delete_pdf_page(input_path, output_path, page_number):
         print("Page deletion completed.")
 
 def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folder/', extension='.rar'):
+    """
+    The function creates a compressed zip file from a list of file paths, with a specified name, path,
+    and extension.
+    
+    :param file_paths: A list of file paths that you want to include in the zip file
+    :param zip_name: The name of the zip file that will be created. The default value is 'ملف مضغوط',
+    defaults to ملف مضغوط (optional)
+    :param zip_path: The `zip_path` parameter specifies the path where the zip file will be created. By
+    default, it is set to `./send_folder/`, which means the zip file will be created in a folder named
+    "send_folder" in the current directory, defaults to ./send_folder/ (optional)
+    :param extension: The extension parameter is used to specify the file extension for the compressed
+    file. In this case, the default extension is set to '.rar', which means that the compressed file
+    will be in RAR format, defaults to .rar (optional)
+    """
     zip_file_path = os.path.join(zip_path, zip_name + extension)
     
     with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -2119,6 +2901,14 @@ def create_zip(file_paths, zip_name='ملف مضغوط' , zip_path='./send_folde
             zipf.write(file_path , arcname=os.path.basename(file_path))
             
 def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
+    """
+    The function reads the E side note marks from an ods file.
+    
+    :param file_path: The file path is the location of the .ods file that you want to read. It should be
+    a string that specifies the full path to the file, including the file name and extension
+    :param file_content: The content of the file to be read. This can be a string containing the file
+    content or a file object
+    """
     if file_content is None:
         doc = ezodf.opendoc(file_path)
     else:
@@ -2239,58 +3029,85 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
     return read_file_output_dict
 
 def upload_marks(username , password , classess_data ):
-        auth = get_auth(username , password)
-        period_id = classess_data['custom_shapes']['period_id']
-        school_id = classess_data['custom_shapes']['school_id']
-        # term1_assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4']
-        # term2_assessment_codes = ['S2A1', 'S2A2', 'S2A3', 'S2A4']
-        assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4' , 'S2A1', 'S2A2', 'S2A3', 'S2A4']
-        assessment_code_dic = {'S1A1': {'term' :'term1' , 'assess' : 'assessment1'},
-                                'S1A2': {'term' :'term1' , 'assess' : 'assessment2'},
-                                'S1A3': {'term' :'term1' , 'assess' : 'assessment3'},
-                                'S1A4': {'term' :'term1' , 'assess' : 'assessment4'},
-                                'S2A1': {'term' :'term2' , 'assess' : 'assessment1'},
-                                'S2A2': {'term' :'term2' , 'assess' : 'assessment2'},
-                                'S2A3': {'term' :'term2' , 'assess' : 'assessment3'},
-                                'S2A4': {'term' :'term2' , 'assess' : 'assessment4'}}
-        
-        assessments_periods_data = classess_data['required_data_for_mrks_enter']
-        for class_data in classess_data['file_data']:
-            class_id = class_data['class_name'].split('=')[2] 
-            class_subject = class_data['class_name'].split('=')[3]
-            class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
-            if 'عشر' not in class_name : 
-                students_marks_ids = class_data['students_data']
-                assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
-                grade_id = assessments_periods_data[int(class_id)]['grade_id']
-                assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
-                # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
-                # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
-                for student_info in students_marks_ids:
-                    for code in assessment_codes:
-                        if len([i for i in assessment_periods if code in i['code']]) != 0:
-                            assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
-                            term = assessment_code_dic[code]['term']
-                            assess = assessment_code_dic[code]['assess']
-                            term_marks = student_info[term]
-                            mark = term_marks.get(assess)
-                            if mark != '':
-                                enter_mark(
-                                        auth,
-                                        marks=str("{:.2f}".format(float(mark))),
-                                        assessment_grading_option_id=8,
-                                        assessment_id=assessment_grade_id,
-                                        education_subject_id=class_subject,
-                                        education_grade_id=grade_id,
-                                        institution_id=school_id,
-                                        academic_period_id=period_id,
-                                        institution_classes_id=class_id,
-                                        student_status_id=1,
-                                        student_id=student_info['id'],
-                                        assessment_period_id=assessment_period_id
-                                        )                   
+    """
+    The function is used to upload marks for different classes using a username and password.
+    
+    :param username: The username is a string that represents the username of the user who is uploading
+    the marks. It is used for authentication purposes
+    :param password: The password parameter is a string that represents the password for the user's
+    account
+    :param classess_data: The `classess_data` parameter is a data structure that contains information
+    about the marks of students in different classes. It could be a list of dictionaries, where each
+    dictionary represents a class and contains the following keys:
+    """
+    auth = get_auth(username , password)
+    period_id = classess_data['custom_shapes']['period_id']
+    school_id = classess_data['custom_shapes']['school_id']
+    # term1_assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4']
+    # term2_assessment_codes = ['S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_codes = ['S1A1', 'S1A2', 'S1A3', 'S1A4' , 'S2A1', 'S2A2', 'S2A3', 'S2A4']
+    assessment_code_dic = {'S1A1': {'term' :'term1' , 'assess' : 'assessment1'},
+                            'S1A2': {'term' :'term1' , 'assess' : 'assessment2'},
+                            'S1A3': {'term' :'term1' , 'assess' : 'assessment3'},
+                            'S1A4': {'term' :'term1' , 'assess' : 'assessment4'},
+                            'S2A1': {'term' :'term2' , 'assess' : 'assessment1'},
+                            'S2A2': {'term' :'term2' , 'assess' : 'assessment2'},
+                            'S2A3': {'term' :'term2' , 'assess' : 'assessment3'},
+                            'S2A4': {'term' :'term2' , 'assess' : 'assessment4'}}
+    
+    assessments_periods_data = classess_data['required_data_for_mrks_enter']
+    for class_data in classess_data['file_data']:
+        class_id = class_data['class_name'].split('=')[2] 
+        class_subject = class_data['class_name'].split('=')[3]
+        class_name = classess_data['file_data'][1]['class_name'].split('=')[0]
+        if 'عشر' not in class_name : 
+            students_marks_ids = class_data['students_data']
+            assessment_grade_id = assessments_periods_data[int(class_id)]['assessment_grade_id']
+            grade_id = assessments_periods_data[int(class_id)]['grade_id']
+            assessment_periods = get_editable_assessments(auth,username,assessment_grade_id,class_subject)
+            # assessment_ids = assessments_periods_data[int(class_id)]['assessments_period_ids']
+            # s1a1, s1a2, s1a3, s1a4, s2a1, s2a2, s2a3, s2a4 = [assessment_ids[i] if i < len(assessment_ids) else None for i in range(8)]
+            for student_info in students_marks_ids:
+                for code in assessment_codes:
+                    if len([i for i in assessment_periods if code in i['code']]) != 0:
+                        assessment_period_id = [i for i in assessment_periods if code in i['code']][0]['AssesId']
+                        term = assessment_code_dic[code]['term']
+                        assess = assessment_code_dic[code]['assess']
+                        term_marks = student_info[term]
+                        mark = term_marks.get(assess)
+                        if mark != '':
+                            enter_mark(
+                                    auth,
+                                    marks=str("{:.2f}".format(float(mark))),
+                                    assessment_grading_option_id=8,
+                                    assessment_id=assessment_grade_id,
+                                    education_subject_id=class_subject,
+                                    education_grade_id=grade_id,
+                                    institution_id=school_id,
+                                    academic_period_id=period_id,
+                                    institution_classes_id=class_id,
+                                    student_status_id=1,
+                                    student_id=student_info['id'],
+                                    assessment_period_id=assessment_period_id
+                                    )                   
 
 def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
+    """
+    The function scrape_schools takes in a username and password, along with optional parameters for
+    limit, pages, and sector, and returns a list of scraped schools.
+    
+    :param username: The username is the login username for the website or platform you are scraping
+    data from. It is used to authenticate and access the data
+    :param password: The password parameter is the password for the user's account. It is used to
+    authenticate the user and grant access to the scraping functionality
+    :param limit: The limit parameter determines the maximum number of schools to scrape data for. It
+    specifies the maximum number of schools to retrieve data for, defaults to 10 (optional)
+    :param pages: The "pages" parameter determines the number of pages to scrape. Each page typically
+    contains multiple schools. The default value is set to 10*6, which means it will scrape 10 pages,
+    with each page containing 6 schools
+    :param sector: The "sector" parameter refers to the sector code of the schools you want to scrape.
+    It is used to filter the schools based on their sector حكومية او خاصة, defaults to 11 (optional)
+    """
     dic_list = []
     for page in range(1,pages):
         auth = get_auth(username,password)
@@ -2302,6 +3119,17 @@ def scrape_schools(username, password , limit = 10, pages = 10*6 ,sector=11):
     return dic_list
 
 def Vacancies (username , password , schools_nats):
+    """
+    The function Vacancies takes in a username, password, and a list of school names and returns
+    what could be open vacancies (شواغر) in the school.
+    
+    :param username: The username parameter is a string that represents the username of the user trying
+    to access the vacancies
+    :param password: The password parameter is a string that represents the password for the user
+    :param schools_nats: The parameter "schools_nats" is likely a list or dictionary that contains
+    information about schools and their nationalities. It could be used to store data such as the name
+    of the school and the nationality of the students attending that school
+    """
     dic_list=[]
     faulty_inst_nat = []
     school_name_code = []
@@ -2352,6 +3180,18 @@ def Vacancies (username , password , schools_nats):
     return dic_list
 
 def get_school_load(auth , inst_id ,academic_period_id=13):
+    """
+    The function "get_school_load" retrieves the school load for a specific institution and academic
+    period.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or any
+    other form of authentication that allows the user to access the necessary resources
+    :param inst_id: The inst_id parameter is the ID of the institution or school for which you want to
+    retrieve the school load
+    :param academic_period_id: The academic period ID is an optional parameter that represents the
+    specific academic period for which you want to retrieve the school load. If not provided, it
+    defaults to 13, defaults to 13 (optional)
+    """
     student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={academic_period_id}&_limit=0&_contain=Users.Genders')['data']
     institution_class_ids = list(set([i['institution_class_id'] for i in student_classess]))
     joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in institution_class_ids])
@@ -2394,6 +3234,22 @@ def get_school_load(auth , inst_id ,academic_period_id=13):
     return {'english_school_sum' : english_class_sum , 'arabic_school_sum' : arabic_class_sum , 'math_school_sum' :  math_class_sum , 'classes' :  classes}
 
 def get_school_teachers(auth ,id=None , nat_school=None ,session=None ,row=False):
+    """
+    The function "get_school_teachers" retrieves information about teachers from a school.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or a
+    username/password combination that allows the user to access the necessary resources
+    :param id: The id parameter is used to specify the unique identifier of a specific school. If
+    provided, the function will return information about that specific school
+    :param nat_school: The parameter "nat_school" is used to specify the national school to which the
+    teachers belong. It is an optional parameter and can be set to a specific value to filter the
+    teachers based on their national school
+    :param session: The session parameter is used to make retreiving data faster if it used again and 
+    it is optional
+    :param row: The "row" parameter is a boolean value that determines whether the function should
+    return the result as row or not, defaults to False
+    (optional)
+    """
     if id == None:
         teachers =make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&_orWhere=code:{nat_school}&_contain=Staff.Users,Staff.Positions',session=session)
     else:
@@ -2410,6 +3266,17 @@ def get_school_teachers(auth ,id=None , nat_school=None ,session=None ,row=False
         return {'school_code_name' : teachers['data'][0]['code_name'], 'staff' : dic_list}
     
 def get_school_teachers_load(auth , inst_id , academic_period_id=13):
+    """
+    This function retrieves the load of teachers in a specific school for a given academic period.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or any
+    other form of authentication that allows the user to access the necessary resources
+    :param inst_id: The inst_id parameter is the ID of the institution or school for which you want to
+    retrieve the teachers' load
+    :param academic_period_id: The academic period ID is an optional parameter that represents the
+    specific academic period for which you want to retrieve the teachers' load. If not provided, it
+    defaults to 13, defaults to 13 (optional)
+    """
     school_load = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&_contain=Users,InstitutionSubjects&academic_period_id={academic_period_id}&_limit=0')['data']
     
     institution_class_ids = list(set([i['institution_subject_id'] for i in school_load]))
@@ -2445,11 +3312,24 @@ def get_school_teachers_load(auth , inst_id , academic_period_id=13):
     return school_load_dictionary   
 
 def get_grade_info(auth):
+    """
+    The function "get_grade_info" takes an authentication token as input and returns information about a
+    student's grades.
+    
+    :param auth: The auth parameter is used to authenticate the user and ensure that they have the
+    necessary permissions to access the grade information
+    """
     
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
     return my_list
 
 def count_teachers_grades(teachers_load):
+    """
+    The function counts the number of grades for each teacher.
+    
+    :param teachers_load: A dictionary where the keys are the names of the teachers and the values are
+    lists of grades for each teacher
+    """
     english_teachers = [item for item in teachers_load if 'الانجليزية' in item['subject']]
     arabic_teachers = [item for item in teachers_load if 'العربية' in item['subject']]
     math_teachers = [item for item in teachers_load if 'رياضيات' in item['subject']]
@@ -2469,6 +3349,14 @@ def count_teachers_grades(teachers_load):
     return loads
 
 def get_teacher_load_with_name(teachers_load , subject):
+    """
+    This function takes a dictionary of teachers' loads and a subject as input and returns the load of
+    the teacher who teaches that subject.
+    
+    :param teachers_load: A dictionary where the keys are teacher names and the values are lists of
+    subjects they teach and the number of classes they have for each subject
+    :param subject: The subject parameter is a string that represents the name of a subject
+    """
     if subject == 1 :
         subject = 'english'
         subject_sum = 'english_class_sum'
@@ -2485,6 +3373,12 @@ def get_teacher_load_with_name(teachers_load , subject):
     return teachers
 
 def count_teacher_load(classes):
+    """
+    The function counts the number of classes taught by each teacher.
+    
+    :param classes: A list of dictionaries representing different classes. Each dictionary should have
+    the following keys:
+    """
     
     arabic_class_sum = 0
     english_class_sum = 0
@@ -2518,6 +3412,16 @@ def count_teacher_load(classes):
     return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
 
 def create_tables_wrapper(username , password ,term2=False): 
+    """
+    The function creates tables in using the provided username and password. It is wrapper and that 
+    make my code more consise 
+    
+    :param username: The username parameter is used to specify the username for the database connection
+    :param password: The password parameter is used to specify the password for the database connection
+    :param term2: A boolean parameter that determines whether to include tables in the second term. If set
+    to True. If set to False, only the first term marks will be included in tables that will be created,
+    defaults to False (optional)
+    """
     session = requests.Session()
     auth = get_auth(username, password)
     student_info_marks = get_students_info_subjectsMarks( username , password ,session)
@@ -2531,8 +3435,21 @@ def create_tables_wrapper(username , password ,term2=False):
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
         
-def create_certs_wrapper(username , password ,term2=False):
-    student_info_marks = get_students_info_subjectsMarks( username , password )
+def create_certs_wrapper(username , password ,term2=False,session=None):
+    """
+    The function create_certs_wrapper is a Python function that takes in parameters username, password,
+    term2 (with a default value of False), and session (with a default value of None).
+    
+    :param username: The username parameter is a string that represents the username of the user for
+    whom the certificates are being created
+    :param password: The password parameter is used to specify the password for the user
+    :param term2: A boolean value indicating whether the user wants to create certificates for the
+    second term or not. The default value is False, defaults to False (optional)
+    :param session: The `session` parameter is an optional parameter that allows you to pass an existing
+    session object. This can be useful if you want to reuse an existing session for making multiple
+    requests
+    """
+    student_info_marks = get_students_info_subjectsMarks( username , password ,session=session)
     dic_list4 = student_info_marks
     grouped_list = group_students(dic_list4 )
     
@@ -2543,6 +3460,26 @@ def create_certs_wrapper(username , password ,term2=False):
     create_certs(grouped_list , term2=term2)
 
 def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx'  , outdir='./send_folder/'):
+    """
+    The function `create_tables` creates tables(جداول) based on a grouped list and saves them as Excel files in
+    a specified output directory.
+    
+    :param auth: The auth parameter is used for authentication purposes, such as providing credentials
+    or tokens to access certain resources or APIs. It is not clear what specific authentication method
+    or library is being used in this code, so you would need to refer to the documentation or code
+    implementation to understand how to provide the appropriate authentication
+    :param grouped_list: The `grouped_list` parameter is a list of lists. Each inner list represents a
+    group of data that will be displayed in a separate table in the output file. Each element in the
+    inner list represents a row in the table
+    :param term2: The `term2` parameter is a boolean value that determines whether or not to include a
+    second term in the table. If `term2` is set to `True`, the table will include a second term. If
+    `term2` is set to `False` (default), the table will, defaults to False (optional)
+    :param template: The `template` parameter is the path to the template file that will be used to
+    create the tables. It should be a .xlsx file, defaults to ./templet_files/tamplete_table.xlsx
+    (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the output files will be saved,
+    defaults to ./send_folder/ (optional)
+    """
     # auth = get_auth(username , password)
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
@@ -2718,6 +3655,25 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
             template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
         
 def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_cert.xlsx' ,image='./templet_files/Pasted image.png' , outdir='./send_folder/'):
+    """
+    The function `create_certs` creates certificates using a template file and an image, and saves them
+    in an output directory.
+    
+    :param grouped_list: The grouped_list parameter is a list of lists. Each inner list represents a
+    group of individuals who will receive a certificate together. Each inner list should contain the
+    names of the individuals in that group. For example, if there are three groups, the grouped_list
+    parameter could look like this:
+    :param term2: The term2 parameter is a boolean value that indicates whether the certificate is for
+    the second term or not. If term2 is set to True, it means the certificate is for the second term. If
+    term2 is set to False, it means the certificate is for the first term, defaults to False (optional)
+    :param template: The path to the Excel template file that will be used to create the certificates.
+    The default value is './templet_files/a4_gray_cert.xlsx', defaults to
+    ./templet_files/a4_gray_cert.xlsx (optional)
+    :param image: The `image` parameter is the path to the image file that will be inserted into the
+    certificate template, defaults to ./templet_files/Pasted image.png (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated certificates will
+    be saved, defaults to ./send_folder/ (optional)
+    """
     gray_cert_cell_positions_context = {
     'student_name': 'E7',
     'class_section': 'B11',
@@ -3052,6 +4008,22 @@ def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_c
             template_file.save(outdir+group[0]['student_class_name_letter']+'.xlsx')
 
 def create_coloured_certs_excel(grouped_list , term2=False ,template='./templet_files/نموذج شهادات ملونة.xlsx' , outdir='./send_folder/'):
+    """
+    The function creates coloured certificates in Excel format based on a grouped list of data.
+    
+    :param grouped_list: The `grouped_list` parameter is a list of dictionaries where each dictionary
+    represents a group of data for which a certificate needs to be created. Each dictionary should
+    contain the necessary information for creating a certificate, such as the recipient's name, date,
+    and any other relevant details
+    :param term2: A boolean value indicating whether the certificates are for the second term or not. If
+    set to True, it means the certificates are for the second term. If set to False, it means the
+    certificates are for the first term, defaults to False (optional)
+    :param template: The `template` parameter is the path to the template file that contains the design
+    and layout of the coloured certificates. It should be an Excel file (.xlsx) format, defaults to
+    ./templet_files/نموذج شهادات ملونة.xlsx (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated certificates will
+    be saved, defaults to ./send_folder/ (optional)
+    """
     
     colored_cert_cells_position_context = {
                                         'student_name': 'E11',
@@ -3483,6 +4455,21 @@ def create_coloured_certs_excel(grouped_list , term2=False ,template='./templet_
             template_file.save(outdir+group[0]['student_class_name_letter']+'.xlsx')
 
 def create_coloured_certs_ods(grouped_list , term2=False ,template='./templet_files/حشو  شهادات الكرتون.ods' , outdir='./send_folder/'):
+    """
+    The function `create_coloured_certs_ods` creates coloured certificates in ODS format based on a
+    grouped list of data.
+    
+    :param grouped_list: A list of dictionaries where each dictionary represents a group of certificates
+    to be created. Each dictionary should have the following keys:
+    :param term2: A boolean value indicating whether the certificates are for the second term or not. If
+    set to True, it means the certificates are for the second term. If set to False, it means the
+    certificates are for the first term, defaults to False (optional)
+    :param template: The `template` parameter is the path to the template file that will be used to
+    create the coloured certificates. It should be a path to an OpenDocument Spreadsheet (ODS) file,
+    defaults to ./templet_files/حشو  شهادات الكرتون.ods (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated coloured
+    certificates will be saved, defaults to ./send_folder/ (optional)
+    """
     
     colored_cert_cells_position_context = {
                                         'student_name': 'E11',
@@ -3929,6 +4916,23 @@ def create_coloured_certs_ods(grouped_list , term2=False ,template='./templet_fi
             template_file.saveas(outdir+group[0]['student_class_name_letter']+'.ods')
 
 def sort_dictionary_list_based_on(dictionary_list, dictionary_key='t1+t2+year_avarage', item_in_list=0, reverse=True, simple=True):
+    """
+    This function sorts a list of dictionaries based on a specified key and returns the sorted list.
+    
+    :param dictionary_list: A list of dictionaries that you want to sort
+    :param dictionary_key: The key in the dictionaries within the list that will be used for sorting. By
+    default, it is set to 't1+t2+year_avarage', defaults to t1+t2+year_avarage (optional)
+    :param item_in_list: The index of the item in each dictionary within the list that you want to sort
+    by. For example, if each dictionary in the list has a 'name' key and you want to sort based on the
+    value of 'name', you would set item_in_list=0, defaults to 0 (optional)
+    :param reverse: The "reverse" parameter determines whether the sorting should be in ascending or
+    descending order. If set to True, the list will be sorted in descending order. If set to False, the
+    list will be sorted in ascending order, defaults to True (optional)
+    :param simple: The "simple" parameter is a boolean value that determines whether the sorting should
+    be done in a simple or complex manner. If set to True, the sorting will be done based on the
+    dictionary key specified in the "dictionary_key" parameter. If set to False, the sorting will be
+    done based on, defaults to True (optional)
+    """
     if simple:
         return [
             (
@@ -3949,6 +4953,11 @@ def sort_dictionary_list_based_on(dictionary_list, dictionary_key='t1+t2+year_av
             )
 
 def convert_avarage_to_words(digit):
+    """
+    The function takes a digit as input and converts it into words.
+    
+    :param digit: The digit parameter represents the average value that you want to convert into words
+    """
     number_fraction = str(digit).split('.')
     if '.' in str(digit):
         number_in_words = re.sub("ريال.*", "",num2words(int(number_fraction[0]),lang='ar', to='currency'))
@@ -3985,6 +4994,13 @@ def convert_avarage_to_words(digit):
         return re.sub(r" و $", "", number_in_words).replace('و  و', 'و')
 
 def score_in_words(digit, max_mark=100):
+    """
+    The function "score_in_words" converts a numerical score into words (ممتاز او جيد او جيد جدا او ضعيف او مقصر).
+    
+    :param digit: The digit parameter represents the numerical score that you want to convert into words
+    :param max_mark: The maximum possible score that can be achieved. It is set to 100 by default,
+    defaults to 100 (optional)
+    """
     excellent_threshold = 0.9
     very_good_threshold = 0.8
     good_threshold = 0.7
@@ -4005,6 +5021,14 @@ def score_in_words(digit, max_mark=100):
         return 'مقصر'
 
 def add_averages_to_group_list(grouped_list , skip_art_sport=True):
+    """
+    The function adds the average values to a grouped list, with an option to skip certain subjects.
+    
+    :param grouped_list: A list of lists, where each inner list represents a group of items. Each inner
+    list should contain the items that belong to that group
+    :param skip_art_sport: A boolean parameter that determines whether to skip adding averages for
+    the subjects art and sport , defaults to True (optional)
+    """
     for group in grouped_list:
         for item in group:
             term_1_avarage ,term_2_avarage , year_avarage = [0]*3        
@@ -4118,6 +5142,13 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                     item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
 
 def add_subject_sum_dictionary (grouped_dict_list):
+    """
+    The function takes a list of dictionaries and returns a new dictionary with the sum of values for
+    each subject.
+    
+    :param grouped_dict_list: A list of dictionaries where each dictionary represents a group of
+    subjects and their corresponding sums
+    """
     subject_sums = {}
     for group in grouped_dict_list:
         for items in group:
@@ -4148,12 +5179,28 @@ def add_subject_sum_dictionary (grouped_dict_list):
                 subject_sums={}
 
 def playsound(debug =False):
+    """
+    The function playsound plays a sound if the debug parameter is set to True.
+    
+    :param debug: A boolean parameter that determines whether or not to print debug information. If set
+    to True, debug information will be printed. If set to False, debug information will not be printed,
+    defaults to False (optional)
+    """
     # Execute the shell command to play a sine wave sound with frequency 440Hz for 2 seconds
     subprocess.run(['play', '-n', 'synth', '2', 'sin', '440'])
     if debug :
         pdb.set_trace()
     
 def group_students(dic_list4 , i = None):
+    """
+    The function "group_students" takes a list of dictionaries and an optional index as input and
+    returns a new list of dictionaries grouped by the value of the specified index.
+    
+    :param dic_list4: A list of dictionaries where each dictionary represents a student and their
+    information
+    :param i: The parameter "i" is an optional parameter that represents the index of the student group
+    to be returned. If no index is provided, the function will return all student groups
+    """
     # sort the list based on the 'class_name' key
     sorted_list = sorted(dic_list4, key=lambda x: x['student_class_name_letter'])
 
@@ -4177,7 +5224,9 @@ def get_students_info_subjectsMarks(username,password,session=None):
     auth=get_auth(username,password)
     dic_list=[]
     target_student_marks=[]
-    school_name = inst_name(session=session,auth=auth)['data'][0]['Institutions']['name']
+    inst_data = inst_name(session=session,auth=auth)['data'][0]
+    school_name = inst_data['Institutions']['name']
+    inst_id = inst_data['Institutions']['id']
     edu_directory = inst_area(session=session,auth=auth)['data'][0]['Areas']['name']
     curr_year = get_curr_period(auth,session)['data'][0]['id']
     
@@ -4203,48 +5252,104 @@ def get_students_info_subjectsMarks(username,password,session=None):
     sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
     subjects_assessments_info=[]
     # target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
+    
+    page = 1
+    students_marks_data = []
+    # data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id=15&_contain=Users,AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&institution_classes_id=904841&_limit=0')
+    # students_marks_data.extend(data['data'])
+    # dic_list =[x for x in dic_list if x['student_id'] in [i['student_id'] for i in students_marks_data]]
 
-    for chunk in chunks(dic_list, 7):
-        student_ids = [i['student_id'] for i in chunk]
-        joined_string = ','.join([f'student_id:{i}' for i in student_ids])
-        marks = make_request(session=session,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&_limit=0&_orWhere='+joined_string)['data']
-        for student_id in student_ids:
+    data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&_limit=1000&_page={page}', session=session)
+    length = len(data['data'])
+    students_marks_data.extend(data['data'])
+    print(f'total school marks:{data["total"]}')
+    while length :
+        page += 1
+        print(page*1000)
+        data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&_limit=1000&_page={page}' , session=session)
+        students_marks_data.extend(data['data'])
+        length = len(data['data'])
+    
+    for item in dic_list:
+        student_id= item['student_id']
+        sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
+        for mark in students_marks_data:
+            if student_id in mark.values():
+                target_student_marks.append(mark)
+        target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
+        for subject in target_student_subjects:
+            dictionaries = [assessments for assessments in target_student_marks if subject == assessments['education_subject_id']]
+            sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
+            sub_dic['subject_number']= dictionaries[0]['education_subject_id']
+            sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
+            
+            sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+            sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+            sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
+            subjects_assessments_info.append(sub_dic)   
             sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
-            for mark in marks:
-                if student_id in mark.values():
-                    target_student_marks.append(mark)
-            target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
-            for subject in target_student_subjects:
-                dictionaries = [assessments for assessments in target_student_marks if subject == assessments['education_subject_id']]
-                sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
-                sub_dic['subject_number']= dictionaries[0]['education_subject_id']
-                sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
+            # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
+        target_index = next((i for i, dic in enumerate(dic_list) if dic['student_id'] == student_id != 0 ), None)
+        if target_index is not None and len(target_student_subjects) != 0:
+            dic_list[target_index]['subjects_assessments_info'].append(subjects_assessments_info)
+            # dic_list[target_index]['student_class_name_letter'] = dictionaries[0]['institution_classes_id']
+            # print(dic_list[target_index])
+            subjects_assessments_info=[]
+            target_student_marks = []
+
+    # for chunk in chunks(dic_list, 7):
+    #     student_ids = [i['student_id'] for i in chunk]
+    #     joined_string = ','.join([f'student_id:{i}' for i in student_ids])
+    #     marks = make_request(session=session,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&_limit=0&_orWhere='+joined_string)['data']
+    #     for student_id in student_ids:
+    #         sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
+    #         for mark in marks:
+    #             if student_id in mark.values():
+    #                 target_student_marks.append(mark)
+    #         target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
+    #         for subject in target_student_subjects:
+    #             dictionaries = [assessments for assessments in target_student_marks if subject == assessments['education_subject_id']]
+    #             sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
+    #             sub_dic['subject_number']= dictionaries[0]['education_subject_id']
+    #             sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
                 
-                sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
-                sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
-                subjects_assessments_info.append(sub_dic)   
-                sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
-                # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
-            target_index = next((i for i, dic in enumerate(dic_list) if dic['student_id'] == student_id != 0 ), None)
-            if target_index is not None and len(target_student_subjects) != 0:
-                dic_list[target_index]['subjects_assessments_info'].append(subjects_assessments_info)
-                # dic_list[target_index]['student_class_name_letter'] = dictionaries[0]['institution_classes_id']
-                # print(dic_list[target_index])
-                subjects_assessments_info=[]
-                target_student_marks = []
+    #             sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
+    #             sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
+    #             subjects_assessments_info.append(sub_dic)   
+    #             sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
+    #             # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
+    #         target_index = next((i for i, dic in enumerate(dic_list) if dic['student_id'] == student_id != 0 ), None)
+    #         if target_index is not None and len(target_student_subjects) != 0:
+    #             dic_list[target_index]['subjects_assessments_info'].append(subjects_assessments_info)
+    #             # dic_list[target_index]['student_class_name_letter'] = dictionaries[0]['institution_classes_id']
+    #             # print(dic_list[target_index])
+    #             subjects_assessments_info=[]
+    #             target_student_marks = []
 
     class_name_letter = list(set([i['student_class_name_letter'] for i in dic_list if i['student_class_name_letter'] != '' ]))
     joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in class_name_letter])
@@ -4316,9 +5421,15 @@ def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
             ]
 
 def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, ods_file ):
-    '''
-    doc is the copy that you want to send 
-    '''
+    """
+    This function fills the official marks for A3 Two Face Doc2 in the offline version.
+    
+    :param students_data_lists: A list of lists containing the data of each student. Each inner list
+    should contain the following information in order:
+    :param ods_file: The ods_file parameter is the file path or name of the OpenDocument Spreadsheet
+    (ODS) file that contains the official marks for the students
+    """
+    
     context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
     
     page = 4
@@ -4408,6 +5519,16 @@ def fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists, od
     # return custom_shapes 
 
 def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
+    """
+    The function reads the content of an Excel file that contains E side note marks.
+    
+    :param file_path: The file path is the location of the Excel file that you want to read. It should
+    be a string that specifies the full path to the file, including the file name and extension
+    :param file_content: The `file_content` parameter is used to pass the content of the Excel file as a
+    string. This can be useful if you already have the content of the file stored in a variable and want
+    to pass it directly to the function without reading it from a file
+    :returns: the read content as dictionary
+    """
     if file_content is None:
         # Load the workbook
         wb = load_workbook(file_path)
@@ -4523,6 +5644,26 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     return read_file_output_dict
 
 def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId, range1='' , range2=''):
+    """
+    This function allows a user to enter marks for a specific assessment, with optional range
+    restrictions. and if the function is provided without range1 or range2 then it will empty the 
+    marks.
+    
+    :param username: The username is a string that represents the username of the user trying to access
+    the system. It is used for authentication purposes
+    :param password: The password parameter is used to authenticate the user and ensure that only
+    authorized users can access and enter marks
+    :param required_data_list: A list of required data for entering marks. This could include student
+    names, IDs, or any other relevant information
+    :param AssessId: The AssessId parameter is used to identify the assessment for which the marks are
+    being entered. It could be a unique identifier or a name that helps identify the assessment
+    :param range1: range1 is the lower limit of the range of marks that can be entered. If a value is
+    provided for range1, it means that the marks entered must be greater than or equal to range1. If no
+    value is provided, there is no lower limit for the marks and it will but empty mark.
+    :param range2: The parameter "range2" is an optional parameter that specifies the upper range limit
+    for the marks. If not provided, the upper range limit will be considered as the maximum possible
+    value
+    """
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -4561,6 +5702,11 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     print("All requests were successful!")
 
 def assessments_commands_text(lst):
+    """
+    The function takes a list as input and returns a string to print it in the telegram bot as massage for the available tests .
+    
+    :param lst: The parameter "lst" is a list of commands
+    """
     S1 = [i for i in lst if i.get('SEname') !='الفصل الثاني']
     S2 = [i for i in lst if i.get('SEname') =='الفصل الثاني']    
     text = ""
@@ -4583,6 +5729,20 @@ def assessments_commands_text(lst):
         return text
     
 def get_editable_assessments( auth , username ,assessment_grade_id=None , class_subject=None,session=None):
+    """
+    This function returns a list of editable assessments or tests on emis.moe.gov.jo/openemis-core site based on the provided parameters.
+    
+    :param auth: An authentication object that contains information about the user's credentials and
+    permissions
+    :param username: The username parameter is used to specify the username of the user for whom we want
+    to retrieve the editable assessments
+    :param assessment_grade_id: The ID of the grade level for which you want to retrieve editable
+    assessments. If not provided, assessments for all grade levels will be retrieved
+    :param class_subject: The subject of the class for which you want to get editable assessments
+    :param session: The session parameter is used to specify the academic session for which the
+    assessments are being retrieved. It could be a specific year or term, for example, "2021-2022" or
+    "Term 1"
+    """
     if assessment_grade_id is None or class_subject is None:
         required_data_list = get_required_data_to_enter_marks(auth=auth ,username=username,session=session)
         ass_data = [[y['assessment_id'],y['education_subject_id']] for y in required_data_list ]
@@ -4643,6 +5803,20 @@ def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id
     return season_assessments
 
 def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,range2):
+    """
+    This function allows to enter marks for an assessment period within a specified range arbitrary.
+    
+    :param username: The username parameter is a string that represents the username of the user who
+    wants to enter marks
+    :param password: The password parameter is used to authenticate the user and ensure that only
+    authorized users can access and enter marks
+    :param assessment_period_id: The assessment period ID is a unique identifier for a specific
+    assessment period. It is used to identify and retrieve information related to a particular
+    assessment period
+    :param range1: The starting range of marks for the assessment period
+    :param range2: The range2 parameter is used to specify the upper limit of the range of marks that
+    can be entered for a particular assessment period
+    """
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -4674,6 +5848,15 @@ def get_class_students_ids(auth,academic_period_id,institution_subject_id,instit
     return student_ids
 
 def get_required_data_to_enter_marks(auth ,username,session=None):
+    """
+    This function is used to get the required data to enter marks for a specific class or students or the students.
+    
+    :param auth: This parameter is used to authenticate the user. It could be a token, a
+    username/password combination, or any other form of authentication required to access the data
+    :param username: The username parameter is a string that represents the username of the user who
+    wants to enter marks
+    :param session: The session parameter is an optional parameter that requests.Session() incase function used again to make it faster
+    """
     period_id = get_curr_period(auth,session=session)['data'][0]['id']
     inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
     user_id = user_info(auth,username,session=session)['data'][0]['id']
@@ -4700,22 +5883,74 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     return required_data_to_enter_marks
 
 def get_grade_info(auth,session=None):    
+    """
+    The function `get_editable_assessments` returns a list of editable assessment data based on the
+    provided parameters.
+    
+    :param auth: The `auth` parameter is used for authentication purposes. It could be a token or any
+    other form of authentication required to access the necessary data
+    :param username: The `username` parameter is used to specify the username of the user for whom the
+    editable assessments need to be retrieved
+    :param assessment_grade_id: The assessment_grade_id parameter is used to specify the grade level of
+    the assessments you want to retrieve. It is an optional parameter, so if you don't provide a value,
+    the function will retrieve assessments for all grade levels
+    :param class_subject: The `class_subject` parameter is used to specify the subject for which you
+    want to get the editable assessments. It is an optional parameter, so if you don't provide a value
+    for it, the function will return all the editable assessments for the given `username` and `session`
+    :param session: The "session" parameter is used for requests.Session() incase function used again to make it faster
+    :return: a sorted list of dictionaries containing assessment data.
+    """
     my_list = make_request(session=session ,auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
     return my_list
 
 def get_grade_name_from_grade_id(auth , grade_id):
+    """
+    The function `get_grade_name_from_grade_id` takes in an authentication token and a grade ID and
+    returns the name of the grade.
+    
+    :param auth: An authentication token or object that is used to authenticate the user making the
+    request
+    :param grade_id: The grade_id parameter is the unique identifier for a specific grade
+    """
     
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
  
 def get_assessment_id_from_grade_id(auth , grade_id,session=None):
+    """
+    This function retrieves the assessment ID associated with a given grade ID.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or a
+    username/password combination, depending on the authentication method being used
+    :param grade_id: The grade ID is a unique identifier for a specific grade in a system. It is used to
+    track and manage grades for assessments or assignments
+    :param session: The session parameter is an optional parameter that represents the current session
+    or connection to the database. It is used to execute the SQL query to retrieve the assessment ID
+    from the grade ID. If a session is not provided, a new session will be created
+    """
     
     my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
 def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,session=None):
+    """
+    The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
+    template and saves it in a specified output directory.
+    
+    :param username: The username is the username of the user who wants to create the document. It is
+    used for authentication purposes
+    :param password: The password is a string that represents the password for the user's account
+    :param template: The template parameter is the path to the Excel file that will be used as a
+    template for creating the document. It should be in the format './templet_files/e_side_marks.xlsx',
+    defaults to ./templet_files/e_side_marks.xlsx (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated document will be
+    saved, defaults to ./send_folder (optional)
+    :param session: The `session` parameter is an optional parameter that can be used to pass an
+    existing session object. This can be useful if you want to reuse an existing session for
+    authentication or other purposes. If no session object is provided, a new session will be created
+    """
     auth = get_auth(username , password )
     period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
@@ -4909,6 +6144,15 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     secondery_students = []
 
 def split_A3_pages(input_file, outdir):
+    """
+    The function `split_A3_pages` takes an A3 PDF file as input, splits each page into two A4 pages, and
+    saves the resulting pages to a new PDF file.
+    
+    :param input_file: The input_file parameter is the path to the A3 PDF file that you want to split
+    into A4 pages
+    :param outdir: The `outdir` parameter is the directory where the output PDF file will be saved. It
+    specifies the path to the directory where the `output.pdf` file will be created
+    """
     # Open the A3 PDF file in read-binary mode
     with open(input_file, 'rb') as pdf_file:
         # Create a PDF reader object
@@ -4942,6 +6186,17 @@ def split_A3_pages(input_file, outdir):
             pdf_writer.write(output_file)
 
 def reorder_official_marks_to_A4(input_file, out_file):
+    """
+    The function `reorder_official_marks_to_A4` takes an input PDF file, reorders its pages according to
+    a predefined list, and saves the reordered PDF to an output file.
+    
+    :param input_file: The `input_file` parameter is the path to the PDF file that you want to reorder
+    the pages of. It should be a string representing the file path, including the file name and
+    extension
+    :param out_file: The `out_file` parameter is the name of the output file where the reordered PDF
+    document will be saved. It should be a string representing the file name or the file path. For
+    example, if you want to save the reordered PDF as "reordered.pdf" in the current directory, you can
+    """
     # Load the PDF document
     with open(input_file, 'rb') as file:
         pdf_reader = PyPDF2.PdfFileReader(file)
@@ -4979,6 +6234,30 @@ def delete_files_except(filenames, dir_path):
             os.remove(os.path.join(dir_path, file))
 
 def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send_folder' ,ods_num=1 , do_not_delete_send_folder=False , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#ffffff"):
+    """
+    The function `fill_official_marks_doc_wrapper_offline` fills an official marks document template
+    with data, adds custom shapes, converts it to PDF, adds margins, splits A3 pages, reorders pages,
+    and deletes unnecessary files.
+    
+    :param lst: The `lst` parameter is a dictionary that contains two keys: 'file_data' and
+    'custom_shapes'
+    :param ods_name: The `ods_name` parameter is the name of the output ODS file. By default, it is set
+    to 'send', defaults to send (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the output files will be saved,
+    defaults to ./send_folder (optional)
+    :param ods_num: The parameter `ods_num` is used to specify the number of the ODS file. It is set to
+    1 by default, defaults to 1 (optional)
+    :param do_not_delete_send_folder: The parameter `do_not_delete_send_folder` is a boolean flag that
+    determines whether or not to delete all files in the `outdir` folder except for the generated PDF
+    and ODS files. If `do_not_delete_send_folder` is set to `True`, the files will not be deleted. If,
+    defaults to False (optional)
+    :param templet_file: The `templet_file` parameter is the path to the template file that will be used
+    to create the official marks document. It should be an OpenDocument Spreadsheet (ODS) file, defaults
+    to ./templet_files/official_marks_doc_a3_two_face_white_cover.ods (optional)
+    :param color: The "color" parameter is used to specify the color of the margins that will be added
+    to the PDF files. It should be a hexadecimal color code, such as "#ffffff" for white or "#000000"
+    for black, defaults to #ffffff (optional)
+    """
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     fill_official_marks_a3_two_face_doc2_offline_version(students_data_lists=lst['file_data'], ods_file=f'{outdir}/{ods_file}')
@@ -4999,12 +6278,36 @@ def fill_official_marks_doc_wrapper_offline(lst, ods_name='send', outdir='./send
     
     if not do_not_delete_send_folder :
         delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'{custom_shapes["teacher"]}.ods'], outdir)
+
+def fill_official_marks_doc_wrapper(username , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#ffffff"):
+    """
+    The function `fill_official_marks_doc_wrapper` takes in various parameters, including a username and
+    password, and performs a series of operations to fill an official marks document template and
+    generate a final PDF output.
     
-def fill_official_marks_doc_wrapper(usnername , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#ffffff"):
+    :param username: The username is a string that represents the username for authentication purposes.
+    It is used in the `fill_official_marks_a3_two_face_doc2` function
+    :param password: The `password` parameter is used to provide the password for accessing the document
+    or file. It is required to authenticate the user and grant access to the document
+    :param ods_name: The `ods_name` parameter is the name of the ODS file that will be generated. By
+    default, it is set to 'send', defaults to send (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the output files will be saved,
+    defaults to ./send_folder (optional)
+    :param ods_num: The parameter `ods_num` is used to specify the number of the ODS file. It is set to
+    a default value of 1, but you can change it to any desired number when calling the
+    `fill_official_marks_doc_wrapper` function, defaults to 1 (optional)
+    :param templet_file: The `templet_file` parameter is the path to the template file that will be used
+    to create the official marks document. It should be an OpenDocument Spreadsheet (ODS) file, defaults
+    to ./templet_files/official_marks_doc_a3_two_face_white_cover.ods (optional)
+    :param color: The "color" parameter is used to specify the color of the margins that will be added
+    to the PDF files. It is a hexadecimal color code, such as "#ffffff" for white or "#000000" for
+    black, defaults to #ffffff (optional)
+    """
+
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
-    custom_shapes = fill_official_marks_a3_two_face_doc2(username= usnername, password= password , ods_file=f'{outdir}/{ods_file}')
+    custom_shapes = fill_official_marks_a3_two_face_doc2(username= username, password= password , ods_file=f'{outdir}/{ods_file}')
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
@@ -5243,6 +6546,17 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     return custom_shapes 
 
 def mawad_representations(string):
+    """
+    The `mawad_representations` function takes a string representing a class name and returns a modified
+    version of the string with abbreviated representations for certain class names.
+    
+    :param string: The `string` parameter is a string that represents a class name or grade level. It
+    should be in the format "Class Name - Grade Level". For example, "الصف الثاني - 2" represents the
+    second grade class
+    :return: a modified version of the input string. The modified string includes a representation of
+    the school grade or level based on the provided mappings in the dictionary 'y'. The modified string
+    is in the format 'grade - class_num'.
+    """
     y = {'روضة - 1': 'ر1', 'روضة - 2': 'ر2', 'الصف الأول': '1', 'الصف الثاني': '2', 'الصف الثالث': '3', 'الصف السابع': '7', 'الصف الثامن': '8', 'الصف التاسع': '9', 'الصف الرابع': '4', 'الصف الخامس': '5', 'الصف السادس': '6', 'الصف العاشر': '10', 'الصف الحادي عشر العلمي': '11', 'الصف الثاني عشر العلمي': '12 علمي', 'الصف الحادي عشر الأدبي': '11 ادبي', 'الصف الثاني عشر الأدبي': '12 ادبي', 'الصف الحادي عشر الشرعي': '11 شرغي', 'الصف الثاني عشر الشرعي': '12 شرعي', 'الصف الحادي عشر الصحي': '11 صحي', 'الصف الثاني عشر الصحي': '12 صحي', 'الصف الحادي عشر - إدارة معلوماتية': '11 ادارة', 'الصف الثاني عشر - إدارة معلوماتية': '12 ادارة', 'الصف الحادي عشر - اقتصاد منزلي': '11 اقتصاد', 'الصف الثاني عشر - اقتصاد منزلي': '12 اقتصاد', 'الصف الحادي عشر- فندقي': '11 فندقي', 'الصف الثاني عشر - فندقي': '12 فندقي', 'الصف الحادي عشر - صناعي': '11 صناعي', 'الصف الثاني عشر - صناعي': '12 صناعي', 'الصف الحادي عشر - زراعي': '11 زراعي', 'الصف الثاني عشر - زراعي': '12 زراعي'}
 
     search_str ,class_num = string.split('-')[0] ,string.split('-')[1]
@@ -5373,6 +6687,16 @@ def add_margins(input_pdf1, output_pdf ,color_name="#8cd6e6",top_rec=50,bottom_r
     input_pdf.save(output_pdf)
 
 def mawad(string):
+    """
+    The `mawad` function takes a string input representing a class name and returns a modified version
+    of the string with abbreviated class names.
+    
+    :param string: The `string` parameter is a string that represents a class name or grade level. It is
+    in the format "Class Name - Grade Level". For example, "الصف الثاني عشر العلمي - 12 علمي"
+    :return: a modified version of the input string. The modified string replaces certain keywords in
+    the input string with their corresponding values from the dictionary 'y'. The modified string is
+    then returned.
+    """
     y = {'روضة - 1': 'ر1', 'روضة - 2': 'ر2', 'الصف الأول': '1', 'الصف الثاني': '2', 'الصف الثالث': '3', 'الصف السابع': '7', 'الصف الثامن': '8', 'الصف التاسع': '9', 'الصف الرابع': '4', 'الصف الخامس': '5', 'الصف السادس': '6', 'الصف العاشر': '10', 'الصف الحادي عشر العلمي': '11', 'الصف الثاني عشر العلمي': '12 علمي', 'الصف الحادي عشر الأدبي': '11 ادبي', 'الصف الثاني عشر الأدبي': '12 ادبي', 'الصف الحادي عشر الشرعي': '11 شرغي', 'الصف الثاني عشر الشرعي': '12 شرعي', 'الصف الحادي عشر الصحي': '11 صحي', 'الصف الثاني عشر الصحي': '12 صحي', 'الصف الحادي عشر - إدارة معلوماتية': '11 ادارة', 'الصف الثاني عشر - إدارة معلوماتية': '12 ادارة', 'الصف الحادي عشر - اقتصاد منزلي': '11 اقتصاد', 'الصف الثاني عشر - اقتصاد منزلي': '12 اقتصاد', 'الصف الحادي عشر- فندقي': '11 فندقي', 'الصف الثاني عشر - فندقي': '12 فندقي', 'الصف الحادي عشر - صناعي': '11 صناعي', 'الصف الثاني عشر - صناعي': '12 صناعي', 'الصف الحادي عشر - زراعي': '11 زراعي', 'الصف الثاني عشر - زراعي': '12 زراعي'}
 
     search_str ,class_num = string.split('-')[0] ,string.split('-')[1]
@@ -5386,6 +6710,26 @@ def mawad(string):
     return f'{search_str}-{class_num}'
 
 def get_basic_info (username , password):
+    '''
+    Retrieves basic information related to a user and institution from an educational management system.
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+
+    Returns:
+    - dict: A dictionary containing the following basic information:
+        - 'school_name' (str): The name of the school.
+        - 'baldah' (str): The city or region where the school is located.
+        - 'grades' (list): List of available education grades.
+        - 'modeeriah' (str): The administrative area of the institution.
+        - 'melady' (str): The school year in the Gregorian calendar.
+        - 'hejri' (str): The school year in the Hijri calendar.
+        - 'teacher' (str): The name of the teacher.
+
+    Example:
+    - basic_info = get_basic_info('sample_username', 'sample_password')
+    '''
     auth = get_auth(username ,password )
     user = user_info(auth , username)
     inst_data = inst_name(auth)['data'][0]['Institutions']
@@ -5401,7 +6745,17 @@ def get_basic_info (username , password):
 
 def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
     '''
-    custom_shapes = {
+    Fills custom shapes in an OpenDocument Spreadsheet (ODS) document.
+
+    Parameters:
+    - doc (str): The path to the ODS document.
+    - sheet_name (str): The name of the sheet where custom shapes need to be filled.
+    - custom_shape_values (dict): A dictionary containing custom shape names as keys
+                                 and corresponding values to be filled in the shapes.
+    - outfile (str): The path for the output ODS document with filled custom shapes.
+
+    Example:
+    - custom_shapes = {
         'modeeriah': f'لواء {modeeriah}',
         'hejri': hejri,
         'melady': melady,
@@ -5412,7 +6766,7 @@ def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
         'teacher' : teacher
     }
 
-    fill_custom_shape('official_marks_doc_a3_two_face.ods', 'الغلاف الداخلي', custom_shapes, 'tttttt.ods')
+    - fill_custom_shape('official_marks_doc_a3_two_face.ods', 'الغلاف الداخلي', custom_shapes, 'tttttt.ods')
     '''
     print(doc)
     # Load the document
@@ -5447,11 +6801,25 @@ def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
     doc.save(outfile)
         
 def clear_text_custom_shape(shape):
+    """دالة لحذف النص الموجود في الشكل الموجود في الصفحة ));
+
+    Args:
+        shape (str): اسم الشكل 
+    """    
     # Remove all child nodes from the shape element
     while len(shape.childNodes) > 0:
         shape.removeChild(shape.childNodes[0])
 
 def get_sheet_custom_shapes(document , sheet_name):
+    """دالة لاحضار اشكال صفحة ملف او دي اس
+
+    Args:
+        document (_type_): مسار الملف
+        sheet_name (_type_): اسم الصفحة
+
+    Returns:
+        list: قائمة بالاشكال الموجودة في الصفحة
+    """    
     # Load the document
     doc = load(str(document))
     # Loop through all sheets in the document
@@ -5463,6 +6831,14 @@ def get_sheet_custom_shapes(document , sheet_name):
             return [custom_shape.getAttribute("name") for custom_shape in custom_shapes]
 
 def get_ods_sheets (doc='official_marks_doc_a3_two_face.ods'):
+    """دالة مختصرة لكي احضر معلومات الصفحات في ملفات ods =>
+
+    Args:
+        doc (str, optional): مسار الملف . Defaults to 'official_marks_doc_a3_two_face.ods'.
+
+    Returns:
+        list: قائمة بمعلومات صفحات الملف
+    """    
     # Load the ODF document
     doc = load(doc)
     # Get the sheets in the document
@@ -5470,6 +6846,7 @@ def get_ods_sheets (doc='official_marks_doc_a3_two_face.ods'):
     return [sheet.getAttribute("name") for sheet in sheets]
 
 def page_counter_official_marks_doc_a3_two_face ():
+    """دالة مساعدة قمت بانشائها للمساعدة في ايجاد ترتيب الصفحات في الملفات ذات الصفحات ذات النظام الكتيب    """    
     dual_page_dic = {}
     counter = 46
     start_cell = 6
@@ -5509,7 +6886,13 @@ def page_counter_official_marks_doc_a3_two_face ():
     print(dual_page_dic)
 
 def generate_pdf(doc_path, path , rename_number):
+    """انشاء ملف بي دي اف من ورد باستخدام ليبرا اوفس
 
+    Args:
+        doc_path (str): مسار ملف ورد
+        path (str): المسار المجلد المراد تحويل الملف اليه
+        rename_number (int): رقم لإعادة تسمية الملف اليه
+    """
     subprocess.call(['soffice',
                  # '--headless',
                  '--convert-to',
@@ -5522,23 +6905,63 @@ def generate_pdf(doc_path, path , rename_number):
                     f'{path}/send{rename_number}.pdf'])
     
 def word2pdf(wordFile ,pdfFile):
+    """كما يدل اسم الملف فهذا ما يقوم به تحويل ملف ورد الى ملف بي دي اف
+
+    Args:
+        wordFile (str): مسار ملف ورد
+        pdfFile (str): مسار ملف بي دي اف 
+    """    
     convert(wordFile , pdfFile)
 
 def fill_doc(template , context , output):
+    """دالة لتعبئة ملف ورد باستخدام المتغيرات في الملف
+
+    Args:
+        template (str): مسار النموذج 
+        context (dict): قاموس بالمعلومات لغرض تعبئتها في ملف ورد ));
+        output (str): مسار الملف المعبأ بالمعلومات الموجودة في القاموس
+    """    
     doc = DocxTemplate(template)
     context = context
     doc.render(context)
     doc.save(output)
     
 def word_variables(template):
+    """دالة تقوم بطباعة المتغيرات في ملف ورد 
+
+    Args:
+        template (str): مسار النموذج
+
+    Returns:
+        list: قائمة بالمتغيرات الموجودة في ملف ورد
+    """    
     doc = DocxTemplate(template)
     return doc.get_undeclared_template_variables()
 
 def my_jq(data):
+    """دالة مساعدة تقوم بطباعة معلومات جايسون بشكل جميل و مرتب ));
+
+    Args:
+        data (json): معلومات جاسون او قاموس 
+
+    Returns:
+        json,dict: المعلومات بشكل مرتب و جميل لمساعدة المطور
+    """    
     json_str = json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False).encode('utf8')
     return highlight(json_str.decode('utf8'), JsonLexer(), TerminalFormatter())
 
 def make_request(url, auth ,session=None,timeout_seconds=500):
+    """دالة تقوم بطلبات الانترنت باستخدام مكتبة ركويستس بغرض استدعاء المعلوامات
+
+    Args:
+        url (_type_): الرابط
+        auth (_type_): توكين التوثيق الخاص بالمستخدم
+        session (_type_, optional): جلسة باستخدام مكتبة ركويستس لتسريع عملية طلب اكثر من رابط. Defaults to None.
+        timeout_seconds (int, optional): مدة زمنية لانهاء طلب الويب بعد فترة معينة. Defaults to 500 second.
+
+    Returns:
+        json : رد بالمعلومات التي قام api بردها للطلب
+    """    
     headers = {"Authorization": auth, "ControllerAction": "Results"}
     controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students']
     
@@ -5563,7 +6986,7 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
     return ['Some Thing Wrong']
 
 def get_auth(username , password ,proxies=None):
-    ' دالة تسجيل الدخول للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
+    ' دالة تسجيل الدخول للموقع و للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
     url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
     payload = {
         "username": username,
@@ -5623,6 +7046,16 @@ def get_teacher_classes1(auth,ins_id,staff_id,academic_period,session=None):
     return make_request(url,auth,session=session)
 
 def get_teacher_classes2(auth,inst_sub_id,session=None):
+    """    استدعاء معلومات تفصيلية عن الصفوف 
+
+    Args:
+        auth (auth): _description_
+        inst_sub_id (int): رقم المادة التعريفي و هذا الرقم يدل على الصف و على المادة
+        session (requests.Session(), optional): الجلسة لتسريع عملية احضار المعلومات اذا تكرر استخدام الدالة. Defaults to None.
+
+    Returns:
+        _type_: معلومات عن المادة و عن الصف على شكل قاموس
+    """    
     '''
     استدعاء معلومات تفصيلية عن الصفوف 
     عوامل الدالة الرابط و التوكن و رقم المستخدم
@@ -5634,11 +7067,23 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     return make_request(url,auth,session=session)
 
 def get_class_students(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,education_grade_id=None,session=None):
-    '''
-    استدعاء معلومات عن الطلاب في الصف
-    عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
-    تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
-    '''
+    """    استدعاء معلومات عن الطلاب في الصف
+
+    Args:
+        auth (str): توكن المستخدم
+        academic_period_id (int): رقم الفترة الاكاديمية 
+        institution_subject_id (int): رقم المادة التعريفي 
+        institution_class_id (int): رقم الصف و الشعبة التعريفي
+        institution_id (int): رقم المدرسة التعريفي
+        education_grade_id (int, optional): رقم المرحلة التعليمية التعريفي. Defaults to None.
+        session (requests.Session(), optional): معلومات الجلسة لتسريع استعمالها اذا تكرر. Defaults to None.
+
+    Raises:
+        IndexError: اذا حصل خطأ عادةً يكون صف ثانوي فاقوم باحضار معلومات و اسماء الطلاب حتى احصل على نصاب المعلم كامل مع الصف الثانوي 
+
+    Returns:
+        list: تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
+    """       
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
     data = make_request(url,auth,session=session)
     if not data['total']:
@@ -5724,24 +7169,46 @@ def get_curr_period(auth,session=None):
     return make_request(url,auth,session=session)
 
 def get_assessments(auth,academic_term,assessment_id):
-    '''
-    دالة تستدعي معلومات عن الامتحانات في الفصل
+    """دالة تستدعي معلومات عن الامتحانات في الفصل
     و عواملها اسم الفصل و تعريفي اختبار المرحلة 
     تعود بمعلومات عن الامتحانات المتوفرة على المنظومة في الفصل
-    '''
+
+    Args:
+        auth (str): عبارة التوثيق
+        academic_term (str): الفصل الدراسي اما الفصل الاول او الفصل الثاني 
+        assessment_id (int): رقم المرحلة الصفية التعريفي
+
+    Returns:
+        list: قائمة بمعلومات التقويمات للصف او المرحلة الصفية
+    """    
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{academic_term}]&assessment_id={assessment_id}&_limit=0"
     return make_request(url,auth)
 
 def get_sub_info(auth,class_id,assessment_id,academic_period_id,institution_id):
-    '''
-    استدعاء معلومات عن مواد الصف
+    """    استدعاء معلومات عن مواد الصف
     و عواملها هي تعريفي الصف و تعريفي مرحلة الاختبار و الفترة الاكاديمية و تعريفي المؤسسة
     تعود بمعلومات عن مواد الصف و اهمها تعريفي المادة و كود المادة
-    '''
+
+    Args:
+        auth (str): جايسون اوث يتم استعمالها لسحب المعلومات
+        class_id (int): رقم الشعبة التعريفي
+        assessment_id (int): رقم المرحلة التعريفي
+        academic_period_id (int): رقم السنة التعريفي
+        institution_id (int): رقم المدرسة التعريفي
+
+    Returns:
+        list: قائمة بقواميس معلومات المواد التي يمكن للصف تسجيلها
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0"
     return make_request(url,auth)
 
 def side_marks_document(username , password):
+    """انشاء ملف تقييم و اداء جانبي ورقي يحتوى على الاسماء فقط 
+
+    Args:
+        username (str,int): اسم المستخدم
+        password (str,int): كلمة السر
+    """    
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -5788,6 +7255,13 @@ def side_marks_document(username , password):
         # return students_names
 
 def insert_students_names_in_excel_marks(template , students_id_and_names , outfile):
+    """كتابة اسماء الطلاب و ادخال رقمهم التعريفي  في ملف اكسيل
+
+    Args:
+        template (str): مسار النموذج
+        students_id_and_names (list): قائمة باسماء الطلاب و ارقامهم التعريفية 
+        outfile (str): المسار و اسم الملف الذ تريد اخراج ملف اكسل اليه
+    """    
     workbook = load_workbook(filename=template)
     sheet = workbook.active
     counter = 2
@@ -5798,6 +7272,12 @@ def insert_students_names_in_excel_marks(template , students_id_and_names , outf
     workbook.save( filename = outfile )
 
 def delete_empty_rows(file , outfile):
+    """دالة تقوم بحذف الاسطر الفارغة من العلامات
+
+    Args:
+        file (_type_): مسار الملف
+        outfile (_type_): مسار الملف الذي تريد ان يخرج اليه الملف المصفى او بدون الاسطر الفارغة
+    """    
     workbook = load_workbook(filename=file)
     sheet = workbook.active
     
@@ -5822,22 +7302,36 @@ def delete_empty_rows(file , outfile):
     workbook.save(outfile)
 
 def read_excel_marks(file):
-        workbook = load_workbook(filename=file)
-        sheet = workbook.active
-        counter = 2
-        for value in sheet.values:
-            if value[0] ==None:
-                break
-            elif not value[2] == None :
-                value = list(value)
-                #   التقويم الرابع و  الثالث و  الثاني و   الاول  
-                # value[2]+ value[3]+ value[4]+value[5]
-                value[6]= value[2]+ value[3]+ value[4]+value[5]
-                print(value)                
-            else : 
-                print(value)
-                
+    """كما يدل اسم الدالة  ، هذه الدالة تقوم بقرأت صفحات اكسل العلامات
+    وهي محاولة فاشلة قمت باحسن منها في دالة create_e_side_notebook
+
+    Args:
+        file (str): مسار الملف الذي تريد قرائته
+    """    
+    workbook = load_workbook(filename=file)
+    sheet = workbook.active
+    counter = 2
+    for value in sheet.values:
+        if value[0] ==None:
+            break
+        elif not value[2] == None :
+            value = list(value)
+            #   التقويم الرابع و  الثالث و  الثاني و   الاول  
+            # value[2]+ value[3]+ value[4]+value[5]
+            value[6]= value[2]+ value[3]+ value[4]+value[5]
+            print(value)                
+        else : 
+            print(value)
+            
 def insert_students_names_and_marks(assessments_json, students_id_and_names , template , outfile):
+    """دالة مساعدة تقوم بانشاء صفحات  اكسل فيها اسماء و علامات الطلاب 
+
+    Args:
+        assessments_json (list): قائمة قواميس تحتوي علامات الطلاب و معلومات عنها
+        students_id_and_names (list): اسماء الطلاب و اسمائهم
+        template (str): مسار الملف النموذج
+        outfile (str): مسار الملف الذي تريد انشاء الملف اليه
+    """    
     workbook = load_workbook(filename=template)
     sheet = workbook.active
     marks_and_name = []
@@ -5871,6 +7365,13 @@ def insert_students_names_and_marks(assessments_json, students_id_and_names , te
     delete_empty_rows(outfile , outfile)
 
 def create_excel_sheets_marks(username, password ):
+    """اول محاولة لي لانشاء كشف الكتروني جانبي بعلامات الطلاب  
+    كانت هذه المحاولة فاشلة و حسنتها في الدالة create_e_side_notebook
+
+    Args:
+        username (str,int): _description_
+        password (str,int): _description_
+    """    
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -5905,24 +7406,47 @@ def create_excel_sheets_marks(username, password ):
         insert_students_names_and_marks(assessments_json , students_id_and_names , './templet_files/excel_marks.xlsx' , './send_folder/' + classes_id_3[v][0]['class_name'] + '.xlsx')
 
 def count_files():
+    """عد الملفات في مجلد الارسال
+
+    Returns:
+        list: قائمة بالملفات الموجودة في مجلد الارسال
+    """    
     files = glob.glob('./send_folder/*')
     return files
 
 def delete_send_folder():
+    """دالة بسيطة لحذف مجلد الارسال في البوت
+    """    
     files = glob.glob('./send_folder/*')
     for f in files:
         os.remove(f)
 
 def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
-    '''
-    دالة لاستدعاء علامات الطلاب و اسمائهم 
+    """    دالة لاستدعاء علامات الطلاب و اسمائهم 
     و عواملها التوكن رقم السنة التعريفي ورقم المادة التعريفي و رقم المؤسسة و  رقم الصف التعريفي
     و تعود باسماء الطالب و علاماتهم
-    '''
+
+    Args:
+        auth (str): authentication barriar
+        period_id (int): الفترة التي ينتمي لها هذا الفصل 
+        sub_id (int): رقم المادة مثلا 7 او 331 
+        instit_class_id (int): رقم الصف التعريفي 
+        instit_id (int): رقم المؤسسة التعريفي او المدرسة
+
+    Returns:
+        list: قائمة بقواميس معلومات علامات الطلاب 
+    """
+    
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
     return make_request(url,auth)
 
 def sort_send_folder_into_two_folders(folder='./send_folder'):
+    """دالة استعملها لفرز ملفات البي دي اف عن غيرها في مجلد send_folder  
+    
+
+    Args:
+        folder (str, optional): _description_. Defaults to './send_folder'.
+    """    
     files = os.listdir(folder)
     pdf_folder = os.path.join(folder, 'PDFs')
     editable_folder = os.path.join(folder, 'قابل للتعديل')
@@ -6001,12 +7525,9 @@ def main():
     # 9891009452
     # 9861043795
     # 2000358321
-    # 2000258435
     # '''
     
-    passwords = '''9861043795
-2000358321
-2000258435'''
+    passwords = '''9971055725'''
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
@@ -6051,8 +7572,9 @@ def main():
 
     # bulk_e_side_note_marks(passwords)
     
-    convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
-    
+    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
+    session = requests.Session()
+    create_certs_wrapper(9971055725,9971055725,session=session)
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
