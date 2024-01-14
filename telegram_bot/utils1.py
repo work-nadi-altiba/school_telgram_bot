@@ -52,6 +52,343 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+def wfuzz_function_can_return_data(url,fuzz_list , headers , body_postdata , method='POST' , proxies = None):
+    """دالة استخدمها لارسال طلب بوست بشكل سريع
+
+    Args:
+        fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
+        headers (tuple-list): راسيات الطلب او الركويست
+        body_postdata (str): جسم البوست داتا
+        method (str, optional): طريقة الطلب. Defaults to 'POST'.
+
+    Returns:
+        any : تعود بقائمة الطلبات غير الناجحة
+    """    
+    unsuccessful_requests=[]
+    teachers_in_schools=[]
+    with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
+            postfix=["scraped schools", {"value": 0}]) as t:
+            s = wfuzz.get_payloads([fuzz_list])
+            for idx , r in enumerate(s.fuzz(
+                            url=url ,
+                            # hc=[404] , 
+                            # payloads=[("list",fuzz_list)] ,
+                            headers=headers ,
+                            postdata = body_postdata ,
+                            proxies= proxies ,
+                            method= method,
+                            # concurrent=100,
+                            scanmode=True,
+                            req_delay=1000000
+                            ),start =1):
+                    
+                t.postfix[1]["value"] = idx
+                t.update()    
+                try:
+                    dict_content = json.loads(r.content)
+                    teachers_in_schools.append(dict_content)
+                except:
+                    # if len(dict_content['data']):
+                    print ('there is error at page' + r.description)
+                    # there
+                    pass
+            #     print(r)
+            #     print(r.content)
+            #     print(r.history.code) # كود الركويست
+                if r.history.code != 200 :
+                    unsuccessful_requests.append(r.description)
+    return [unsuccessful_requests , teachers_in_schools]
+
+def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
+    start_page = 1
+    school_marks = []
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={period_id}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}'+'&_limit=1'
+    total = make_request(auth=auth,url=url, session=session)['total']
+
+    # +2 because of the range in python 
+    end_page = int(total/limit)+2
+    pages = [i for i in  range(start_page , end_page)]
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
+    url = url + f'&_limit={limit}&_page=FUZZ'
+
+    unsuccessful_requests , data_list = wfuzz_function_can_return_data(url ,pages,headers,body_postdata=None,method='GET')
+
+    while len(unsuccessful_requests) != 0:
+        requests  = wfuzz_function_can_return_data(url ,unsuccessful_requests,headers,body_postdata=None,method='GET')
+        unsuccessful_requests = requests[0]
+        data_list.append(requests[1])
+
+
+    for i in data_list:
+        if len(i['data']):
+            school_marks.extend(i['data'])
+    
+    return school_marks
+
+def create_excel_for_marks(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx'):
+    # Convert the list of dictionaries to a pandas DataFrame
+    df = pd.DataFrame(data_frames)
+    # Write the DataFrame to an Excel file
+    df.to_excel(excel_file_name, index=False)
+
+    print(f"Excel file '{excel_file_name}' has been created.")
+
+def calculate_percentage(part, whole):
+    if whole == 0:
+        return 0
+    return (part / whole) * 100
+
+def inserted_marks_percentage_from_dataframes_variable(marks , with_entered_and_not_marks=False):
+    empty_marks = [mark for mark in marks if not isinstance(mark['العلامة'], int)]
+    inserted_marks = abs(len(empty_marks)-len(marks))
+    inserted_marks_percentage = calculate_percentage(inserted_marks ,len(marks) )
+    
+    if with_entered_and_not_marks:
+        return {'percentage': inserted_marks_percentage,
+                'inserted_marks': inserted_marks,
+                'empty_marks': empty_marks
+                }
+    else:
+        return inserted_marks_percentage
+
+def get_class_subjects(auth , class_id , assessment_id , academic_period_id , institution_id , session=None):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
+    return make_request(auth=auth , url=url , session=session)['data']
+
+def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , session=None):
+    grades_info = get_grade_info(auth)
+    student_classes = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0',session=session)['data']
+    class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classes}
+    students_with_data_dic = {i['student_id']:{'full_name':i['user']['name'] ,'status_id':i['student_status_id'] ,'class_id':i['institution_class_id']} for i in student_classes }
+    classes = [i for i in class_names_dic]
+    classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
+    classes_data = make_request(url=url,auth=auth,session=session)['data']
+    for i in classes_data:
+        class_names_dic[i['institution_class_id']]['name'] = i['institution_class']['name']
+    for class_ in class_names_dic:
+        class_names_dic[class_]['assessment_id'] = offline_get_assessment_id_from_grade_id(class_names_dic[class_]['education_grade_id'] ,grades_info)
+
+    return class_names_dic , students_with_data_dic
+
+def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
+
+    # function variables here 
+    techers_percentages ,data_frames , subject_ids ,terms_list = {}, [], [], []
+    assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
+    search_names =['رياضية', 'نشاط', 'مسيحية', 'فن', 'فرنس']
+    
+    search_names = [search_names[abs(i - 1)] for i in subject_search_name_wanted_index]
+    unique_names = {}
+    
+    # اذا لم يختر المستخدم الفصل الاول اذا اختر الفصل الثاني 
+    # و اذا لم يختر الفصل الاول ولا الثاني 
+    # اذا واختار الفصلين اذا اظهر له نتائج الفصلين
+    if first_term:
+        terms_list = [i for i in assessments_codes if 'S1' in i]
+    elif second_term:
+        terms_list = [i for i in assessments_codes if 'S2' in i]
+    elif both_terms:
+        terms_list = [i for i in assessments_codes]
+
+    # get the marks that the teachers uploaded on the emis site 
+    # get the classes and the students 
+    open_emis_core_marks = get_school_marks(auth,inst_id , period_id,session=session)
+    class_data_dic , students_with_data_dic = get_school_classes_and_students_with_classes(auth ,inst_id , period_id,session=session)
+
+    # add subjects to the class dictionary variable which is class_data_dic
+    for class_ in class_data_dic:
+        class_subject_data = get_class_subjects(auth ,class_ , class_data_dic[class_]['assessment_id'] ,period_id, inst_id,session=session)
+        class_data_dic[class_]['subjects'] = [i['InstitutionSubjects'] for i in class_subject_data]
+
+    # get the teachers or staff data (what the subjects they teach and the class names)
+    SubjectStaff_data = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users,InstitutionSubjects&_limit=0',session=session)['data']
+
+    # map the followings 
+    # teachers load  
+    # subjects for each teacher  
+    # the teacher with subjects
+    staff_load_mapping = {
+                        x['staff_id'] : {
+                            'name': x['user']['name'],
+                            'teacher_subjects':
+                                [
+                                    [
+                                        i['institution_subject']['id'] ,
+                                        i['institution_subject']['name'] ,
+                                        i['institution_subject']['education_grade_id'],
+                                        i['institution_subject']['education_subject_id'] ,
+                                    
+                                    ] for i in SubjectStaff_data if x['staff_id'] == i['staff_id']
+                                ]
+                            }
+                        for x in SubjectStaff_data
+                            if x['end_date'] is None
+                        }
+    subject_mapping_for_teachers = {
+                                    i['id'] : { 
+                                            'name': i['name'] , 
+                                            'class_name': class_id ,
+                                            'class_id' : class_data_dic[class_id]['name'] ,
+                                            'education_subject_id': i['education_subject_id']
+                                            }    
+                                    for class_id in class_data_dic 
+                                    for i in class_data_dic[class_id]['subjects']
+                                    }
+    teacher_with_subject_mapping = {
+                                        i[0] : { 
+                                                'teacher_name': staff_load_mapping[teacher_id]['name'] , 
+                                                'education_subject_name': i[1]
+                                                }    
+                                        for teacher_id in staff_load_mapping 
+                                        for i in staff_load_mapping[teacher_id]['teacher_subjects']
+                                    }
+
+    # Create data_frames for these porposes :-
+    # 1) writing the resulted marks in excel file  
+    # 2)to get the percentages for the school ,and teachers , classes
+    for student in students_with_data_dic :
+        # FIXME: make execulding sacendary students option in the function
+        if 'عشر' not in class_data_dic[students_with_data_dic[student]['class_id']]['name'] :
+            #  ابحث عن الطالب صاحب الرقم التعريفي 
+            student_marks = [i for i in open_emis_core_marks if i['student_id']==student]
+            # ابحث في كل المواد التالية 
+            for subject in class_data_dic[students_with_data_dic[student]['class_id']]['subjects'] :
+                subject_marks = [i for i in student_marks if i['education_subject_id'] ==int(subject['education_subject_id'])]
+                
+                missing_codes = set(i for i in assessments_codes) - set(item['assessment_period']['code'][-4:] for item in subject_marks)
+                try:
+                    teacher_name =teacher_with_subject_mapping[int(subject['id'])]['teacher_name']
+                except:
+                    teacher_name = 'لا يوجد معلم'
+                    
+                # و تحقق من وجود كود التقويمات الثمانية للفصل الاول و الفصل الثاني و اذا لم تجد ارصد فارغ للعلامة 
+                for mark in subject_marks :
+                    # اما اذا وجدت فارصد علامة الطالب الحقيقية
+                    code = mark['assessment_period']['code'][-4:]
+                    data_frames.append({
+                        'اسم الطالب': students_with_data_dic[mark['student_id']]['full_name'],
+                        'حالة الطالب': 'ملتحق' if students_with_data_dic[mark['student_id']]['status_id'] in student_status_list else 'غير ذلك',
+                        'status_id' : students_with_data_dic[mark['student_id']]['status_id'],
+                        'اسم المعلم': teacher_name ,
+                        'رقم الصف' : students_with_data_dic[student]['class_id'],
+                        'الصف+الشعبة': class_data_dic[mark['institution_classes_id']]['name'],
+                        'رقم المادة' : mark['education_subject_id'],
+                        'اسم المادة': mark['education_subject']['name'],
+                        'التقويم': mark['assessment_period']['name'],
+                        'الفصل': mark['assessment_period']['academic_term'],
+                        'code':code,
+                        'العلامة': mark['marks']
+                    })
+                if len(missing_codes): 
+                    for code in missing_codes:
+                        # رصد صفر في كل التقويمات التي لا يوجد بها كود التقويمات الموجودة
+                        data_frames.append({
+                            'اسم الطالب': students_with_data_dic[student]['full_name'],
+                            'حالة الطالب': 'ملتحق' if students_with_data_dic[student]['status_id'] in student_status_list else 'غير ذلك',
+                            'status_id' : students_with_data_dic[student]['status_id'],
+                            'اسم المعلم': teacher_name ,
+                            'رقم الصف' : students_with_data_dic[student]['class_id'],
+                            'الصف+الشعبة': class_data_dic[students_with_data_dic[student]['class_id']]['name'],
+                            'رقم المادة' : int(subject['education_subject_id']),
+                            'اسم المادة': subject['name'] ,
+                            'التقويم': assessments_codes[code]['assessment_name'],
+                            'الفصل': assessments_codes[code]['term'],
+                            'code':code,
+                            'العلامة': 'فارغ'
+                        })
+
+    # Code that i wrote to skip some subjects from the percentages
+    subjects_dictionary_list = [
+                                    {
+                                        'name':values['name'] ,
+                                        'education_subject_id':values['education_subject_id']
+                                    } for values in subject_mapping_for_teachers.values()
+                                ]
+        # Create a Wiktionary to track unique names and their IDs
+    sorted_unique_data = sorted({item['education_subject_id']: item for item in subjects_dictionary_list}.values(), key=lambda x: x['education_subject_id'])
+        # Iterate through the data and update the dictionary
+    for item in sorted_unique_data:
+        stripped_name = item['name'].strip()
+        if stripped_name in unique_names:
+            unique_names[stripped_name].append(item['education_subject_id'])
+        else:
+            unique_names[stripped_name] = [item['education_subject_id']]
+    for name, ids in unique_names.items():
+        if any(search_name in name for search_name in search_names):
+            ids = [int(i) for i in ids]
+            subject_ids.extend(ids)
+
+
+    # get the teachers percentage and the uploaded marks and unuploaded marks
+    teachers_names = list(set(i['اسم المعلم'] for i in data_frames))
+    teacher_marks = {
+        i: {'row_marks':[
+                        {'العلامة' :x['العلامة'] , 'code' : x['code']} for x in data_frames 
+                            if x['اسم المعلم'] == i
+                            # FIXME: try to find other way to get the term percentage and student status
+                            and
+                            x['code'] in terms_list
+                            and
+                            x['status_id'] in student_status_list
+                        ]}
+        for i in teachers_names 
+    }
+
+    for teacher in teacher_marks :
+        marks = teacher_marks[teacher]['row_marks']
+        # print(teacher ,inserted_marks_percentage_from_dataframes_variable(marks))
+        techers_percentages[teacher] = inserted_marks_percentage_from_dataframes_variable(marks ,True)
+
+    classes_with_subjects_percentage = class_data_dic
+
+    for class_number in class_data_dic:
+        class_subjects_dict = {
+                                int(i['education_subject_id']) : {
+                                                                    'name' :
+                                                                        i['name']
+                                                                    }
+                                    for i in class_data_dic[class_number]['subjects']
+                            }
+        class_subjects_dict = dict(sorted(class_subjects_dict.items(), key=lambda item: item[0]))
+        class_marks = [i for i in data_frames if i['رقم الصف'] == class_number and "غير ذلك" not in i['حالة الطالب'] ]
+        for subject_id in class_subjects_dict:
+            subject_data_list = [i for i in class_marks if i['رقم المادة'] == subject_id]
+            # subject_marks = [i['العلامة'] for i in subject_data_list]
+            if len(subject_data_list):
+                teacher_name = subject_data_list[0]['اسم المعلم']
+            # [i for i in assessments_codes]
+            assessments_dict = {i:'' for i in assessments_codes}        
+            for assessment in assessments_codes:
+                assessment_marks = [i for i in subject_data_list if i['code'] == assessment]
+                assessments_dict[assessment] = inserted_marks_percentage_from_dataframes_variable(assessment_marks)
+                
+            class_subjects_dict[subject_id]['subject_marks_percentage']  = assessments_dict
+            class_subjects_dict[subject_id]['subject_teacher'] = teacher_name
+            
+        classes_with_subjects_percentage[class_number]['subjects_percentage'] = class_subjects_dict
+        class_subjects_dict = {}
+        teacher_name = ''
+
+    # for class_number in classes_with_subjects_percentage:
+    #     print( class_number , classes_with_subjects_percentage[class_number]['name'] )
+    #     pprint(classes_with_subjects_percentage[class_number]['subjects_percentage'])
+
+    school_marks = [
+                    {'العلامة' :x['العلامة'] , 'code' : x['code']} 
+                    for x in data_frames 
+                        if x['code'] in terms_list
+                        and
+                        x['status_id'] in student_status_list
+                        and
+                        x['رقم المادة'] not in subject_ids
+                    ]
+    return {
+            'school_percentage' : inserted_marks_percentage_from_dataframes_variable(school_marks , True),
+            'teachers_percentages' :techers_percentages,
+            'classes_percentages' : classes_with_subjects_percentage,
+            'data_frames' : data_frames
+            }
 
 def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None ,session=None):
     """
@@ -148,7 +485,7 @@ def offline_get_assessment_id_from_grade_id(grade_id , grades_info):
     - str: Identifier for the assessment corresponding to the education grade ID.
     """    
     return [d['id'] for d in grades_info if d.get('education_grade_id') == grade_id][0]
-    
+
 def mark_all_students_as_present(auth ,term_days_dates ,r_data = None , proxies = None):
     """
     Marks all students as present on specified dates.
@@ -422,7 +759,7 @@ def create_random_absent_list(dates_list ,id_with_names):
     return random_absent
 
 def extract_absent_dates_from_text(text , helper=False):
-    '''
+    """
     نص الغياب يجب ان يتبع القواعد الاتية :
     ان غياب كل طالب في سطر حسب رقمه على الاسماء التي تستخرجها دالة get_names_for_absent_purposes
     الغياب يكون فيه اليوم ثم الشهر 
@@ -456,7 +793,7 @@ def extract_absent_dates_from_text(text , helper=False):
 
     Returns:
     - list: List of formatted absent dates.     
-    '''
+    """
     absent_days_list = []
     absent_string_list = text.split('\n')
     for idx ,item in enumerate(absent_string_list ,start=1):
@@ -589,7 +926,7 @@ def get_names_for_absent_purposes(auth , session=None):
     return sorted_list
 
 def get_required_data_to_enter_absent(auth , session=None):
-    '''
+    """
     Retrieves the required data to enter student absences on the EMIS system.
 
     This function fetches essential data needed to enter student absences, including
@@ -613,7 +950,7 @@ def get_required_data_to_enter_absent(auth , session=None):
     auth_token = get_auth('your_username', 'your_password')
     required_data = get_required_data_to_enter_absent(auth_token)
     ```
-    '''    
+    """    
     url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses'
     classes = make_request(url=url , auth=auth , session=session)
     curr_per = get_curr_period(auth=auth, session=session)['data'][0]
@@ -637,7 +974,7 @@ def get_required_data_to_enter_absent(auth , session=None):
             }
 
 def bulk_e_side_note_marks(passwords):
-    '''
+    """
     Generate E-Side Note marks documents for multiple users.
 
     This function iterates over a list of username/password combinations and generates
@@ -654,7 +991,7 @@ def bulk_e_side_note_marks(passwords):
     bulk_e_side_note_marks('username1/password1\nusername2/password2\n...')
     ```
 
-    '''    
+    """    
     session = requests.Session()
     for p in passwords.split('\n'):
         # print(p,'-------<>')
@@ -677,7 +1014,7 @@ def bulk_e_side_note_marks(passwords):
         #     print(username , password)
 
 def read_all_xlsx_in_folder(directory_path='./send_folder'):
-    '''
+    """
     Reads all Excel files (ODS or XLSX) in the specified folder and returns a list of dictionaries.
 
     This function scans the specified directory for Excel files and reads their contents. It distinguishes
@@ -694,7 +1031,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
     ```python
     dic_list = read_all_xlsx_in_folder(directory_path='./send_folder')
     ```
-    '''    
+    """    
     dic_list = []
     for item in os.listdir(directory_path):
         if not os.path.isdir(f'{directory_path}/{item}'):
@@ -707,7 +1044,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
     return dic_list
 
 def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
-    '''
+    """
     Converts data from multiple Excel files in a specified folder to official marks documents.
 
     This function reads Excel files from the specified directory and converts the data
@@ -728,13 +1065,13 @@ def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_
                                               template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods',
                                               color="#8cd6e6")
     ```
-    '''
+    """
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
         fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
-    '''
+    """
     Fills the student absent notebook document template with data and saves it.
 
     Parameters:
@@ -754,12 +1091,12 @@ def fill_student_absent_doc_wrapper(username, password ,template='./templet_file
     - It then uses the data to fill the specified ODS template with student details and saves the filled document.
     - The filled document is saved in the specified output directory.
 
-    '''
+    """
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir )
 
 def vacancies_dictionary2Html():
-    '''
+    """
     Generates an HTML table from dictionaries and saves it to a file.
 
     The function combines data from two dictionaries (dict_list1 and dict_list2)
@@ -775,7 +1112,7 @@ def vacancies_dictionary2Html():
     vacancies_dictionary2Html()
     ```
 
-    '''
+    """
     from jinja2 import Template
     # from mydicts import dict_list1 ,dict_list2
 
@@ -783,7 +1120,7 @@ def vacancies_dictionary2Html():
 
 
     # Define the HTML table code as a string
-    table_template = '''
+    table_template = """
     <style>
     table {
     border-collapse: collapse;
@@ -821,12 +1158,12 @@ def vacancies_dictionary2Html():
     {% endfor %}
     </tbody>
     </table>
-    '''
+    """
 
     # format the data into the table template
     table_html = Template(table_template).render(data=table_data)
 
-    html = f'''
+    html = f"""
     <html lang="ar">
     <head>
         <meta charset="UTF-8">
@@ -838,7 +1175,7 @@ def vacancies_dictionary2Html():
     {table_html}
     </body>
     </html>
-    '''
+    """
 
 
 
@@ -854,9 +1191,9 @@ def vacancies_dictionary2Html():
     print(f"Content saved to {file_path}.")
 
 def tor_code():
-    '''
+    """
     دالة لمتصفح تور كتبتها لكي اتمكن من معالجة مشكلة السيرفر الذي يحتاج مني ان يكون عنوان جهازي امريكي
-    '''
+    """
     import stem.process
     from stem.util import term
     from stem import Signal
@@ -935,7 +1272,7 @@ def tor_code():
         tor_process.kill()  # stops tor
 
 def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None , skip_end_date=None):
-    '''
+    """
     Generates a list of dates representing the school year days within a specified range, excluding weekends and specified skip dates.
 
     Parameters:
@@ -961,7 +1298,7 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
     - The default start_date is 2022-08-30, and the default end_date is 2023-06-30.
     - The default skip period is from 2023-01-01 to 2023-02-05.
 
-    '''
+    """
     present_days = []
     start_date = datetime.date(2022, 8, 30) if not start_date else datetime.strptime(start_date, "%Y-%m-%d")
     end_date = datetime.date(2023, 6, 30) if not end_date else datetime.strptime(end_date , "%Y-%m-%d")
@@ -978,7 +1315,7 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
     return present_days
 
 def group_students(dic_list , i = None):
-    '''
+    """
     Groups a list of dictionaries by the 'student_class_name_letter' key.
 
     Parameters:
@@ -1003,7 +1340,7 @@ def group_students(dic_list , i = None):
     The function uses the 'student_class_name_letter' key to group the list of dictionaries.
     If 'i' is provided, it prints the count and first 'student_class_name_letter' for each group.
 
-    '''    
+    """    
     # sort the list based on the 'class_name' key
     sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
 
@@ -1058,7 +1395,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
     return unsuccessful_requests
 
 def upload_marks_optimized(username , password , classess_data , empty = False):
-    '''
+    """
     Uploads student marks to the EMIS system for the specified classes and assessments.
 
     Parameters:
@@ -1083,9 +1420,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     **Important:**
     - This function is powerful and requires careful consideration and modification of certain aspects.
     - The response body from the request should be in JSON format and should not contain errors.
-    - Modify the while loop from a `for` loop to a `while` loop with a maximum of five iterations, ensuring code repetition within it does not exceed the maximum limit.
-
-    '''
+    - Modify the while loop from a `for` loop to a `while` loop with a maximum of five iterations, ensuring code repetition within it does not exceed the maximum limit."""
     fuzz_postdata_list = []
     session = requests.Session()
     auth = get_auth(username , password)
@@ -1154,7 +1489,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     print("All requests were successful!")
     
 def read_json_file(file_path):
-    '''
+    """
     Reads a JSON file and returns its content as a Python dictionary.
 
     Parameters:
@@ -1169,13 +1504,13 @@ def read_json_file(file_path):
     print(data)
     ```
 
-    '''    
+    """    
     with open(file_path, 'r', encoding='utf-8') as file:
         dictionary = json.load(file)
     return dictionary
 
 def save_dictionary_to_json_file(dictionary, file_path='./send_folder/output.json', indent=None):
-    '''
+    """
     Saves a Python dictionary to a JSON file.
 
     Parameters:
@@ -1190,12 +1525,12 @@ def save_dictionary_to_json_file(dictionary, file_path='./send_folder/output.jso
     ```python
     save_dictionary_to_json_file(my_dict, file_path='./output_data/data.json', indent=4)
     ```
-    '''    
+    """    
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(dictionary, file, indent=indent, ensure_ascii=False)
         
 def create_coloured_certs_wrapper(username , password ,term2=False):
-    '''
+    """
     Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
 
     The function performs the following steps:
@@ -1223,7 +1558,7 @@ def create_coloured_certs_wrapper(username , password ,term2=False):
     Side Effect:
     - Saves colored certificates in the current working directory.
 
-    '''
+    """
     session = requests.Session()
     auth = get_auth(username , password)
     student_info_marks = get_students_info_subjectsMarks( username , password , session=session)
@@ -1277,7 +1612,7 @@ def get_column_letter(column_index):
     return column_letter
 
 def strategy_ladder ( ):
-    '''
+    """
     Processes and fills a strategy ladder template with assessment data for each student.
 
     Assumes an existing strategy ladder template at './ods_strategy_ladder/SL-5,6,7.ods'.
@@ -1301,7 +1636,7 @@ def strategy_ladder ( ):
     Side Effect:
     - Saves individual strategy ladder sheets for each class in the './send_folder' directory.
 
-    '''    
+    """    
     doc = ezodf.opendoc('./ods_strategy_ladder/SL-5,6,7.ods')
     sheet = doc.sheets[0] # Assuming you want to work with the first sheet
 
@@ -1361,8 +1696,7 @@ def strategy_ladder ( ):
         doc.saveas(f'{outdir}/{class_name}.ods')    
 
 class RandomNumberGenerator:
-    '''
-    A class for generating random numbers with a specified sum and individual ranges.
+    """A class for generating random numbers with a specified sum and individual ranges.
 
     Example Usage:
     ```python
@@ -1396,8 +1730,7 @@ class RandomNumberGenerator:
     generator = RandomNumberGenerator(total_sum, ranges)
     result = generator.generate_numbers_with_sum()
     print(result)
-    ```
-    '''
+    ```"""
     def __init__(self, total_sum, ranges):
         self.total_sum = total_sum
         self.ranges = ranges
@@ -1577,7 +1910,7 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
     os.system(command)
     
 def get_day_name_from_date(year, month, day):
-    '''
+    """
     Gets the day name in Arabic for a given date.
 
     Parameters:
@@ -1591,7 +1924,7 @@ def get_day_name_from_date(year, month, day):
     Example:
     - day_name = get_day_name_from_date(2024, 1, 9)
       print(day_name)  # Output: 'الثلاثاء'
-    '''    
+    """    
     # Set the locale to Arabic (Egypt)
     locale.setlocale(locale.LC_ALL, 'ar_EG.utf8')
 
@@ -1607,7 +1940,7 @@ class InvalidPageRangeError(Exception):
     pass
 
 def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
-    '''
+    """
     Prints page pairs based on either a specified number of pairs or a range of pages.
 
     Parameters:
@@ -1618,7 +1951,7 @@ def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
     Example:
     - print_page_pairs(pair_pages=4)
     - print_page_pairs(start_page=1, end_page=8)
-    '''    
+    """    
     if pair_pages is not None:
         if pair_pages % 2 != 0 :
             raise InvalidPageRangeError("Invalid pair pages range: pair_pages should be even")
@@ -1640,7 +1973,7 @@ def print_page_pairs(pair_pages=None,start_page=1 , end_page=None ):
         counter -=2
 
 def calculate_age(birth_date, target_date):
-    '''
+    """
     Calculates the age in years, months, and days between two dates.
 
     Parameters:
@@ -1655,14 +1988,14 @@ def calculate_age(birth_date, target_date):
       target_date = '2022-09-01'
       years, months, days = calculate_age(birth_date, target_date)
       print(f"Age on {target_date}: {years} years, {months} months, {days} days")
-    '''
+    """
     birth_date = datetime.datetime.strptime(birth_date, '%Y-%m-%d').date()
     target_date = datetime.datetime.strptime(target_date, '%Y-%m-%d').date()
     age = relativedelta(target_date, birth_date)
     return age.years, age.months, age.days
 
 def fill_Template_With_basic_Student_info(student_details,template='./templet_files/كشف البيانات الاساسية للطلاب.xlsx' ,outdir='./send_folder' ):
-    '''
+    """
     Fills an Excel template with basic student information.
 
     Parameters:
@@ -1683,7 +2016,7 @@ def fill_Template_With_basic_Student_info(student_details,template='./templet_fi
         ]
     }
     - fill_Template_With_basic_Student_info(student_details, './templet_files/كشف البيانات الاساسية للطلاب.xlsx', './send_folder')
-    '''
+    """
     # Load the Excel workbook
     workbook = openpyxl.load_workbook(template)
 
@@ -1940,7 +2273,7 @@ def process_students_info(students_info_data, identity_types, nationality_data ,
         }
     
     for data_item in students_info_data:
-        ''' 
+        """ 
         تفاصيل حقول البييانات الاحصائية للطالب custom_field_values keys
             1 ==> اسم الأم (الاسم الاول والعائلة)  variable: 'mother_name'
             5 ==> عمل ولي الأمر    variable: 'guardian_employment'
@@ -1966,7 +2299,7 @@ def process_students_info(students_info_data, identity_types, nationality_data ,
                                     الموهبة    variable: 'talent'
                                 التفوق و الموهبة   variable: 'excellence_and_talent'
                                 التفوق العقلي     variable: 'intellectual_excellence'   
-        '''
+        """
 
         custom_field_values = data_item['custom_field_values'] 
         custom_field_values_dict = {item['student_custom_field_id']: str(item[key]) for item in custom_field_values 
@@ -3310,18 +3643,6 @@ def get_school_teachers_load(auth , inst_id , academic_period_id=13):
             except:
                 school_load_dictionary.append({'name':load['user']['name'],'subject':load['institution_subject']['name'],'grade':load['institution_subject_id']})
     return school_load_dictionary   
-
-def get_grade_info(auth):
-    """
-    The function "get_grade_info" takes an authentication token as input and returns information about a
-    student's grades.
-    
-    :param auth: The auth parameter is used to authenticate the user and ensure that they have the
-    necessary permissions to access the grade information
-    """
-    
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
-    return my_list
 
 def count_teachers_grades(teachers_load):
     """
@@ -5218,9 +5539,9 @@ def group_students(dic_list4 , i = None):
         return grouped_list
     
 def get_students_info_subjectsMarks(username,password,session=None):
-    '''
+    """
     دالة لاستخراج معلومات و علامات الطلاب لاستخدامها لاحقا في انشاء الجداول و العلامات
-    '''
+    """
     auth=get_auth(username,password)
     dic_list=[]
     target_student_marks=[]
@@ -5759,20 +6080,20 @@ def get_editable_assessments( auth , username ,assessment_grade_id=None , class_
         return sorted_dict    
        
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
-    '''
+    """
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
     return make_request(url,auth,session=session)
 
 def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id,session=None):
-    '''
+    """
          استعلام عن تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود تعريفات التقويمات في السنة الدراسية و امكانية تحرير التقويم و  العلامة القصوى و الدنيا  
-    '''
+    """
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id,session=session)['data']
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' , 'pass_mark': '' , 'max_mark' : '' , 'editable' : '' , 'code':'' , 'gradeId':''}
@@ -5838,11 +6159,11 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,assessment_period_id= assessment_period_id)
 
 def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
-    '''
+    """
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
     student_ids = [student['student_id'] for student in make_request(url,auth,session=session)['data']]
     return student_ids
@@ -5884,19 +6205,10 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
 
 def get_grade_info(auth,session=None):    
     """
-    The function `get_editable_assessments` returns a list of editable assessment data based on the
-    provided parameters.
-    
-    :param auth: The `auth` parameter is used for authentication purposes. It could be a token or any
-    other form of authentication required to access the necessary data
-    :param username: The `username` parameter is used to specify the username of the user for whom the
-    editable assessments need to be retrieved
-    :param assessment_grade_id: The assessment_grade_id parameter is used to specify the grade level of
-    the assessments you want to retrieve. It is an optional parameter, so if you don't provide a value,
-    the function will retrieve assessments for all grade levels
-    :param class_subject: The `class_subject` parameter is used to specify the subject for which you
-    want to get the editable assessments. It is an optional parameter, so if you don't provide a value
-    for it, the function will return all the editable assessments for the given `username` and `session`
+    The function "get_grade_info" takes an authentication token as input and returns information about a
+    student's grades.
+    :param auth: The auth parameter is used to authenticate the user and ensure that they have the
+    necessary permissions to access the grade information
     :param session: The "session" parameter is used for requests.Session() incase function used again to make it faster
     :return: a sorted list of dictionaries containing assessment data.
     """
@@ -6331,9 +6643,9 @@ def copy_ods_file(source_file_path, destination_folder):
     shutil.copy(source_file_path, destination_folder)
     
 def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=None):
-    '''
+    """
     doc is the copy that you want to send 
-    '''
+    """
     context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
     
     page = 4
@@ -6570,29 +6882,29 @@ def mawad_representations(string):
     return f'{search_str} - {class_num}'
 
 def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
-    '''
+    """
     دالة لاستدعاء علامات الطلاب و اسمائهم 
     و عواملها التوكن رقم السنة التعريفي ورقم المادة التعريفي و رقم المؤسسة و  رقم الصف التعريفي
     و تعود باسماء الطالب و علاماتهم
-    '''
+    """
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
     return make_request(url,auth)
 
 def get_assessments_periods(auth ,term, assessment_id,session=None):
-    '''
+    """
          استعلام عن تعريفات التقويمات في الفصل الدراسي 
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
     return make_request(url=url,auth=auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
-    '''
+    """
          استعلام عن تعريفات التقويمات في السنة الدراسية 
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن كل تقيمات الصفوف في السنة الدراسية  
-    '''
+    """
     terms = get_AcademicTerms(auth=auth , assessment_id=assessment_id)['data']
     season_assessments = []
     dic =  {'SEname': '', 'AssesName': '' ,'AssesId': '' }
@@ -6603,22 +6915,22 @@ def get_all_assessments_periods(auth , assessment_id):
     return season_assessments
     
 def get_assessments_id( auth ,education_grade_id ):
-    '''
+    """
          استعلام عن تعريفي الصف الدراسي 
           عوامل الدالة تعريفي المرحلة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
-    '''
+    """
     assessments = get_assessments(auth)
     for assessment in assessments['data'] : 
         if assessment['education_grade_id'] == education_grade_id :
             return assessment['id']
 
 def get_AcademicTerms(auth,assessment_id,session=None):
-    '''
+    """
     دالة لاستدعاء اسم الفصل 
     و عواملها التوكن و رقم تقيم الصف 
     و تعود باسماء الفصول على شكل جيسن
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
     return make_request(url,auth,session=session)        
 
@@ -6655,11 +6967,11 @@ def add_margins(input_pdf1, output_pdf ,color_name="#8cd6e6",top_rec=50,bottom_r
     إضافة هوامش باللون 8cd6e6 إلى جميع الجوانب من الصفحة
     """
     
-    '''
+    """
     example of how to add colored margin for the first and scond page
     add_margins("existing_file.pdf", "output_file.pdf",top_rec=27, bottom_rec=20, left_rec=90, right_rec=120)
     add_margins("output_file.pdf", "output_file2.pdf",page=1 , top_rec=60, bottom_rec=25, left_rec=90, right_rec=120)
-    '''
+    """
     # Open the PDF file
     input_pdf = fitz.open(input_pdf1)
     
@@ -6710,7 +7022,7 @@ def mawad(string):
     return f'{search_str}-{class_num}'
 
 def get_basic_info (username , password):
-    '''
+    """
     Retrieves basic information related to a user and institution from an educational management system.
 
     Parameters:
@@ -6729,7 +7041,7 @@ def get_basic_info (username , password):
 
     Example:
     - basic_info = get_basic_info('sample_username', 'sample_password')
-    '''
+    """
     auth = get_auth(username ,password )
     user = user_info(auth , username)
     inst_data = inst_name(auth)['data'][0]['Institutions']
@@ -6744,7 +7056,7 @@ def get_basic_info (username , password):
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
 
 def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
-    '''
+    """
     Fills custom shapes in an OpenDocument Spreadsheet (ODS) document.
 
     Parameters:
@@ -6767,7 +7079,7 @@ def fill_custom_shape(doc, sheet_name, custom_shape_values, outfile):
     }
 
     - fill_custom_shape('official_marks_doc_a3_two_face.ods', 'الغلاف الداخلي', custom_shapes, 'tttttt.ods')
-    '''
+    """
     print(doc)
     # Load the document
     doc = load(str(doc))
@@ -7008,40 +7320,40 @@ def get_auth(username , password ,proxies=None):
         return response.json()['data']['token']    
     
 def inst_name(auth,session=None):
-    '''
+    """
     استدعاء اسم المدرسة و الرقم الوطني و الرقم التعريفي 
         عوامل الدالة الرابط و التوكن
         تعود بالرقم التعريفي و الرقم الوطني و اسم المدرسة 
-    '''
+    """
     url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
     return make_request(url,auth,session=session)   # institution
 
 def inst_area(auth , inst_id = None ,session=None):
-    '''
+    """
     استدعاء لواء المدرسة و المنطقة
     عوامل الدالة الرابط و التوكن
     تعود باسم البلدية و اسم المنطقة و اللواء 
-    '''
+    """
     if inst_id is None:
         inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Institutions.json?id={inst_id}&_contain=AreaAdministratives,Areas&_fields=AreaAdministratives.name,Areas.name"
     return make_request(url,auth,session=session)
 
 def user_info(auth,username,session=None):
-    '''
+    """
         استدعاء معلومات عن المعلم او المستخدم 
         عوامل الدالة الرابط و التوكن و رقم المستخدم
         تعود برقم المستخدم الوطني و اسمه الرباعي  
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/User-Users?username={username}&is_staff=1&_fields=id,username,openemis_no,first_name,middle_name,third_name,last_name,preferred_name,email,date_of_birth,nationality_id,identity_type_id,identity_number,status&_limit=1"
     return make_request(url,auth,session=session)
 
 def get_teacher_classes1(auth,ins_id,staff_id,academic_period,session=None):
-    '''
+    """
         استدعاء معلومات صفوف المعلم 
         عوامل الدالة الرابط و التوكن و التعريفي للمدرسة و تعريفي الفترة و staffid 
         تعود الدالة بتعريفي اي صف مع المعلم و كود الصف
-    '''
+    """
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStaff?institution_id={ins_id}&staff_id={staff_id}&academic_period_id={academic_period}&_contain=InstitutionSubjects&_limit=0&_fields=InstitutionSubjects.id,InstitutionSubjects.education_subject_id,InstitutionSubjects.name"
     return make_request(url,auth,session=session)
 
@@ -7056,11 +7368,11 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     Returns:
         _type_: معلومات عن المادة و عن الصف على شكل قاموس
     """    
-    '''
+    """
     استدعاء معلومات تفصيلية عن الصفوف 
     عوامل الدالة الرابط و التوكن و رقم المستخدم
     تعود باسم الصف و تعريفي الصف و عدد الطلاب في الصف و اسم المادة التي يدرسها المعلم في الصف
-    '''
+    """
     # url = "https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:10513896,institution_subject_id:10513912,institution_subject_id:10513928,institution_subject_id:10513944"
     url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:{inst_sub_id}"
     
@@ -7119,7 +7431,7 @@ def enter_mark(auth
                ,student_status_id
                ,student_id
                ,assessment_period_id):
-    '''
+    """
     دالة لادخال علامة الطالب 
     عوامل الدالة العلامة و رقم المؤسسة التعريفي و رقم الطالب و الرقم التعريفي للفترة الاكاديمة و رقم المادة التعريفي
     enter_mark(get_auth() 
@@ -7135,7 +7447,7 @@ def enter_mark(auth
                 ,student_id= 3768676
                 ,assessment_period_id= 624)
     و تعود الدالة بكود الاجابة 200 و اذا لم يعود به تصدر الدالة خطا
-    '''
+    """
     url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json'
     headers = {"Authorization": auth , "ControllerAction" : "Results" }
     json_data = {
@@ -7160,11 +7472,11 @@ def enter_mark(auth
         print(marks , education_subject_id ,student_id , response.status_code)
 
 def get_curr_period(auth,session=None):
-    '''
+    """
     دالة  تستدعي معلومات السنة الحالية من الخادم
     التوكن 
     و تعود على المستخدم بمعلومات السنة الدراسية الحالية 
-    '''
+    """
     url = "https://emis.moe.gov.jo/openemis-core/restful/AcademicPeriod-AcademicPeriods?current=1&_fields=id,code,start_date,end_date,start_year,end_year,school_days"
     return make_request(url,auth,session=session)
 
@@ -7465,7 +7777,7 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
 
-    # '''9752045067/2761975
+    # """9752045067/2761975
     # 9932039648/9932039648
     # 9832049975/9832049975
     # 9892023550/0772626275
@@ -7525,9 +7837,9 @@ def main():
     # 9891009452
     # 9861043795
     # 2000358321
-    # '''
+    # """
     
-    passwords = '''9971055725'''
+    passwords = """9971055725"""
 
     # تعمل في مؤسستين 
     # 9892050032/Manar@100 
