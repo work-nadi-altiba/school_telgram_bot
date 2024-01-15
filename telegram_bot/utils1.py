@@ -52,11 +52,47 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
-def wfuzz_function_can_return_data(url,fuzz_list , headers , body_postdata , method='POST' , proxies = None):
+def calculate_percentage(part, whole):
+    if whole == 0:
+        return 0
+    return (part / whole) * 100
+
+def inserted_marks_percentage_from_dataframes_variable_v2(marks , with_entered_and_not_marks=False , row_empty_marks=False):
+    empty_marks = [mark for mark in marks if not isinstance(mark['العلامة'], str)]
+    inserted_marks = abs(len(empty_marks)-len(marks))
+    inserted_marks_percentage = calculate_percentage(inserted_marks ,len(marks) )
+    
+    if with_entered_and_not_marks:
+        if row_empty_marks:
+            return {'percentage': inserted_marks_percentage,
+                    'inserted_marks': inserted_marks,
+                    'empty_marks': len(empty_marks),
+                    'row_empty_marks': empty_marks
+                    }
+        else:
+            return {'percentage': inserted_marks_percentage,
+                    'inserted_marks': inserted_marks,
+                    'empty_marks': len(empty_marks),
+                    }            
+    else:
+        return inserted_marks_percentage
+
+def create_fuzz_list(inst_id, period_id ,class_data_dic,_fuzz_list = []):
+    for class_id in class_data_dic:
+        name = class_data_dic[class_id]['name']
+        if 'عشر' not in name :
+            class_subjects = class_data_dic[class_id]['subjects']
+            assessment_id = class_data_dic[class_id]['assessment_id']
+            education_grade_id = class_data_dic[class_id]['education_grade_id']    
+            for subject in class_subjects :
+                _fuzz_list.append(f'institution_id:{inst_id};institution_class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{subject["id"]};education_grade_id:{education_grade_id}')        
+    return _fuzz_list
+
+def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , method='POST' , proxies = None):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
 
     Args:
-        fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
+        _fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
         headers (tuple-list): راسيات الطلب او الركويست
         body_postdata (str): جسم البوست داتا
         method (str, optional): طريقة الطلب. Defaults to 'POST'.
@@ -65,14 +101,14 @@ def wfuzz_function_can_return_data(url,fuzz_list , headers , body_postdata , met
         any : تعود بقائمة الطلبات غير الناجحة
     """    
     unsuccessful_requests=[]
-    teachers_in_schools=[]
-    with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
+    _data=[]
+    with tqdm(total=len(_fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
             postfix=["scraped schools", {"value": 0}]) as t:
-            s = wfuzz.get_payloads([fuzz_list])
+            s = wfuzz.get_payloads([_fuzz_list])
             for idx , r in enumerate(s.fuzz(
                             url=url ,
                             # hc=[404] , 
-                            # payloads=[("list",fuzz_list)] ,
+                            # payloads=[("list",_fuzz_list)] ,
                             headers=headers ,
                             postdata = body_postdata ,
                             proxies= proxies ,
@@ -86,10 +122,10 @@ def wfuzz_function_can_return_data(url,fuzz_list , headers , body_postdata , met
                 t.update()    
                 try:
                     dict_content = json.loads(r.content)
-                    teachers_in_schools.append(dict_content)
+                    _data.append(dict_content)
                 except:
                     # if len(dict_content['data']):
-                    print ('there is error at page' + r.description)
+                    print ('there is error at fuzz item : ' + r.description)
                     # there
                     pass
             #     print(r)
@@ -97,7 +133,331 @@ def wfuzz_function_can_return_data(url,fuzz_list , headers , body_postdata , met
             #     print(r.history.code) # كود الركويست
                 if r.history.code != 200 :
                     unsuccessful_requests.append(r.description)
-    return [unsuccessful_requests , teachers_in_schools]
+    return [unsuccessful_requests , _data]
+
+def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic, _school_marks = [],session = None):
+    url = url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[FUZZ]&_limit=0'
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
+
+    _fuzz_list = create_fuzz_list(inst_id , period_id ,_class_data_dic)
+    unsuccessful_requests , _data_list = wfuzz_function_can_return_data(url ,_fuzz_list,headers,body_postdata=None,method='GET')
+
+    while len(unsuccessful_requests) != 0:
+        requests  = wfuzz_function_can_return_data(url ,unsuccessful_requests,headers,body_postdata=None,method='GET')
+        unsuccessful_requests = requests[0]
+        _data_list.append(requests[1])
+    
+    
+    for i in _data_list:
+        if len(i):
+            try :
+                if len(i['data']):
+                    _school_marks.extend(i['data'])
+            except:
+                pass
+    
+    return _school_marks
+
+def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , session=None):
+    grades_info = get_grade_info(auth)
+    student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0', session=session)['data']
+    class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classess}
+    students_with_data_dic = {i['student_id']:{'full_name':i['user']['name'] ,'status_id':i['student_status_id'] ,'class_id':i['institution_class_id']} for i in student_classess }
+    classes = [i for i in class_names_dic]
+    classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
+    classes_data = make_request(url=url,auth=auth,session=session)['data']
+    for i in classes_data:
+        class_names_dic[i['institution_class_id']]['name'] = i['institution_class']['name']
+    for clas in class_names_dic:
+        class_names_dic[clas]['assessment_id'] = offline_get_assessment_id_from_grade_id(class_names_dic[clas]['education_grade_id'] ,grades_info)
+
+    return class_names_dic , students_with_data_dic
+
+def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
+
+    # function variables here 
+    techers_percentages ,data_frames , subject_ids ,terms_list = {}, [], [], []
+    assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
+    search_names =['رياضية', 'نشاط', 'مسيحية', 'فن', 'فرنس']
+    
+    search_names = [search_names[abs(i - 1)] for i in subject_search_name_wanted_index]
+    unique_names = {}
+    
+    # اذا لم يختر المستخدم الفصل الاول اذا اختر الفصل الثاني 
+    # و اذا لم يختر الفصل الاول ولا الثاني 
+    # اذا واختار الفصلين اذا اظهر له نتائج الفصلين
+    if first_term:
+        terms_list = [i for i in assessments_codes if 'S1' in i]
+        terms_list.append('Assess')
+    elif second_term:
+        terms_list = [i for i in assessments_codes if 'S2' in i]
+        terms_list.append('Assess2')
+    elif both_terms:
+        terms_list = [i for i in assessments_codes]
+        terms_list.append('Assess1' , 'Assess2')
+
+    # get the marks that the teachers uploaded on the emis site 
+    # get the classes and the students 
+    class_data_dic , students_with_data_dic = get_school_classes_and_students_with_classes(auth ,inst_id , period_id,session=session)
+    
+    # add subjects to the class dictionary variable which is class_data_dic
+    class_data_with_subjects_dictionary = add_subjects_to_class_data_dic(auth,inst_id , period_id,class_data_dic,session=session)
+    
+    open_emis_core_marks = get_school_marks_version_2(auth,inst_id , period_id,class_data_dic,session=session)
+
+    # get the teachers or staff data (what the subjects they teach and the class names)
+    SubjectStaff_data = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users,InstitutionSubjects&_limit=0',session=session)['data']
+    
+    # get the assessment periods dictionary 
+    assessment_periods_dictionary = get_assessment_periods_dictionary(auth)
+    
+    # map the followings 
+    # teachers load  
+    # subjects for each teacher  
+    # the teacher with subjects
+    staff_load_mapping = {
+                        x['staff_id'] : {
+                            'name': x['user']['name'],
+                            'teacher_subjects':
+                                [
+                                    [
+                                        i['institution_subject']['id'] ,
+                                        i['institution_subject']['name'] ,
+                                        i['institution_subject']['education_grade_id'],
+                                        i['institution_subject']['education_subject_id'] ,
+                                    
+                                    ] for i in SubjectStaff_data if x['staff_id'] == i['staff_id']
+                                ]
+                            }
+                        for x in SubjectStaff_data
+                            if x['end_date'] is None
+                        }
+    subject_mapping_for_teachers = {
+                                    i['id'] : { 
+                                            'name': i['name'] , 
+                                            'class_id': class_id ,
+                                            'class_name' : class_data_dic[class_id]['name'] ,
+                                            'education_subject_id': i['education_subject_id']
+                                            }    
+                                    for class_id in class_data_dic 
+                                    for i in class_data_dic[class_id]['subjects']
+                                    }
+    teacher_with_subject_mapping = {
+                                        i[0] : { 
+                                                'teacher_name': staff_load_mapping[teacher_id]['name'] , 
+                                                'education_subject_name': i[1]
+                                                }    
+                                        for teacher_id in staff_load_mapping 
+                                        for i in staff_load_mapping[teacher_id]['teacher_subjects']
+                                    }
+    class_subject_teacher_mapping = get_class_subject_teacher_mapping_dictionary( class_data_with_subjects_dictionary , subject_mapping_for_teachers , teacher_with_subject_mapping)
+    
+    # Create data_frames for these porposes :-
+    # 1) writing the resulted marks in excel file  
+    # 2)to get the percentages for the school ,and teachers , classes
+    for student in students_with_data_dic :
+        # FIXME: make execulding sacendary students option in the function
+        if 'عشر' not in class_data_dic[students_with_data_dic[student]['class_id']]['name'] :
+            #  ابحث عن الطالب صاحب الرقم التعريفي 
+            student_marks = [i for i in open_emis_core_marks if i['student_id']==student]
+            # ابحث في كل المواد التالية 
+            for subject in class_data_dic[students_with_data_dic[student]['class_id']]['subjects'] :
+                subject_marks = [i for i in student_marks if i['education_subject_id'] ==int(subject['education_subject_id'])]
+
+                # و تحقق من وجود كود التقويمات الثمانية للفصل الاول و الفصل الثاني و اذا لم تجد ارصد فارغ للعلامة 
+                for mark in subject_marks :
+                    # اما اذا وجدت فارصد علامة الطالب الحقيقية
+                    student_class = students_with_data_dic[mark['student_id']]['class_id']
+                    assessment_period_data = assessment_periods_dictionary[int(mark['assessment_period_id'])]
+                    data_frames.append({
+                        'student_id': mark['student_id'] ,
+                        'اسم الطالب': students_with_data_dic[mark['student_id']]['full_name'],
+                        'حالة الطالب': 'ملتحق' if mark['student_status_id'] in student_status_list else 'غير ذلك',
+                        'status_id' : mark['student_status_id'] ,
+                        'اسم المعلم':class_subject_teacher_mapping[student_class][mark['education_subject_id']]['teacher_name'] ,
+                        'رقم الصف' : student_class,
+                        'الصف+الشعبة': class_subject_teacher_mapping[student_class][mark['education_subject_id']]['class_name'],
+                        'رقم المادة' : mark['education_subject_id'],
+                        'اسم المادة':class_subject_teacher_mapping[student_class][mark['education_subject_id']]['name'],
+                        'التقويم': assessment_period_data['name'],
+                        'الفصل': assessment_period_data['academic_term'],
+                        'code':assessment_period_data['code'],
+                        'العلامة': mark['mark']
+                    })
+
+    # Code that i wrote to skip some subjects from the percentages
+    subjects_dictionary_list = [
+                                    {
+                                        'name':values['name'] ,
+                                        'education_subject_id':values['education_subject_id']
+                                    } for values in subject_mapping_for_teachers.values()
+                                ]
+        # Create a Wiktionary to track unique names and their IDs
+    sorted_unique_data = sorted({item['education_subject_id']: item for item in subjects_dictionary_list}.values(), key=lambda x: x['education_subject_id'])
+        # Iterate through the data and update the dictionary
+    for item in sorted_unique_data:
+        stripped_name = item['name'].strip()
+        if stripped_name in unique_names:
+            unique_names[stripped_name].append(item['education_subject_id'])
+        else:
+            unique_names[stripped_name] = [item['education_subject_id']]
+    for name, ids in unique_names.items():
+        if any(search_name in name for search_name in search_names):
+            ids = [int(i) for i in ids]
+            subject_ids.extend(ids)
+
+
+    # get the teachers percentage and the uploaded marks and unuploaded marks
+    teachers_names = list(set(i['اسم المعلم'] for i in data_frames))
+    teacher_marks = {
+                        i: {'row_marks':[
+                                        {'العلامة' :x['العلامة'] , 'code' : x['code']} for x in data_frames 
+                                            if x['اسم المعلم'] == i
+                                            # FIXME: try to find other way to get the term percentage and student status
+                                            and
+                                            any(term_item in x['code'] for term_item in terms_list)
+                                            and
+                                            x['status_id'] in student_status_list
+                                        ]}
+                        for i in teachers_names 
+                    }
+
+    for teacher in teacher_marks :
+        marks = teacher_marks[teacher]['row_marks']
+        # print(teacher ,inserted_marks_percentage_from_dataframes_variable(marks))
+        techers_percentages[teacher] = inserted_marks_percentage_from_dataframes_variable(marks ,True)
+
+    classes_with_subjects_percentage = class_data_dic
+
+    for class_number in class_data_dic:
+        class_subjects_dict = {
+                                int(i['education_subject_id']) : {
+                                                                    'name' :
+                                                                        i['name']
+                                                                    }
+                                    for i in class_data_dic[class_number]['subjects']
+                            }
+        class_subjects_dict = dict(sorted(class_subjects_dict.items(), key=lambda item: item[0]))
+        class_marks = [i for i in data_frames if i['رقم الصف'] == class_number and "غير ذلك" not in i['حالة الطالب'] ]
+        for subject_id in class_subjects_dict:
+            subject_data_list = [i for i in class_marks if i['رقم المادة'] == subject_id]
+            assessments_dict = {i:'' for i in assessments_codes}        
+            for assessment in assessments_codes:
+                # FIXME: make it compare the all cases of academic term with all possible strings
+                assessment_marks = [i for i in subject_data_list if assessment in i['code'] ]
+                assessments_dict[assessment] = inserted_marks_percentage_from_dataframes_variable(assessment_marks)
+                
+            class_subjects_dict[subject_id]['subject_marks_percentage']  = assessments_dict
+            class_subjects_dict[subject_id]['subject_teacher'] = class_subject_teacher_mapping[class_number][subject_id]['teacher_name']
+            
+        classes_with_subjects_percentage[class_number]['subjects_percentage'] = class_subjects_dict
+        class_subjects_dict = {}
+
+    school_marks = [
+                    {
+                        'student_id': x['student_id'],
+                        'اسم الطالب': x['اسم الطالب'],
+                        'حالة الطالب': x['حالة الطالب'],
+                        'status_id' : x['status_id' ],
+                        'اسم المعلم': x['اسم المعلم'],
+                        'رقم الصف' : x['رقم الصف' ],
+                        'الصف+الشعبة': x['الصف+الشعبة'],
+                        'رقم المادة' : x['رقم المادة' ],
+                        'اسم المادة': x['اسم المادة'],
+                        'التقويم': x['التقويم'],
+                        'الفصل': x['الفصل'],
+                        'code': x['code'],
+                        'العلامة': x['العلامة']
+                    }
+                    for x in data_frames 
+                        if any(term_item in x['code'] for term_item in terms_list)
+                        and
+                        x['status_id'] in student_status_list
+                        and
+                        x['رقم المادة'] not in subject_ids
+                    ]
+    return {
+            'school_percentage' : inserted_marks_percentage_from_dataframes_variable(school_marks , True ,True),
+            'teachers_percentages' :techers_percentages,
+            'classes_percentages' : classes_with_subjects_percentage,
+            'data_frames' : data_frames
+            }
+
+def get_class_subjects(auth , class_id , assessment_id , academic_period_id , institution_id , session=None):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
+    return make_request(auth=auth , url=url , session=session)['data']
+
+def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dictionary , _subject_mapping_for_teachers ,_teacher_with_subject_mapping):
+    _class_subject_teacher_mapping = {}
+    _class_subjects_linked_to_teacher =[]
+    for class_id in _class_data_with_subjects_dictionary:
+        _class_subjects_linked_to_teacher.clear()
+        for education_subject_id in _subject_mapping_for_teachers:
+            if _subject_mapping_for_teachers[education_subject_id]['class_id'] == class_id:
+                try:
+                    _subject_mapping_for_teachers[education_subject_id]['teacher_name'] = _teacher_with_subject_mapping[int(education_subject_id)]['teacher_name']
+                except KeyError:
+                    _subject_mapping_for_teachers[education_subject_id]['teacher_name'] = 'مادة بدون معلم'
+                _class_subjects_linked_to_teacher.append(_subject_mapping_for_teachers[education_subject_id])
+        
+        _class_subject_teacher_mapping[class_id] = {
+                                                    int(i['education_subject_id']):
+                                                                                    {
+                                                                                        'name': i['name'],
+                                                                                        'class_id': i['class_id'],
+                                                                                        'class_name': i['class_name'],
+                                                                                        'teacher_name': i['teacher_name'],
+                                                                                    }
+                                                                                        for i in _class_subjects_linked_to_teacher
+                                                    }
+    return _class_subject_teacher_mapping
+
+def get_subject_dictionary(_class_data_with_subjects_dictionary):
+    '''
+    # Example flatten list of lists
+    matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+    numbers =[]
+    for row in matrix:
+        for col in row:
+            numbers.append(col)
+    print(numbers)
+    # or 
+    # for row in matrix
+    # for col in row
+    # and what we want is the col
+    print([col for row in matrix for col in row])
+    '''
+    return {
+            int(subject_data['education_subject_id']): subject_data['name'] 
+                for class_id in _class_data_with_subjects_dictionary 
+                for subject_data in _class_data_with_subjects_dictionary[class_id]['subjects']
+            }
+
+def get_assessment_periods_list(auth , session=None):
+    assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+    return assessment_periods['data']
+
+def get_assessment_periods_dictionary(auth ):
+        return {
+                i['id']:{
+                        'code' : i['code'],
+                        'name' : i['name'],
+                        'academic_term' : i['academic_term'],
+                        } 
+                for i in get_assessment_periods_list(auth)
+                }
+
+def add_subjects_to_class_data_dic(auth , inst_id ,period_id , _class_data_dic ,session=None):
+    # add subjects to class_data_dic
+    for class_ in _class_data_dic:
+        class_subject_data = get_class_subjects(auth ,class_ , _class_data_dic[class_]['assessment_id'] ,period_id, inst_id ,session=session)
+        _class_data_dic[class_]['subjects'] = [i['InstitutionSubjects'] for i in class_subject_data]
+    return _class_data_dic
 
 def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
     start_page = 1
@@ -151,26 +511,6 @@ def inserted_marks_percentage_from_dataframes_variable(marks , with_entered_and_
     else:
         return inserted_marks_percentage
 
-def get_class_subjects(auth , class_id , assessment_id , academic_period_id , institution_id , session=None):
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
-    return make_request(auth=auth , url=url , session=session)['data']
-
-def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , session=None):
-    grades_info = get_grade_info(auth)
-    student_classes = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0',session=session)['data']
-    class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classes}
-    students_with_data_dic = {i['student_id']:{'full_name':i['user']['name'] ,'status_id':i['student_status_id'] ,'class_id':i['institution_class_id']} for i in student_classes }
-    classes = [i for i in class_names_dic]
-    classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
-    classes_data = make_request(url=url,auth=auth,session=session)['data']
-    for i in classes_data:
-        class_names_dic[i['institution_class_id']]['name'] = i['institution_class']['name']
-    for class_ in class_names_dic:
-        class_names_dic[class_]['assessment_id'] = offline_get_assessment_id_from_grade_id(class_names_dic[class_]['education_grade_id'] ,grades_info)
-
-    return class_names_dic , students_with_data_dic
-
 def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
 
     # function variables here 
@@ -186,10 +526,13 @@ def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,s
     # اذا واختار الفصلين اذا اظهر له نتائج الفصلين
     if first_term:
         terms_list = [i for i in assessments_codes if 'S1' in i]
+        terms_list.append('Assess')
     elif second_term:
         terms_list = [i for i in assessments_codes if 'S2' in i]
+        terms_list.append('Assess2')
     elif both_terms:
         terms_list = [i for i in assessments_codes]
+        terms_list.append('Assess1' , 'Assess2')
 
     # get the marks that the teachers uploaded on the emis site 
     # get the classes and the students 
