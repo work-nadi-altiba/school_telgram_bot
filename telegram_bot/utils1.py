@@ -46,12 +46,99 @@ from pprint import pprint
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from itertools import groupby
 import traceback
+import pandas as pd
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # Global variables should under her please
 secondery_students = []
 
 # New code should be under here please
+def teachers_marks_upload_percentage_wrapper_version_2(auth , first_term =False,second_term = False, both_terms=False ,inst_id=None , inst_nat=None , session=None , template='./templet_files/كشف نسبة الادخال معدل نسخة_2.xlsx' ,outdir='./send_folder/' ):
+    
+    curr_year = get_curr_period(auth=auth,session=session)['data'][0]['id']
+    
+    if inst_id is None and inst_nat is None : 
+        inst_id = inst_name(auth ,session=session)['data'][0]['Institutions']['id']
+
+    data_dict = get_marks_upload_percentages_v2(auth , inst_id,curr_year,first_term =first_term,second_term = second_term, both_terms=both_terms , session=session)
+    
+    empty_marks_list = data_dict['school_percentage']['row_empty_marks']
+    classes_data = data_dict['classes_percentages']
+    teachers_percentages_data = data_dict['teachers_percentages']
+    teachers_names = [i for i in data_dict['teachers_percentages']]
+    teachers_names.sort()
+
+    existing_WorkBook = load_workbook(template)
+    school_percentage_WorkSheet = existing_WorkBook['نسب الادخال']
+    school_percentage_WorkSheet['B3'] = int(data_dict['school_percentage']['percentage'])
+    
+    # Insert teachers percentages in the first page which is the active page
+    for counter , teacher in enumerate(teachers_names , start=10):
+        # Insert name
+        school_percentage_WorkSheet[f'A{counter}'] = teacher
+        # Insert percentage
+        school_percentage_WorkSheet[f'B{counter}'] = teachers_percentages_data[teacher]['percentage']
+        # Insert inserted marks number
+        school_percentage_WorkSheet[f'C{counter}'] = teachers_percentages_data[teacher]['inserted_marks']
+        # Insert empty marks number
+        school_percentage_WorkSheet[f'D{counter}'] = teachers_percentages_data[teacher]['empty_marks']
+    
+    # Insert classes subjects marks percentage (for each class)
+    for class_id in classes_data:
+        class_sheet_copy = existing_WorkBook.copy_worksheet(existing_WorkBook['Sheet1'])
+        class_data = classes_data[class_id]
+        class_sheet_copy['N1'] = class_data['name']
+        class_sheet_copy.title = class_data['name']
+        class_sheet_copy.sheet_view.rightToLeft = True
+        class_sheet_copy.sheet_view.rightToLeft = True
+        class_subjects_ids = class_data['subjects_percentage']
+        
+        for counter , subject_id in enumerate(class_subjects_ids , start=5):
+            subject_data = class_subjects_ids[subject_id]
+            assessments_periods_percentages = subject_data['subject_marks_percentage']
+            # subject name
+            class_sheet_copy[f'B{counter}'] = subject_data['name']
+            # first semester marks percentages
+            class_sheet_copy[f'C{counter}'] = assessments_periods_percentages['S1A1']
+            class_sheet_copy[f'D{counter}'] = assessments_periods_percentages['S1A2']
+            class_sheet_copy[f'E{counter}'] = assessments_periods_percentages['S1A3']
+            class_sheet_copy[f'F{counter}'] = assessments_periods_percentages['S1A4']
+            # second semester marks percentages
+            class_sheet_copy[f'G{counter}'] = assessments_periods_percentages['S2A1']
+            class_sheet_copy[f'H{counter}'] = assessments_periods_percentages['S2A2']
+            class_sheet_copy[f'I{counter}'] = assessments_periods_percentages['S2A3']
+            class_sheet_copy[f'J{counter}'] = assessments_periods_percentages['S2A4']
+            
+            class_sheet_copy[f'K{counter}'] = subject_data['subject_teacher']
+    
+    empty_marks_sheet = existing_WorkBook.create_sheet("العلامات الفارغة")
+    empty_marks_sheet.sheet_view.rightToLeft = True
+    
+    
+    header = [
+                'student_id',
+                'اسم الطالب',
+                'حالة الطالب',
+                'status_id',
+                'اسم المعلم',
+                'رقم الصف',
+                'الصف+الشعبة',
+                'رقم المادة',
+                'اسم المادة',
+                'التقويم',
+                'الفصل',
+                'code',
+                'العلامة'
+            ]
+    empty_marks_sheet.append(header)
+    for data in empty_marks_list:
+        values = [data.get(key, '') for key in header]
+        empty_marks_sheet.append(values)    
+    
+    
+    existing_WorkBook.remove(existing_WorkBook['Sheet1'])
+    existing_WorkBook.save( outdir + f'نسب العلامات للاساسي.xlsx')
+
 def calculate_percentage(part, whole):
     if whole == 0:
         return 0
@@ -75,9 +162,10 @@ def inserted_marks_percentage_from_dataframes_variable_v2(marks , with_entered_a
                     'empty_marks': len(empty_marks),
                     }            
     else:
-        return inserted_marks_percentage
+       return inserted_marks_percentage
 
-def create_fuzz_list(inst_id, period_id ,class_data_dic,_fuzz_list = []):
+def create_fuzz_list(inst_id, period_id ,class_data_dic):
+    _fuzz_list = []
     for class_id in class_data_dic:
         name = class_data_dic[class_id]['name']
         if 'عشر' not in name :
@@ -135,7 +223,8 @@ def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , me
                     unsuccessful_requests.append(r.description)
     return [unsuccessful_requests , _data]
 
-def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic, _school_marks = [],session = None):
+def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic):
+    _school_marks = []
     url = url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[FUZZ]&_limit=0'
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
 
@@ -177,7 +266,7 @@ def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , ses
 def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
 
     # function variables here 
-    techers_percentages ,data_frames , subject_ids ,terms_list = {}, [], [], []
+    techers_percentages ,teachers_empty_marks,data_frames , subject_ids ,terms_list = {}, [], [], [] , []
     assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
     search_names =['رياضية', 'نشاط', 'مسيحية', 'فن', 'فرنس']
     
@@ -204,7 +293,7 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
     # add subjects to the class dictionary variable which is class_data_dic
     class_data_with_subjects_dictionary = add_subjects_to_class_data_dic(auth,inst_id , period_id,class_data_dic,session=session)
     
-    open_emis_core_marks = get_school_marks_version_2(auth,inst_id , period_id,class_data_dic,session=session)
+    open_emis_core_marks = get_school_marks_version_2(auth,inst_id , period_id,class_data_dic)
 
     # get the teachers or staff data (what the subjects they teach and the class names)
     SubjectStaff_data = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users,InstitutionSubjects&_limit=0',session=session)['data']
@@ -221,13 +310,13 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
                             'name': x['user']['name'],
                             'teacher_subjects':
                                 [
-                                    [
-                                        i['institution_subject']['id'] ,
-                                        i['institution_subject']['name'] ,
-                                        i['institution_subject']['education_grade_id'],
-                                        i['institution_subject']['education_subject_id'] ,
+                                    {
+                                        'subject_class_id' :i['institution_subject']['id'] ,
+                                        'subject_name' :i['institution_subject']['name'] ,
+                                        'subject_grade_id' :i['institution_subject']['education_grade_id'],
+                                        'subject_id' :i['institution_subject']['education_subject_id'] ,
                                     
-                                    ] for i in SubjectStaff_data if x['staff_id'] == i['staff_id']
+                                    } for i in SubjectStaff_data if x['staff_id'] == i['staff_id']
                                 ]
                             }
                         for x in SubjectStaff_data
@@ -240,13 +329,14 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
                                             'class_name' : class_data_dic[class_id]['name'] ,
                                             'education_subject_id': i['education_subject_id']
                                             }    
-                                    for class_id in class_data_dic 
-                                    for i in class_data_dic[class_id]['subjects']
+                                    for class_id in class_data_with_subjects_dictionary 
+                                    for i in class_data_with_subjects_dictionary[class_id]['subjects']
                                     }
     teacher_with_subject_mapping = {
-                                        i[0] : { 
+                                        i['subject_class_id'] : { 
                                                 'teacher_name': staff_load_mapping[teacher_id]['name'] , 
-                                                'education_subject_name': i[1]
+                                                'education_subject_name': i['subject_name'],
+                                                'education_subject_id': i['subject_id']
                                                 }    
                                         for teacher_id in staff_load_mapping 
                                         for i in staff_load_mapping[teacher_id]['teacher_subjects']
@@ -312,7 +402,21 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
     teachers_names = list(set(i['اسم المعلم'] for i in data_frames))
     teacher_marks = {
                         i: {'row_marks':[
-                                        {'العلامة' :x['العلامة'] , 'code' : x['code']} for x in data_frames 
+                                        {
+                                            'student_id': x['student_id'],
+                                            'اسم الطالب': x['اسم الطالب'],
+                                            'حالة الطالب': x['حالة الطالب'],
+                                            'status_id' : x['status_id' ],
+                                            'اسم المعلم': x['اسم المعلم'],
+                                            'رقم الصف' : x['رقم الصف' ],
+                                            'الصف+الشعبة': x['الصف+الشعبة'],
+                                            'رقم المادة' : x['رقم المادة' ],
+                                            'اسم المادة': x['اسم المادة'],
+                                            'التقويم': x['التقويم'],
+                                            'الفصل': x['الفصل'],
+                                            'code': x['code'],
+                                            'العلامة': x['العلامة']
+                                        } for x in data_frames 
                                             if x['اسم المعلم'] == i
                                             # FIXME: try to find other way to get the term percentage and student status
                                             and
@@ -326,7 +430,8 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
     for teacher in teacher_marks :
         marks = teacher_marks[teacher]['row_marks']
         # print(teacher ,inserted_marks_percentage_from_dataframes_variable(marks))
-        techers_percentages[teacher] = inserted_marks_percentage_from_dataframes_variable(marks ,True)
+        teachers_empty_marks.extend(inserted_marks_percentage_from_dataframes_variable_v2(marks ,True, True)['row_empty_marks'])
+        techers_percentages[teacher] = inserted_marks_percentage_from_dataframes_variable_v2(marks ,True)
 
     classes_with_subjects_percentage = class_data_dic
 
@@ -346,7 +451,7 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
             for assessment in assessments_codes:
                 # FIXME: make it compare the all cases of academic term with all possible strings
                 assessment_marks = [i for i in subject_data_list if assessment in i['code'] ]
-                assessments_dict[assessment] = inserted_marks_percentage_from_dataframes_variable(assessment_marks)
+                assessments_dict[assessment] = inserted_marks_percentage_from_dataframes_variable_v2(assessment_marks)
                 
             class_subjects_dict[subject_id]['subject_marks_percentage']  = assessments_dict
             class_subjects_dict[subject_id]['subject_teacher'] = class_subject_teacher_mapping[class_number][subject_id]['teacher_name']
@@ -378,7 +483,7 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
                         x['رقم المادة'] not in subject_ids
                     ]
     return {
-            'school_percentage' : inserted_marks_percentage_from_dataframes_variable(school_marks , True ,True),
+            'school_percentage' : inserted_marks_percentage_from_dataframes_variable_v2(school_marks , True ,True),
             'teachers_percentages' :techers_percentages,
             'classes_percentages' : classes_with_subjects_percentage,
             'data_frames' : data_frames
@@ -393,20 +498,27 @@ def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dicti
     _class_subjects_linked_to_teacher =[]
     for class_id in _class_data_with_subjects_dictionary:
         _class_subjects_linked_to_teacher.clear()
-        for education_subject_id in _subject_mapping_for_teachers:
-            if _subject_mapping_for_teachers[education_subject_id]['class_id'] == class_id:
-                try:
-                    _subject_mapping_for_teachers[education_subject_id]['teacher_name'] = _teacher_with_subject_mapping[int(education_subject_id)]['teacher_name']
-                except KeyError:
-                    _subject_mapping_for_teachers[education_subject_id]['teacher_name'] = 'مادة بدون معلم'
-                _class_subjects_linked_to_teacher.append(_subject_mapping_for_teachers[education_subject_id])
+        class__subject_ids =[i['id'] for i in _class_data_with_subjects_dictionary[class_id]['subjects']]
+        for education_subject_id in class__subject_ids:
+            try:
+                _class_subjects_linked_to_teacher.append(_teacher_with_subject_mapping[int(education_subject_id)])
+            except KeyError:
+                subject_data = _subject_mapping_for_teachers[education_subject_id]
+                _class_subjects_linked_to_teacher.append({
+                                                            'education_subject_name': subject_data['name'],
+                                                            'class_id': subject_data['class_id'],
+                                                            'class_name': subject_data['class_name'],
+                                                            'education_subject_id': subject_data['education_subject_id'],
+                                                            'teacher_name': 'بدون معلم',
+                                                        })
+
         
         _class_subject_teacher_mapping[class_id] = {
                                                     int(i['education_subject_id']):
                                                                                     {
-                                                                                        'name': i['name'],
-                                                                                        'class_id': i['class_id'],
-                                                                                        'class_name': i['class_name'],
+                                                                                        'name': i['education_subject_name'],
+                                                                                        'class_id': class_id,
+                                                                                        'class_name': _class_data_with_subjects_dictionary[class_id]['name'],
                                                                                         'teacher_name': i['teacher_name'],
                                                                                     }
                                                                                         for i in _class_subjects_linked_to_teacher
@@ -6673,7 +6785,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
         # rename the new worksheet
         new_ws.title = (classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])).replace('/','~')
-        new_ws.sheet_view.rightToLeft = True    
+        new_ws.sheet_view.rightToLeft = True
         existing_ws.sheet_view.rightToLeft = True   
 
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
@@ -8229,10 +8341,14 @@ def main():
     
     # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     session = requests.Session()
-    create_certs_wrapper(9971055725,9971055725,session=session)
+    # create_certs_wrapper(9971055725,9971055725,session=session)
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
+
+    auth=get_auth(9991014194,'Zzaid#079079') # inst_id=2055, inst_id=2618
+    # auth = get_auth(9971055725,9971055725)
+    teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
 
 
 if __name__ == "__main__":
