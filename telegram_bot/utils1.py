@@ -53,6 +53,205 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+
+def get_teacher_classes_v2(auth,ins_id,staff_id,academic_period,session=None):
+    subjects  = get_teacher_classes1(auth ,ins_id, staff_id, academic_period,session=session)
+    subject_ids = sorted([i['institution_subject_id'] for i in subjects['data']])
+    joined_subjects = ','.join(f'institution_subject_id:{id}' for id in subject_ids)
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={joined_subjects}"
+    return make_request(url,auth)
+
+def offline_sort_assessement_ids_v2(marks_data ,assessments_periods):
+    """
+    Offline sorting of assessment IDs based on their codes.
+
+    Parameters:
+    - assessment_id (str): Identifier for the assessment.
+    - marks_data (list): List of dictionaries containing marks data.
+    - assessments (dict): Dictionary containing assessment data.
+
+    Returns:
+    - list: Sorted list of dictionaries based on assessment codes.
+    """    
+    sorted_values =[]
+    assessments_periods_dictionary = get_assessment_periods_dictionary_offline(assessments_periods)
+    assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
+    for code in assessments_codes:
+        # target_id = str([i['id'] for i in assessments_periods if code in i['code']][0])
+        target_value = [i for i in marks_data 
+                                if code in assessments_periods_dictionary[int(i['assessment_period_id'])]['code'] ]
+        # Add code to each dictionary in target_value
+        for item in target_value:
+            # Add your code here
+            item['code'] = code
+        sorted_values.extend(target_value)
+    # Check if the length is less than 8
+    while len(sorted_values) < 8:
+        # Add dictionaries with the value {'mark': None}
+        sorted_values.append({'mark': None , 'assessment_period_id': None})
+    return sorted_values
+
+def get_assessment_periods_dictionary_offline(assessments_periods ):
+        return {
+                i['id']:{
+                        'code' : i['code'],
+                        'name' : i['name'],
+                        'academic_term' : i['academic_term'],
+                        } 
+                for i in assessments_periods['data']
+                }
+
+def insert_to_e_side_marks_doc(title, class_name , marks_sheet_copy, assessments_json , assessments,secandary_students ,necessary_data_dict=None):
+
+        marks_and_name = []
+        grouped_students= []
+        assessment_id =necessary_data_dict['assessment_id']
+        education_grade_id =necessary_data_dict['education_grade_i']
+        institution_class_id =necessary_data_dict['institution_class_id']
+        
+        # rename the new worksheet
+        marks_sheet_copy.title = title
+        marks_sheet_copy.sheet_view.rightToLeft = True
+
+        
+        grouped_students = {key: list(group) for key, group in groupby(assessments_json['data'], key=lambda x: x['student_id'])}
+        
+
+        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
+        
+        for id , values in grouped_students.items():
+            dic['id'] = id
+            dic['name'] = values[0]['the_student_name']
+
+            if 'عشر' not in class_name :
+                values = offline_sort_assessement_ids_v2( values ,assessments)
+                dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
+                dic['term1']['assessment1'] = int(float(values[0]["mark"])) if values[0]["mark"] is not None else ''
+                dic['term1']['assessment2'] = int(float(values[1]["mark"])) if values[1]["mark"] is not None else ''
+                dic['term1']['assessment3'] = int(float(values[2]["mark"])) if values[2]["mark"] is not None else ''
+                dic['term1']['assessment4'] = int(float(values[3]["mark"])) if values[3]["mark"] is not None else ''
+                dic['term2']['assessment1'] = int(float(values[4]["mark"])) if values[4]["mark"] is not None else ''
+                dic['term2']['assessment2'] = int(float(values[5]["mark"])) if values[5]["mark"] is not None else ''
+                dic['term2']['assessment3'] = int(float(values[6]["mark"])) if values[6]["mark"] is not None else ''
+                dic['term2']['assessment4'] = int(float(values[7]["mark"])) if values[7]["mark"] is not None else ''
+            marks_and_name.append(dic)
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
+        
+        data_font = Font(name='Arial', size=16, bold=False)
+
+        marks_and_name = [d for d in marks_and_name if d['name'] != '']
+        marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
+        # print([d['name'] for d in marks_and_name if d['name'] != ''])
+        
+        if 'عشر' in class_name :
+            students_names = sorted([i['user']['name'] for i in secandary_students['data']])
+            print(students_names)
+            students_id_and_names = []
+            for IdAndName in secandary_students['data']:
+                students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+
+            students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
+            for row_number, dataFrame in enumerate(students_id_and_names, start=3):
+                marks_sheet_copy.cell(row=row_number, column=1).value = row_number-2
+                marks_sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
+                marks_sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
+        else:
+            print([d['name'] for d in marks_and_name if d['name'] != ''])
+            
+            assessments_period_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
+            # Write data to the worksheet and calculate the sum of some columns in each row
+            for row_number, dataFrame in enumerate(marks_and_name, start=3):
+                marks_sheet_copy.cell(row=row_number, column=1).value = row_number-2
+                marks_sheet_copy.cell(row=row_number, column=2).value = dataFrame['id']
+                marks_sheet_copy.cell(row=row_number, column=3).value = dataFrame['name']
+                marks_sheet_copy.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
+                marks_sheet_copy.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
+                marks_sheet_copy.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
+                marks_sheet_copy.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
+                marks_sheet_copy.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
+                marks_sheet_copy.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
+                marks_sheet_copy.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
+                marks_sheet_copy.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
+                marks_sheet_copy.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
+                marks_sheet_copy.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
+                marks_sheet_copy.cell(row=row_number, column=14).value = f'=SUM(H{row_number},M{row_number})/2'
+                # Set the font for the data rows
+                for cell in marks_sheet_copy[row_number]:
+                    cell.font = data_font    
+    
+        return assessments_period_data
+    
+def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None):
+    '''
+    
+    # Example usage:
+    assessments_period_data = get_marks(
+                                            auth, 
+                                            inst_id,
+                                            period_id, 
+                                            classes_id_2,
+                                            grades_info,
+                                            insert_function=insert_to_e_side_marks_doc,
+                                            existing_wb=your_existing_workbook,
+                                            session=session
+                                        )
+                
+                
+    assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
+    
+    '''
+    classes_id_3,assessments_period_data ,secandary_students= [] ,[], []
+    global secondery_students
+    
+    for class_info in classes_id_2:
+        classes_id_3.append([{'institution_class_id': class_info['institution_class_id'] ,
+                                'sub_name': class_info['institution_subject']['name'],
+                                'class_name': class_info['institution_class']['name'] ,
+                                'subject_id': class_info['institution_subject']['education_subject_id'] ,
+                                'education_grade_id':class_info['institution_subject']['education_grade_id'],
+                                'institution_subject_id': class_info['institution_subject_id']}])
+
+    for v in range(len(classes_id_2)):
+        # id institution_class_id
+        institution_class_id = classes_id_3[v][0]['institution_class_id']
+        # subject name 
+        subject_name = classes_id_3[v][0]['sub_name'].replace("\\", "_")
+        # class name
+        class_name = classes_id_3[v][0]['class_name']
+        # subject id 
+        subject_id = classes_id_3[v][0]['subject_id']
+        # institution subject id 
+        institution_subject_id = classes_id_3[v][0]['institution_subject_id']
+        # education grade id
+        education_grade_id = classes_id_3[v][0]['education_grade_id']
+        assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
+        
+        print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
+
+        
+        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
+        
+        title = f'{class_name}={subject_name}={institution_subject_id}={subject_id}'.replace('/', '~')
+
+        if 'عشر' in class_name :
+            secandary_students = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,session=session)
+        
+        # copy the worksheet
+        marks_sheet_copy = existing_wb.copy_worksheet(existing_wb.active)
+
+        if not necessary_data_dict: 
+            necessary_data_dict = {
+                                    'assessment_id' : assessment_id ,
+                                    'education_grade_i' : education_grade_id, 
+                                    'institution_class_id' : institution_class_id ,
+                                }
+                        # insert_to_e_side_marks_doc(title , class_name ,marks_sheet_copy, assessments_json,)
+        returned_data = insert_function(title, class_name , marks_sheet_copy, assessments_json, assessments,secandary_students , necessary_data_dict=necessary_data_dict)
+        # Pass the insert_function as an argument to insert_to_e_side_marks_doc
+        assessments_period_data.append(returned_data)
+        
+    return assessments_period_data
+
 def teachers_marks_upload_percentage_wrapper_version_2(auth , first_term =False,second_term = False, both_terms=False ,inst_id=None , inst_nat=None , session=None , template='./templet_files/كشف نسبة الادخال معدل نسخة_2.xlsx' ,outdir='./send_folder/' ):
     
     curr_year = get_curr_period(auth=auth,session=session)['data'][0]['id']
@@ -4625,6 +4824,7 @@ def create_certs(grouped_list , term2=False ,template='./templet_files/a4_gray_c
                     sheet2['C22'] = 100
                     maxMark = 100                
                 else:
+                    sheet2['D22'] = social_subjects[0][value_item]
                     sheet2['C22'] = 100
                     maxMark = 100
                     
@@ -6740,10 +6940,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     
     assessments = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
-    classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i],session=session)['data'] for i in range(len(classes_id_1))]
-    classes_id_2 =[lst for lst in classes_id_2 if lst]
-    classes_id_3 = []  
+    classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,inst_id, user_id, period_id)['data'] if lst]
     assessments_period_data = []
     grades_info = get_grade_info(auth)
     
@@ -6751,138 +6948,11 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     existing_wb = load_workbook(template)
 
     # Select the worksheet
-    existing_ws = existing_wb.active
 
-    for class_info in classes_id_2:
-        classes_id_3.append([{'institution_class_id': class_info[0]['institution_class_id'] ,
-                              'sub_name': class_info[0]['institution_subject']['name'],
-                              'class_name': class_info[0]['institution_class']['name'] ,
-                              'subject_id': class_info[0]['institution_subject']['education_subject_id'] ,
-                              'education_grade_id':class_info[0]['institution_subject']['education_grade_id'],
-                              'institution_subject_id': class_info[0]['institution_subject_id']}])
-
-    for v in range(len(classes_id_2)):
-        # id institution_class_id
-        print (classes_id_3[v][0]['institution_class_id'])
-        institution_class_id = classes_id_3[v][0]['institution_class_id']
-        # subject name 
-        print (classes_id_3[v][0]['sub_name'])
-        # class name
-        print (classes_id_3[v][0]['class_name'])
-        class_name = classes_id_3[v][0]['class_name']
-        # subject id 
-        subject_id = classes_id_3[v][0]['subject_id']
-        print (classes_id_3[v][0]['subject_id'])
-        # institution subject id 
-        print(classes_id_3[v][0]['institution_subject_id'])
-        institution_subject_id = classes_id_3[v][0]['institution_subject_id']
-        # education grade id
-        education_grade_id = classes_id_3[v][0]['education_grade_id']
-        assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
-        
-        # copy the worksheet
-        new_ws = existing_wb.copy_worksheet(existing_ws)
-
-        # rename the new worksheet
-        new_ws.title = (classes_id_3[v][0]['class_name'].replace("الصف",'')+'='+classes_id_3[v][0]['sub_name'].replace('\\','_')+'='+str(classes_id_3[v][0]['institution_class_id'])+'='+str(classes_id_3[v][0]['subject_id'])).replace('/','~')
-        new_ws.sheet_view.rightToLeft = True
-        existing_ws.sheet_view.rightToLeft = True   
-
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
-        grouped_students = {key: list(group) for key, group in groupby(assessments_json['data'], key=lambda x: x['student_id'])}
-        
-        marks_and_name = []
-
-        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
-        for id , values in grouped_students.items():
-            dic['id'] = id
-            dic['name'] = values[0]['the_student_name']
-
-            if 'عشر' not in class_name :            
-                values = offline_sort_assessement_ids(assessment_id , values ,assessments)
-                dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
-                dic['term1']['assessment1'] = int(float(values[0]["mark"])) if values[0]["mark"] is not None else ''
-                dic['term1']['assessment2'] = int(float(values[1]["mark"])) if values[1]["mark"] is not None else ''
-                dic['term1']['assessment3'] = int(float(values[2]["mark"])) if values[2]["mark"] is not None else ''
-                dic['term1']['assessment4'] = int(float(values[3]["mark"])) if values[3]["mark"] is not None else ''
-                dic['term2']['assessment1'] = int(float(values[4]["mark"])) if values[4]["mark"] is not None else ''
-                dic['term2']['assessment2'] = int(float(values[5]["mark"])) if values[5]["mark"] is not None else ''
-                dic['term2']['assessment3'] = int(float(values[6]["mark"])) if values[6]["mark"] is not None else ''
-                dic['term2']['assessment4'] = int(float(values[7]["mark"])) if values[7]["mark"] is not None else ''
-            # for student_assessment_item in assessments_json['data']:
-            #     if student_assessment_item['student_id'] == student_data_item['student_id'] :  
-            #         # FIXME: غير الشرط اذا كان None استبدل القيمة بلا شيء  
-            #         # FIXME: ضع في الحسبان انه لا توجد علامات و تريد سحب الاسماء في اول الفصل
-            #         if student_assessment_item["marks"] is not None :
-            #             # dic['id'] = student_data_item['student_id'] 
-            #             # dic['name'] = student_data_item['student_name'] 
-            #             if 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term1']['assessment1'] = student_assessment_item["marks"] 
-            #             elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term1']['assessment2']  = student_assessment_item["marks"]
-            #             elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term1']['assessment3']  = student_assessment_item["marks"]
-            #             elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الأول' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term1']['assessment4']  = student_assessment_item["marks"]
-            #             elif 'التقويم الأول' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term2']['assessment1']  = student_assessment_item["marks"]
-            #             elif 'التقويم الثاني' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term2']['assessment2']  = student_assessment_item["marks"]
-            #             elif 'التقويم الثالث' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term2']['assessment3']  = student_assessment_item["marks"]
-            #             elif 'التقويم الرابع' in student_assessment_item['assessment_period']['name']  and 'الفصل الثاني' in student_assessment_item['assessment_period']['academic_term'] :
-            #                 dic['term2']['assessment4']  = student_assessment_item["marks"]
-
-            marks_and_name.append(dic)
-            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
-        # Set the font for the data rows
-        data_font = Font(name='Arial', size=16, bold=False)
-
-        marks_and_name = [d for d in marks_and_name if d['name'] != '']
-        marks_and_name = sorted(marks_and_name, key=lambda x: x['name'])
-        # print([d['name'] for d in marks_and_name if d['name'] != ''])
-        
-        if 'عشر' in class_name :
-            students = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,session=session)
-            students_names = sorted([i['user']['name'] for i in students['data']])
-            print(students_names)
-            students_id_and_names = []
-            for IdAndName in students['data']:
-                students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
-
-            students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
-            for row_number, dataFrame in enumerate(students_id_and_names, start=3):
-                new_ws.cell(row=row_number, column=1).value = row_number-2
-                new_ws.cell(row=row_number, column=2).value = dataFrame['student_id']
-                new_ws.cell(row=row_number, column=3).value = dataFrame['student_name']
-        else:
-            print([d['name'] for d in marks_and_name if d['name'] != ''])
-            # assessment_data = '' if  not assessments_json['data'] else assessments_json['data'][0]
-            # assessment_id = '' if  not assessments_json['data'] else assessment_data['assessment_id']
-            # education_grade_id = '' if  not assessments_json['data'] else assessment_data['education_grade_id']
-            
-            assessments_period_data.append({f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']})
-            assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
-            
-            # Write data to the worksheet and calculate the sum of some columns in each row
-            for row_number, dataFrame in enumerate(marks_and_name, start=3):
-                new_ws.cell(row=row_number, column=1).value = row_number-2
-                new_ws.cell(row=row_number, column=2).value = dataFrame['id']
-                new_ws.cell(row=row_number, column=3).value = dataFrame['name']
-                new_ws.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
-                new_ws.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
-                new_ws.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
-                new_ws.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
-                new_ws.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
-                new_ws.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
-                new_ws.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
-                new_ws.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
-                new_ws.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
-                new_ws.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
-                new_ws.cell(row=row_number, column=14).value = f'=SUM(H{row_number},M{row_number})/2'
-                # Set the font for the data rows
-                for cell in new_ws[row_number]:
-                    cell.font = data_font
+    assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessments ,insert_function=insert_to_e_side_marks_doc ,existing_wb=existing_wb)
+                
+    assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
+    
     existing_wb.remove(existing_wb['Sheet1'])
 
     # Create a new sheet
@@ -6907,8 +6977,6 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
-    global secondery_students 
-    secondery_students = []
 
 def split_A3_pages(input_file, outdir):
     """
@@ -7809,7 +7877,7 @@ def get_teacher_classes1(auth,ins_id,staff_id,academic_period,session=None):
         عوامل الدالة الرابط و التوكن و التعريفي للمدرسة و تعريفي الفترة و staffid 
         تعود الدالة بتعريفي اي صف مع المعلم و كود الصف
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStaff?institution_id={ins_id}&staff_id={staff_id}&academic_period_id={academic_period}&_contain=InstitutionSubjects&_limit=0&_fields=InstitutionSubjects.id,InstitutionSubjects.education_subject_id,InstitutionSubjects.name"
+    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStaff?institution_id={ins_id}&staff_id={staff_id}&academic_period_id={academic_period}&_contain=InstitutionSubjects"
     return make_request(url,auth,session=session)
 
 def get_teacher_classes2(auth,inst_sub_id,session=None):
@@ -8341,14 +8409,15 @@ def main():
     
     # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     session = requests.Session()
-    # create_certs_wrapper(9971055725,9971055725,session=session)
+    # create_certs_wrapper(2000161149,2000161149,session=session)
     # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
     # read_all_xlsx_in_folder()
     # fill_student_absent_doc_wrapper(9971055725,9971055725)
 
-    auth=get_auth(9991014194,'Zzaid#079079') # inst_id=2055, inst_id=2618
+    # auth=get_auth(9991014194,'Zzaid#079079') # inst_id=2055, inst_id=2618
     # auth = get_auth(9971055725,9971055725)
-    teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
+    # teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
+    create_e_side_marks_doc(9971055725,9971055725,session=session)
 
 
 if __name__ == "__main__":
