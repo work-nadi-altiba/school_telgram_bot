@@ -9,5 +9,6 @@
     "docwriter.progress.trackClasses": true,
     "docwriter.progress.trackTypes": false,
     "docwriter.hotkey.mac": "⌘ + .",
-    "docwriter.progress.trackMethods": false
+    "docwriter.progress.trackMethods": false,
+    "cSpell.language": "ar"
 }

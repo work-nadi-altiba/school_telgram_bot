@@ -159,10 +159,12 @@ def get_marks_up_percentage(update, context):
         update.message.reply_text("انتظر لحظة لو سمحت") 
     else:
         if term == 'term1':
-            teachers_marks_upload_percentage_wrapper(auth=auth,term=1,session=session)
+            teachers_marks_upload_percentage_wrapper_version_2(auth=auth,first_term=True,session=session)
         elif term == "term2":
-            teachers_marks_upload_percentage_wrapper(auth=auth,term=2,session=session)
-        generate_pdf(f'./send_folder/output.xlsx' , './send_folder' ,'output')            
+            teachers_marks_upload_percentage_wrapper_version_2(auth=auth,second_term=True,session=session)
+        elif update.message.text == '/cancel':
+            return cancel(update, context)        
+        generate_pdf(f'./send_folder/نسب العلامات للاساسي.xlsx' , './send_folder' ,'نسب العلامات للاساسي')
         files = count_files()
         chat_id = update.message.chat.id
         send_files(bot, chat_id, files)
