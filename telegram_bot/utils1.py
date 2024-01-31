@@ -482,17 +482,19 @@ def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessment
         data_font = Font(name='Arial', size=16, bold=False)
         
         if 'عشر' in class_name :
-            students_names = sorted([i['user']['name'] for i in secandary_students['data']])
+            students_names = sorted([i['name'] for i in secandary_students])
             print(students_names)
             students_id_and_names = []
-            for IdAndName in secandary_students['data']:
-                students_id_and_names.append({'student_name': IdAndName['user']['name'] , 'student_id':IdAndName['student_id']})
+            for IdAndName in secandary_students:
+                students_id_and_names.append({'student_name': IdAndName['name'] , 'student_id':IdAndName['id']})
 
             students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
             for row_number, dataFrame in enumerate(students_id_and_names, start=3):
                 sheet_copy.cell(row=row_number, column=1).value = row_number-2
                 sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
                 sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
+            
+            assessments_period_data = ''
         else:
             print([d['name'] for d in marks_and_name if d['name'] != ''])
             
@@ -1404,7 +1406,7 @@ def get_secondery_students(auth , institution_class_id , inst_id=None , curr_yea
     if just_id_and_name_and_empty_marks:
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
         
-        for item in secondery_students:
+        for item in data['data']:
             dic['id'] = item['student_id']
             dic['name'] = item['user']['name']
             id_and_name_dic_list.append(dic)
@@ -7168,7 +7170,14 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessments ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
     
-    assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
+    
+    assessments_period_data_text = '\\\\'.join(
+            [
+                str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1] if i)
+                for dictionary in assessments_period_data if len(dictionary)
+                
+            ]
+        )
     
     existing_wb.remove(existing_wb['Sheet1'])
 
