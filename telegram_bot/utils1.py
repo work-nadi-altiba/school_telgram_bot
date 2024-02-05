@@ -53,32 +53,98 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
-def fill_official_marks_functions_wrapper_v2(username , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',session = None):
+def divide_teacher_load(classes):
+    pages = 0
+    divided_lists = []
+    current_list = []
 
-    ods_file = f'{ods_name}{ods_num}.ods'
+    for _class in classes:
+        _class_size = len(classes[0]['students_data'])
+        if _class_size > 25:
+            pages += 4
+        else:
+            pages += 2
+        
+        if pages == 22:
+            pages = 0
+            divided_lists.append(current_list)
+            current_list = []
+        elif pages > 22:
+            pages = 0
+            divided_lists.append(current_list)
+            if _class_size > 25:
+                pages += 4
+            else:
+                pages += 2        
+            current_list = [_class]
+            
+        else:
+            current_list.append(_class)
     
-    copy_ods_file(templet_file , f'{outdir}/{ods_file}')
-    custom_shapes , classes_data = fill_official_marks_v2(username= username, password= password , ods_file=f'{outdir}/{ods_file}' , session=session)
-    teacher_name = custom_shapes['teacher']
-    
-    fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-    fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{ods_file}")
-    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file}')
-    os.rename(f"{outdir}/final_send1.ods", f"{outdir}/{teacher_name}_A3.ods")
-    os.rename(f"{outdir}/final_send1.pdf", f"{outdir}/{teacher_name}_A3.pdf")
+    return divided_lists
 
-    delete_files_except(
-                        [
-                            f"{custom_shapes['teacher']}_A3.pdf",
-                            f"{custom_shapes['teacher']}_A4.pdf",
-                            f'{teacher_name}_A3.ods',
-                            f'{teacher_name}_A4.ods',
-                            f'final_{ods_file}',
-                        ]
-                        , outdir)
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',context=None ,e_side_notebook_data=None ,session = None):
+    
+    if context:
+        context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+    else : 
+        context = context
+
+    # ods_file = f'{ods_name}{ods_num}.ods'
+    
+    if (username is not None and password is not None ):
+        auth = get_auth(username , password)
+        period_id = get_curr_period(auth , session=session)['data'][0]['id']
+        inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
+        user_id = user_info(auth , username, session=session)['data'][0]['id']
+        
+        user = user_info(auth , username, session=session)
+        school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
+        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
+        # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
+        school_year = get_curr_period(auth, session=session)['data']
+        hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
+        hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
+        melady1 = str(school_year[0]['start_year'])
+        melady2 = str(school_year[0]['end_year'])
+        teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+        
+        
+        classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
+        assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+        grades_info = get_grade_info(auth)
+        students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session)
+    else: 
+        students_data_lists = e_side_notebook_data
+        
+    devided_teacher_load_list = divide_teacher_load(students_data_lists)
+    print('hi')
+    
+    # copy_ods_file(templet_file , f'{outdir}/{ods_file}')
+    # custom_shapes , classes_data = fill_official_marks_v2(username= username, password= password , ods_file=f'{outdir}/{ods_file}' , session=session)
+    # teacher_name = custom_shapes['teacher']
+    
+    # fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
+    # fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{ods_file}")
+    # os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file}')
+    # os.rename(f"{outdir}/final_send1.ods", f"{outdir}/{teacher_name}_A3.ods")
+    # os.rename(f"{outdir}/final_send1.pdf", f"{outdir}/{teacher_name}_A3.pdf")
+
+    # delete_files_except(
+    #                     [
+    #                         f"{custom_shapes['teacher']}_A3.pdf",
+    #                         f"{custom_shapes['teacher']}_A4.pdf",
+    #                         f'{teacher_name}_A3.ods',
+    #                         f'{teacher_name}_A4.ods',
+    #                         f'final_{ods_file}',
+    #                     ]
+    #                     , outdir)
 
 def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None ):
-    '''
+    """
+    Retrieves marks data for the specified classes and periods.    
+    
     # Example usage:
     assessments_period_data = get_marks(
                                             auth, 
@@ -93,8 +159,19 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
                 
                 
     assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
-    
-    '''
+
+    Parameters:
+        auth (dict): Authentication data. Defaults to None.
+        inst_id (str): Institution ID. Defaults to None.
+        period_id (str): Period ID. Defaults to None.
+        classes_id_2 (list): List of dictionaries containing class information. Defaults to None.
+        grades_info (dict): Grades information. Defaults to None.
+        assessment_periods (dict): Assessment periods information. Defaults to None.
+        session: Session data. Defaults to None.
+
+    Returns:
+        list: List of dictionaries containing marks data for each class.    
+    """
     classes_id_3,assessments_period_data ,secandary_students , classes_data_and_marks= [] ,[], [] ,[]
     global secondery_students
     
@@ -152,9 +229,24 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
 
     return classes_data_and_marks
 
-def fill_official_marks_v2(username, password , ods_file ,students_data_lists=None,session=None):
-    
-    context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+def fill_official_marks_v2(username, password , ods_file ,students_data_lists=None, context={} , e_side_notebook_data=None,session=None ):
+    """
+    Fills the official marks document.
+
+    Parameters:
+        username (str): Username for authentication.
+        password (str): Password for authentication.
+        ods_file (str): Path to the ODS file.
+        students_data_lists (list): List of dictionaries containing students' data. Defaults to None.
+        context (dict): Contextual data. Defaults to {}.
+        e_side_notebook_data: Data from e-Side notebook. Defaults to None.
+        session: Session data. Defaults to None.
+
+    Returns:
+        dict: Custom shapes data.
+        list: List of dictionaries containing students' data.
+    """    
+    context = context 
     page = 4
     name_counter = 1
     if username and password:
@@ -180,7 +272,7 @@ def fill_official_marks_v2(username, password , ods_file ,students_data_lists=No
         assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
         grades_info = get_grade_info(auth)
         students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session)
-
+    
     doc = ezodf.opendoc(ods_file)
     
     sheet_name = 'sheet'
@@ -313,6 +405,18 @@ def fill_official_marks_v2(username, password , ods_file ,students_data_lists=No
         return custom_shapes , students_data_lists
 
 def fill_official_marks_wrapper_v2(username , password , ods_name='send', outdir='./send_folder' ,ods_num=1 , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods', color="#ffffff"):
+    """
+    Fills the official marks wrapper document.
+
+    Parameters:
+        username (str): Username for authentication.
+        password (str): Password for authentication.
+        ods_name (str): Name of the ODS file. Defaults to 'send'.
+        outdir (str): Output directory path. Defaults to './send_folder'.
+        ods_num (int): Number of the ODS file. Defaults to 1.
+        templet_file (str): Path to the template ODS file. Defaults to './templet_files/official_marks_doc_a3_two_face_white_cover.ods'.
+        color (str): Color for margins. Defaults to "#ffffff".
+    """    
     ods_file = f'{ods_name}{ods_num}.ods'
     copy_ods_file(templet_file , f'{outdir}/{ods_file}')
     
@@ -332,9 +436,22 @@ def fill_official_marks_wrapper_v2(username , password , ods_name='send', outdir
     delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
 
 def insert_to_side_marks_document_with_marks(title, class_name , assessments_json, assessments ,secandary_students , names_only = False , term = 1 , necessary_data_dict=None , outdir='./send_folder/',counter=None ,template_sheet_or_file=None):
-    '''
-    title, class_name , marks_sheet_copy, assessments_json, assessments,secandary_students , necessary_data_dict=necessary_data_dict
-    '''
+    """
+    Inserts marks data into a side marks document.
+
+    Parameters:
+        title (str): Title of the document.
+        class_name (str): Name of the class.
+        assessments_json (dict): JSON data containing assessments.
+        assessments (list): List of assessments.
+        secandary_students (list): List of secondary students.
+        names_only (bool): Flag indicating whether to include only names or marks as well. Defaults to False.
+        term (int): Term number. Defaults to 1.
+        necessary_data_dict (dict): Dictionary containing necessary data. Defaults to None.
+        outdir (str): Output directory path. Defaults to './send_folder/'.
+        counter (int): Counter value. Defaults to None.
+        template_sheet_or_file: Template sheet or file. Defaults to None.
+    """
     context = {}
     marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
 
@@ -390,7 +507,17 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
     delete_file(outdir+f'send{counter}.pdf')
 
 def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json):
-    
+    """
+    Extracts marks and names dictionary list from assessment data.
+
+    Parameters:
+        class_name (str): Name of the class.
+        assessment_periods (dict): Dictionary containing assessment periods data.
+        assessments_json (dict): JSON data containing assessments.
+
+    Returns:
+        list: List of dictionaries containing marks and names data.
+    """    
     grouped_students = {key: list(group) for key, group in groupby(assessments_json['data'], key=lambda x: x['student_id'])}
     marks_and_names = []
     
@@ -420,6 +547,19 @@ def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessm
     return marks_and_names
 
 def get_teacher_classes_v2(auth,ins_id,staff_id,academic_period,session=None):
+    """
+    Get the classes taught by a teacher for a specific academic period.
+    
+    Parameters:
+        auth (str): Authentication token.
+        ins_id (int): Institution ID.
+        staff_id (int): Staff ID of the teacher.
+        academic_period (int): Academic period ID.
+        session (object, optional): Requests session object. Defaults to None.
+    
+    Returns:
+        dict: Teacher's classes data.
+    """    
     subjects  = get_teacher_classes1(auth ,ins_id, staff_id, academic_period,session=session)
     subject_ids = sorted([i['institution_subject_id'] for i in subjects['data']])
     joined_subjects = ','.join(f'institution_subject_id:{id}' for id in subject_ids)
@@ -457,72 +597,99 @@ def offline_sort_assessement_period_ids_v2(marks_data ,assessments_periods):
     return sorted_values
 
 def get_assessment_periods_dictionary_offline(assessments_periods ):
-        return {
-                i['id']:{
-                        'code' : i['code'],
-                        'name' : i['name'],
-                        'academic_term' : i['academic_term'],
-                        } 
-                for i in assessments_periods['data']
-                }
+    """
+    Create a dictionary of assessment periods from offline data.
+
+    Parameters:
+        assessments_periods (dict): Assessment periods data.
+
+    Returns:
+        dict: Dictionary of assessment periods.
+    """    
+    return {
+            i['id']:{
+                    'code' : i['code'],
+                    'name' : i['name'],
+                    'academic_term' : i['academic_term'],
+                    } 
+            for i in assessments_periods['data']
+            }
 
 def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessments,secandary_students ,necessary_data_dict=None ,counter = None , template_sheet_or_file=None):
-        # copy the worksheet
-        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
-        marks_and_name = []
-        assessment_id =necessary_data_dict['assessment_id']
-        education_grade_id =necessary_data_dict['education_grade_i']
-        institution_class_id =necessary_data_dict['institution_class_id']
-        
-        # rename the new worksheet
-        sheet_copy.title = title
-        sheet_copy.sheet_view.rightToLeft = True
-        
-        marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
-        data_font = Font(name='Arial', size=16, bold=False)
-        
-        if 'عشر' in class_name :
-            students_names = sorted([i['name'] for i in secandary_students])
-            print(students_names)
-            students_id_and_names = []
-            for IdAndName in secandary_students:
-                students_id_and_names.append({'student_name': IdAndName['name'] , 'student_id':IdAndName['id']})
+    """
+    Insert marks data into the E-side marks document.
 
-            students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
-            for row_number, dataFrame in enumerate(students_id_and_names, start=3):
-                sheet_copy.cell(row=row_number, column=1).value = row_number-2
-                sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
-                sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
-            
-            assessments_period_data = ''
-        else:
-            print([d['name'] for d in marks_and_name if d['name'] != ''])
-            
-            assessments_period_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
-            # Write data to the worksheet and calculate the sum of some columns in each row
-            for row_number, dataFrame in enumerate(marks_and_name, start=3):
-                sheet_copy.cell(row=row_number, column=1).value = row_number-2
-                sheet_copy.cell(row=row_number, column=2).value = dataFrame['id']
-                sheet_copy.cell(row=row_number, column=3).value = dataFrame['name']
-                sheet_copy.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
-                sheet_copy.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
-                sheet_copy.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
-                sheet_copy.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
-                sheet_copy.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
-                sheet_copy.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
-                sheet_copy.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
-                sheet_copy.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
-                sheet_copy.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
-                sheet_copy.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
-                sheet_copy.cell(row=row_number, column=14).value = f'=SUM(H{row_number},M{row_number})/2'
-                # Set the font for the data rows
-                for cell in sheet_copy[row_number]:
-                    cell.font = data_font    
+    Parameters:
+        title (str): Title of the worksheet.
+        class_name (str): Name of the class.
+        assessments_json (dict): Assessments JSON data.
+        assessments (dict): Assessments data.
+        secondary_students (list): List of secondary students.
+        necessary_data_dict (dict): Necessary data dictionary.
+        counter (int): Counter value.
+        template_sheet_or_file: Template sheet or file.
 
-        return assessments_period_data
+    Returns:
+        dict: Assessment period data.
+    """
+    # copy the worksheet
+    sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
+    marks_and_name = []
+    assessment_id =necessary_data_dict['assessment_id']
+    education_grade_id =necessary_data_dict['education_grade_i']
+    institution_class_id =necessary_data_dict['institution_class_id']
+    
+    # rename the new worksheet
+    sheet_copy.title = title
+    sheet_copy.sheet_view.rightToLeft = True
+    
+    marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
+    data_font = Font(name='Arial', size=16, bold=False)
+    
+    if 'عشر' in class_name :
+        students_names = sorted([i['name'] for i in secandary_students])
+        print(students_names)
+        students_id_and_names = []
+        for IdAndName in secandary_students:
+            students_id_and_names.append({'student_name': IdAndName['name'] , 'student_id':IdAndName['id']})
+
+        students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
+        for row_number, dataFrame in enumerate(students_id_and_names, start=3):
+            sheet_copy.cell(row=row_number, column=1).value = row_number-2
+            sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
+            sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
+        
+        assessments_period_data = ''
+    else:
+        print([d['name'] for d in marks_and_name if d['name'] != ''])
+        
+        assessments_period_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
+        # Write data to the worksheet and calculate the sum of some columns in each row
+        for row_number, dataFrame in enumerate(marks_and_name, start=3):
+            sheet_copy.cell(row=row_number, column=1).value = row_number-2
+            sheet_copy.cell(row=row_number, column=2).value = dataFrame['id']
+            sheet_copy.cell(row=row_number, column=3).value = dataFrame['name']
+            sheet_copy.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
+            sheet_copy.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
+            sheet_copy.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
+            sheet_copy.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
+            sheet_copy.cell(row=row_number, column=8).value = f'=SUM(D{row_number}:G{row_number})'
+            sheet_copy.cell(row=row_number, column=9).value = dataFrame['term2']['assessment1']
+            sheet_copy.cell(row=row_number, column=10).value = dataFrame['term2']['assessment2']
+            sheet_copy.cell(row=row_number, column=11).value = dataFrame['term2']['assessment3']
+            sheet_copy.cell(row=row_number, column=12).value = dataFrame['term2']['assessment4']
+            sheet_copy.cell(row=row_number, column=13).value = f'=SUM(I{row_number}:L{row_number})'
+            sheet_copy.cell(row=row_number, column=14).value = f'=SUM(H{row_number},M{row_number})/2'
+            # Set the font for the data rows
+            for cell in sheet_copy[row_number]:
+                cell.font = data_font    
+
+    return assessments_period_data
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
-    '''
+    """
+    Get marks data for specified classes and subjects.
+    
     # Example usage:
     assessments_period_data = get_marks(
                                             auth, 
@@ -537,8 +704,23 @@ def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,gra
                 
                 
     assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
-    
-    '''
+
+    Parameters:
+        auth (str): Authentication token.
+        inst_id (str): Institution ID.
+        period_id (str): Period ID.
+        classes_id_2 (list): List of dictionaries containing class information.
+        grades_info (dict): Grades information.
+        assessments (dict): Assessments data.
+        insert_function (function): Function to insert marks data.
+        existing_wb: Existing workbook.
+        necessary_data_dict (dict): Necessary data dictionary.
+        session: Session object.
+        template_sheet_or_file: Template sheet or file.
+
+    Returns:
+        list: List of assessment period data.
+    """
     classes_id_3,assessments_period_data ,secandary_students= [] ,[], []
     global secondery_students
     
@@ -590,7 +772,20 @@ def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,gra
     return assessments_period_data
 
 def teachers_marks_upload_percentage_wrapper_version_2(auth , first_term =False,second_term = False, both_terms=False ,inst_id=None , inst_nat=None , session=None , template='./templet_files/كشف نسبة الادخال معدل نسخة_2.xlsx' ,outdir='./send_folder/' ):
-    
+    """
+    Generate a report containing the upload percentages of teachers' marks and empty marks.
+
+    Parameters:
+        auth (str): Authentication token.
+        first_term (bool): Flag indicating the first term. Default is False.
+        second_term (bool): Flag indicating the second term. Default is False.
+        both_terms (bool): Flag indicating both terms. Default is False.
+        inst_id (str): Institution ID. Default is None.
+        inst_nat (str): Institution nationality. Default is None.
+        session: Session object. Default is None.
+        template (str): Path to the template file. Default is './templet_files/كشف نسبة الادخال معدل نسخة_2.xlsx'.
+        outdir (str): Path to the output directory. Default is './send_folder/'.
+    """    
     curr_year = get_curr_period(auth=auth,session=session)['data'][0]['id']
     
     if inst_id is None and inst_nat is None : 
@@ -676,11 +871,35 @@ def teachers_marks_upload_percentage_wrapper_version_2(auth , first_term =False,
     existing_WorkBook.save( outdir + f'نسب العلامات للاساسي.xlsx')
 
 def calculate_percentage(part, whole):
+    """
+    Calculate the percentage.
+
+    Parameters:
+        part (float): Part value.
+        whole (float): Whole value.
+
+    Returns:
+        float: Calculated percentage.
+    """    
     if whole == 0:
         return 0
     return (part / whole) * 100
 
 def inserted_marks_percentage_from_dataframes_variable_v2(marks , with_entered_and_not_marks=False , row_empty_marks=False):
+    """
+    Calculate the percentage of inserted marks from a list of marks.
+
+    Parameters:
+        marks (list): List of marks data.
+        with_entered_and_not_marks (bool): Flag to include details of entered and empty marks. Default is False.
+        row_empty_marks (bool): Flag to include the list of rows with empty marks. Default is False.
+
+    Returns:
+        float or dict: If with_entered_and_not_marks is False, returns the inserted marks percentage as float.
+                        If with_entered_and_not_marks is True, returns a dictionary with percentage, inserted marks,
+                        empty marks count, and optionally the list of rows with empty marks.
+    """
+
     empty_marks = [mark for mark in marks if not isinstance(mark['العلامة'], str)]
     inserted_marks = abs(len(empty_marks)-len(marks))
     inserted_marks_percentage = calculate_percentage(inserted_marks ,len(marks) )
@@ -698,9 +917,20 @@ def inserted_marks_percentage_from_dataframes_variable_v2(marks , with_entered_a
                     'empty_marks': len(empty_marks),
                     }            
     else:
-       return inserted_marks_percentage
+        return inserted_marks_percentage
 
 def create_fuzz_list(inst_id, period_id ,class_data_dic):
+    """
+    Create a fuzz list based on institution ID, academic period ID, and class data dictionary.
+
+    Parameters:
+        inst_id (int): The ID of the institution.
+        period_id (int): The ID of the academic period.
+        class_data_dic (dict): Dictionary containing class data.
+
+    Returns:
+        list: A list of fuzz strings.
+    """
     _fuzz_list = []
     for class_id in class_data_dic:
         name = class_data_dic[class_id]['name']
@@ -713,7 +943,8 @@ def create_fuzz_list(inst_id, period_id ,class_data_dic):
     return _fuzz_list
 
 def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , method='POST' , proxies = None):
-    """دالة استخدمها لارسال طلب بوست بشكل سريع
+    """ 
+    دالة استخدمها لارسال طلب بوست بشكل سريع ، و بإمكانها العودة ببيانات معينة المطور يحددها
 
     Args:
         _fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
@@ -760,6 +991,18 @@ def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , me
     return [unsuccessful_requests , _data]
 
 def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic):
+    """
+    Retrieves school marks for a specific institution, academic period, and class data dictionary.
+
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int): The ID of the institution.
+        period_id (int): The ID of the academic period.
+        _class_data_dic (dict): Dictionary containing class data.
+
+    Returns:
+        list: A list of school marks.
+    """
     _school_marks = []
     url = url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[FUZZ]&_limit=0'
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
@@ -784,6 +1027,18 @@ def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic):
     return _school_marks
 
 def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , session=None):
+    """
+    Retrieves information about school classes and students enrolled in those classes.
+
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int): The ID of the institution.
+        period_id (int): The ID of the academic period.
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing dictionaries for class names with their associated information and students with their associated data.
+    """    
     grades_info = get_grade_info(auth)
     student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0', session=session)['data']
     class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classess}
@@ -800,7 +1055,23 @@ def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , ses
     return class_names_dic , students_with_data_dic
 
 def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
+    """
+    Retrieves marks upload percentages for students, teachers, and classes.
 
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int): The ID of the institution.
+        period_id (int): The ID of the academic period.
+        first_term (bool, optional): Whether to consider the first term. Defaults to False.
+        second_term (bool, optional): Whether to consider the second term. Defaults to False.
+        both_terms (bool, optional): Whether to consider both terms. Defaults to False.
+        student_status_list (list, optional): List of student status IDs. Defaults to [1].
+        subject_search_name_wanted_index (list, optional): List of indices for subject search names. Defaults to [2, 3, 5].
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        dict: Dictionary containing school, teachers, and classes percentages along with data frames.
+    """
     # function variables here 
     techers_percentages ,teachers_empty_marks,data_frames , subject_ids ,terms_list = {}, [], [], [] , []
     assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
@@ -1026,10 +1297,35 @@ def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =Fals
             }
 
 def get_class_subjects(auth , class_id , assessment_id , academic_period_id , institution_id , session=None):
+    """
+    Retrieves subjects for a specific class.
+
+    Parameters:
+        auth (dict): Authentication information.
+        class_id (int): The ID of the class.
+        assessment_id (int): The ID of the assessment.
+        academic_period_id (int): The ID of the academic period.
+        institution_id (int): The ID of the institution.
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        list: A list of dictionaries containing information about the subjects for the specified class.
+    """    
     url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
     return make_request(auth=auth , url=url , session=session)['data']
 
 def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dictionary , _subject_mapping_for_teachers ,_teacher_with_subject_mapping):
+    """
+    Creates a dictionary mapping classes to their subjects and teachers.
+
+    Parameters:
+        _class_data_with_subjects_dictionary (dict): Dictionary containing class data with subjects.
+        _subject_mapping_for_teachers (dict): Mapping of subjects to teachers.
+        _teacher_with_subject_mapping (dict): Mapping of teachers to subjects.
+
+    Returns:
+        dict: A dictionary where keys are class IDs and values are dictionaries containing subject IDs mapped to their names, class IDs, class names, and teacher names.
+    """    
     _class_subject_teacher_mapping = {}
     _class_subjects_linked_to_teacher =[]
     for class_id in _class_data_with_subjects_dictionary:
@@ -1062,7 +1358,9 @@ def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dicti
     return _class_subject_teacher_mapping
 
 def get_subject_dictionary(_class_data_with_subjects_dictionary):
-    '''
+    """
+    Extracts a dictionary of subjects from a dictionary containing class data with subjects.
+    
     # Example flatten list of lists
     matrix = [
         [1, 2, 3],
@@ -1079,7 +1377,14 @@ def get_subject_dictionary(_class_data_with_subjects_dictionary):
     # for col in row
     # and what we want is the col
     print([col for row in matrix for col in row])
-    '''
+
+
+    Parameters:
+        _class_data_with_subjects_dictionary (dict): Dictionary containing class data with subjects.
+
+    Returns:
+        dict: A dictionary where keys are education_subject_ids and values are subject names.
+    """
     return {
             int(subject_data['education_subject_id']): subject_data['name'] 
                 for class_id in _class_data_with_subjects_dictionary 
@@ -1087,20 +1392,55 @@ def get_subject_dictionary(_class_data_with_subjects_dictionary):
             }
 
 def get_assessment_periods_list(auth , session=None):
+    """
+    Retrieves a list of assessment periods.
+
+    Parameters:
+        auth (dict): Authentication information.
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        list: A list of dictionaries containing information about assessment periods.
+    """    
     assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
     return assessment_periods['data']
 
 def get_assessment_periods_dictionary(auth ):
-        return {
-                i['id']:{
-                        'code' : i['code'],
-                        'name' : i['name'],
-                        'academic_term' : i['academic_term'],
-                        } 
-                for i in get_assessment_periods_list(auth)
-                }
+    """
+    Retrieves assessment periods and creates a dictionary with their information.
+
+    Parameters:
+        auth (dict): Authentication information.
+
+    Returns:
+        dict: A dictionary containing assessment period IDs as keys and dictionaries containing the following keys:
+            - 'code': The code of the assessment period.
+            - 'name': The name of the assessment period.
+            - 'academic_term': The academic term of the assessment period.
+    """    
+    return {
+            i['id']:{
+                    'code' : i['code'],
+                    'name' : i['name'],
+                    'academic_term' : i['academic_term'],
+                    } 
+            for i in get_assessment_periods_list(auth)
+            }
 
 def add_subjects_to_class_data_dic(auth , inst_id ,period_id , _class_data_dic ,session=None):
+    """
+    Adds subjects to the class_data_dic.
+
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int): Institution ID.
+        period_id (int): Period ID.
+        _class_data_dic (dict): Dictionary containing class data.
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        dict: The updated class_data_dic with subjects added.
+    """
     # add subjects to class_data_dic
     for class_ in _class_data_dic:
         class_subject_data = get_class_subjects(auth ,class_ , _class_data_dic[class_]['assessment_id'] ,period_id, inst_id ,session=session)
@@ -1108,6 +1448,13 @@ def add_subjects_to_class_data_dic(auth , inst_id ,period_id , _class_data_dic ,
     return _class_data_dic
 
 def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
+    """
+    Creates an Excel file containing student marks.
+
+    Parameters:
+        data_frames (list of dict): A list of dictionaries representing student marks.
+        excel_file_name (str, optional): The name of the Excel file to be created. Defaults to 'علامات الطلاب الدقيقة.xlsx'.
+    """
     start_page = 1
     school_marks = []
     url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={period_id}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}'+'&_limit=1'
@@ -1134,6 +1481,16 @@ def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
     return school_marks
 
 def create_excel_for_marks(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx'):
+    """
+    Calculates the percentage of a part compared to a whole.
+
+    Parameters:
+        part (int or float): The part of the whole.
+        whole (int or float): The total value representing the whole.
+
+    Returns:
+        float: The percentage of the part compared to the whole. If whole is 0, returns 0.
+    """    
     # Convert the list of dictionaries to a pandas DataFrame
     df = pd.DataFrame(data_frames)
     # Write the DataFrame to an Excel file
@@ -1147,6 +1504,19 @@ def calculate_percentage(part, whole):
     return (part / whole) * 100
 
 def inserted_marks_percentage_from_dataframes_variable(marks , with_entered_and_not_marks=False):
+    """
+    Calculates the percentage of inserted marks from a list of marks.
+
+    Parameters:
+        marks (list): A list of dictionaries representing marks, where each dictionary contains the keys 'العلامة' representing the mark.
+        with_entered_and_not_marks (bool, optional): If True, returns additional information including the percentage of inserted marks, the number of inserted marks, and the list of empty marks. Defaults to False.
+
+    Returns:
+        float or dict: If with_entered_and_not_marks is False, returns the percentage of inserted marks as a float. If True, returns a dictionary containing the following keys:
+            - 'percentage': The percentage of inserted marks.
+            - 'inserted_marks': The number of inserted marks.
+            - 'empty_marks': A list of dictionaries representing marks with no integer value.
+    """    
     empty_marks = [mark for mark in marks if not isinstance(mark['العلامة'], int)]
     inserted_marks = abs(len(empty_marks)-len(marks))
     inserted_marks_percentage = calculate_percentage(inserted_marks ,len(marks) )
@@ -1160,6 +1530,27 @@ def inserted_marks_percentage_from_dataframes_variable(marks , with_entered_and_
         return inserted_marks_percentage
 
 def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
+    """
+    Retrieves and calculates percentages related to marks uploaded by teachers.
+
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int): Institution ID.
+        period_id (int): Period ID.
+        first_term (bool, optional): Flag indicating consideration of the first term. Defaults to False.
+        second_term (bool, optional): Flag indicating consideration of the second term. Defaults to False.
+        both_terms (bool, optional): Flag indicating consideration of both terms. Defaults to False.
+        student_status_list (list, optional): List of student statuses to include. Defaults to [1].
+        subject_search_name_wanted_index (list, optional): Indices indicating which subjects to include. Defaults to [2, 3, 5].
+        session (object, optional): Session information. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the following keys:
+            - 'school_percentage': Percentage of uploaded marks for the entire school.
+            - 'teachers_percentages': Dictionary containing percentages for each teacher.
+            - 'classes_percentages': Dictionary containing percentages for each class and subject.
+            - 'data_frames': List of dictionaries representing data frames.
+    """
     # function variables here 
     techers_percentages ,data_frames , subject_ids ,terms_list = {}, [], [], []
     assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
@@ -6600,6 +6991,18 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
     return dic_list
 
 def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
+    """
+    Retrieves the IDs of students enrolled in a school for the current academic year.
+
+    Parameters:
+        auth (dict): Authentication information.
+        inst_id (int, optional): Institution ID. Defaults to None.
+        curr_year (int, optional): Current academic year ID. Defaults to None.
+        session (requests.sessions.Session, optional): Requests session. Defaults to None.
+
+    Returns:
+        list: List of student IDs.
+    """    
     if inst_id is None:
         inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
     if curr_year is None:
@@ -8047,7 +8450,17 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
     return ['Some Thing Wrong']
 
 def get_auth(username , password ,proxies=None):
-    ' دالة تسجيل الدخول للموقع و للحصول على الرمز الخاص بالتوكن و يستخدم في header Authorization'
+    """
+    Log in to the website and retrieve the token for Authorization header.
+
+    Parameters:
+        username (str): Username.
+        password (str): Password.
+        proxies (dict, optional): Proxy settings. Defaults to None.
+
+    Returns:
+        str: Token if login successful, False otherwise.
+    """
     url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
     payload = {
         "username": username,
@@ -8632,7 +9045,7 @@ def main():
     # There is error in 
     # 9781053164/9781053164
 
-    bulk_e_side_note_marks(passwords)
+    # bulk_e_side_note_marks(passwords)
     
     # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
     session = requests.Session()
@@ -8645,7 +9058,7 @@ def main():
     # auth = get_auth(9971055725,9971055725)
     # teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
     # create_e_side_marks_doc(9971055725,9971055725,session=session)
-    school_nats = '''112187
+    school_nats = """112187
 112183
 112177
 112188
@@ -8671,7 +9084,7 @@ def main():
 113850
 112226
 114657
-112195'''
+112195"""
     
     # schools = [int(i) for i in school_nats.split('\n')] 
     # vacancies ,faulty_nats = Vacancies(9971055725,9971055725 , schools )
@@ -8689,7 +9102,7 @@ def main():
     # get_marks_v2(auth , 2600 , 15 , classes_id_2 , grades_info , assessment_periods)
 
     # session = requests.Session()
-    # fill_official_marks_functions_wrapper_v2( 9991053369 , 9991053369 , session=session)
+    fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
     # create_certs_wrapper(2000161149,2000161149,2001836137,session=session)
 
 if __name__ == "__main__":
