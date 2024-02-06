@@ -53,6 +53,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+
 def divide_teacher_load(classes):
     pages = 0
     divided_lists = []
