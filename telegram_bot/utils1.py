@@ -54,6 +54,7 @@ secondery_students = []
 
 # New code should be under here please
 
+
 def get_school_classed_and_unclassed_students(auth,session=None):
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     curr_year = get_curr_period(auth)['data'][0]['id']
