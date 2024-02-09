@@ -53,6 +53,98 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+
+def get_school_classed_and_unclassed_students(auth,session=None):
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    curr_year = get_curr_period(auth)['data'][0]['id']
+    unclassed_ss = [
+                i 
+                for i in make_request(session=session ,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data']
+                    
+                    if i['student_status_id'] == 1
+                ]
+    classed_ss = [
+                    i 
+                    for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data'] 
+                    
+                        if i['student_status_id'] == 1 
+                    ]
+    return {
+        'unclassed_ss' : unclassed_ss ,
+        'classed_ss' : classed_ss ,
+        }
+
+def turn_classed_and_unclassed_students_to_diclist(data):
+    classed_ss = [
+                    {
+                        'student_id' :i['student_id'] , 
+                        'student_openemis_no' :i['user']['openemis_no']  , 
+                        'identity_number' :i['user']['identity_number'] , 
+                        'full_name' :i['user']['name'],
+                        'institution_class_id' : i['institution_class_id'],
+                        'grade_id' : i['education_grade_id']
+                    } for i in data['classed_ss']
+                ]
+
+    unclassed_ss = [
+                    {
+                        'student_id' :i['student_id'] , 
+                        'student_openemis_no' :i['user']['openemis_no'] , 
+                        'identity_number' :i['user']['identity_number'] , 
+                        'full_name' :i['user']['name'],
+                        'grade_id' : i['education_grade_id']
+                    } for i in data['unclassed_ss']
+                ]
+    return  classed_ss, unclassed_ss
+
+def get_classes_ids_with_names_dict(auth=None , classes_data=None , session = None ):
+    if classes_data is None :
+        inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+        period_id = get_curr_period(auth)['data'][0]['id']
+        student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0', session=session)['data']
+        class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classess}
+        classes = [i for i in class_names_dic]
+        classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
+        url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
+        classes_data = make_request(url=url,auth=auth,session=session)['data']
+        return { i['institution_class']['id'] : i['institution_class']['name'] for i in classes_data}
+    
+    return { i['institution_class']['id'] : i['institution_class']['name'] for i in classes_data}
+
+def get_education_grade_id_with_grade_name_dic(auth=None , grades_data=None):
+    if grades_data is None :
+        grades_data = get_grade_info(auth)
+    pattern = r'.* للصف'
+    replacement = 'الصف'
+    returned_dict = { i['education_grade_id'] : re.sub(pattern, replacement, i['name'])  for i in grades_data}
+    returned_dict[0] = 'بدون صف'
+    return returned_dict
+
+def create_excel_for_school_students_with_class_status(auth):
+    classes_dictionary = get_classes_ids_with_names_dict(auth=auth)
+    grades_dictionary = get_education_grade_id_with_grade_name_dic(auth=auth)
+
+
+    classed_ss , unclassed_ss  = turn_classed_and_unclassed_students_to_diclist (get_school_classed_and_unclassed_students(auth))
+
+    unique_classed_ss ,unique_unclassed_ss = [dict(t) for t in {tuple(d.items()) for d in classed_ss}] , [dict(t) for t in {tuple(d.items()) for d in unclassed_ss}]
+
+    students = []
+
+    for unclassed_student in unique_unclassed_ss:
+        find_classed_student = [i for i in unique_classed_ss if i['student_id'] == unclassed_student['student_id']]    
+        
+        if len(find_classed_student):
+            find_classed_student[0]['student_class_status'] = 'مشعب'
+            find_classed_student[0]['grade_name'] =  grades_dictionary[find_classed_student[0]['grade_id']] 
+            find_classed_student[0]['institution_class_name'] =  classes_dictionary[find_classed_student[0]['institution_class_id']]        
+            students.append(find_classed_student[0])
+        else:
+            unclassed_student['grade_name'] =  grades_dictionary[unclassed_student['grade_id']] 
+            unclassed_student['student_class_status'] = 'غير مشعب'
+            students.append(unclassed_student)
+    create_excel_from_data(students , 'send_folder/الطلاب بالشعب.xlsx')
+
 def divide_teacher_load(classes):
     pages = 0
     divided_lists = []
@@ -1547,7 +1639,7 @@ def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
     
     return school_marks
 
-def create_excel_for_marks(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx'):
+def create_excel_from_data(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx' ,rtl=True):
     """
     Calculates the percentage of a part compared to a whole.
 
@@ -1562,6 +1654,18 @@ def create_excel_for_marks(data_frames , excel_file_name = 'علامات الط�
     df = pd.DataFrame(data_frames)
     # Write the DataFrame to an Excel file
     df.to_excel(excel_file_name, index=False)
+    
+    if rtl:
+        # Load the workbook
+        workbook = load_workbook(excel_file_name)
+
+        # Set right-to-left direction
+        for sheetname in workbook.sheetnames:
+            sheet = workbook[sheetname]
+            sheet.sheet_view.rightToLeft = True
+
+        # Save the Excel file
+        workbook.save(excel_file_name)
 
     print(f"Excel file '{excel_file_name}' has been created.")
 
@@ -2773,49 +2877,6 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
 
     return present_days
 
-# def group_students(dic_list , i = None):
-#     """
-#     Groups a list of dictionaries by the 'student_class_name_letter' key.
-
-#     Parameters:
-#     - dic_list (list): List of dictionaries to be grouped.
-#     - i (int or None): If provided, prints the count and first 'student_class_name_letter' for each group (default is None).
-
-#     Returns:
-#     - list or int: If i is None, returns a list of grouped dictionaries. If i is provided, returns 0.
-
-#     Example Usage:
-#     ```python
-#     # Assuming dic_list is a list of dictionaries containing student information
-#     grouped_students = group_students(dic_list)
-#     ```
-
-#     If you want to print the count and 'student_class_name_letter' for each group, you can provide the 'i' parameter:
-#     ```python
-#     group_students(dic_list, i=1)
-#     ```
-
-#     Note:
-#     The function uses the 'student_class_name_letter' key to group the list of dictionaries.
-#     If 'i' is provided, it prints the count and first 'student_class_name_letter' for each group.
-
-#     """    
-#     # sort the list based on the 'class_name' key
-#     sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
-
-#     # group the sorted list by the 'student_class_name_letter' key
-#     grouped_list = []
-#     for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
-#         group_list = list(group)
-#         if all(x.get('student_class_name_letter') for x in group_list ):
-#             grouped_list.append(group_list)
-#     if i :
-#         for i in grouped_list:
-#             print(len(i),i[0]['student_class_name_letter'])
-#         return 0
-#     else : 
-#         return grouped_list
-
 def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None , timout_req_delay = 1000000):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
 
@@ -3664,7 +3725,7 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
             url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
             students_info_data = make_request(auth=auth , url=url,session=session)['data']
             final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
-           
+
     sorted_final_dict_info=sorted(final_dict_info, key=lambda x: x['full_name'])
     
     # c['code'] ====> '2022-2023'
@@ -5117,7 +5178,7 @@ def create_tables_wrapper(username , password ,term2=False):
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
 
-def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,session=None):
+def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,session=None):
     """
     The function create_certs_wrapper is a Python function that takes in parameters username, password,
     term2 (with a default value of False), and session (with a default value of None).
@@ -5136,7 +5197,7 @@ def create_certs_wrapper(username , password , student_identity_number = None ,t
     grouped_list = group_students(dic_list4 )
     
     add_subject_sum_dictionary(grouped_list)
-    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport)
     
     create_certs(grouped_list , term2=term2)
 
@@ -7564,7 +7625,9 @@ def get_grade_info(auth,session=None):
     :param session: The "session" parameter is used for requests.Session() incase function used again to make it faster
     :return: a sorted list of dictionaries containing assessment data.
     """
-    my_list = make_request(session=session ,auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    
+    period_id = get_curr_period(auth)['data'][0]['id']
+    my_list = make_request(session=session ,auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0&academic_period_id={period_id}')['data']
     return my_list
 
 def get_grade_name_from_grade_id(auth , grade_id):
@@ -9175,8 +9238,14 @@ def main():
     # get_marks_v2(auth , 2600 , 15 , classes_id_2 , grades_info , assessment_periods)
 
     # session = requests.Session()
-    fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
-    # create_certs_wrapper(2000161149,2000161149,2001836137,session=session)
+    # fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
+    # create_certs_wrapper(9972015261,'Aa9972015261@',session=session)
+    auth = get_auth(9971055725 , '9971055725@Aa')
+    # inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
+    # period_id = get_curr_period(auth , session=session)['data'][0]['id']
+    # data_frames = get_school_marks(auth , inst_id , period_id , limit =1000)
+    # create_excel_from_data(data_frames )
+    create_excel_for_school_students_with_class_status(auth)
 
 if __name__ == "__main__":
     main()
