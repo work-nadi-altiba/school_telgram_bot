@@ -54,7 +54,6 @@ secondery_students = []
 
 # New code should be under here please
 
-
 def get_school_classed_and_unclassed_students(auth,session=None):
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     curr_year = get_curr_period(auth)['data'][0]['id']
@@ -331,7 +330,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
     Returns:
         list: List of dictionaries containing marks data for each class.    
     """
-    classes_id_3,assessments_period_data ,secandary_students , classes_data_and_marks= [] ,[], [] ,[]
+    classes_id_3, classes_data_and_marks= [] ,[]
     global secondery_students
     
     for class_info in classes_id_2:
@@ -361,6 +360,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         # education grade id
         education_grade_id = classes_id_3[v][0]['education_grade_id']
         
+        # assessment id 
         assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
         
         print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
@@ -383,9 +383,9 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
                                             'subject_id' :subject_id,
                                             'institution_subject_id' :institution_subject_id,
                                             'education_grade_id' :education_grade_id,
+                                            'assessment_id':assessment_id
                                         }
                                     )
-
     return classes_data_and_marks
 
 def fill_official_marks_v2(username=None, password=None , ods_file=None ,students_data_lists=None, context={} ,session=None ):
@@ -775,7 +775,7 @@ def get_assessment_periods_dictionary_offline(assessments_periods ):
             for i in assessments_periods['data']
             }
 
-def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessments,secandary_students ,necessary_data_dict=None ,counter = None , template_sheet_or_file=None):
+def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
     """
     Insert marks data into the E-side marks document.
 
@@ -788,44 +788,25 @@ def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessment
         necessary_data_dict (dict): Necessary data dictionary.
         counter (int): Counter value.
         template_sheet_or_file: Template sheet or file.
-
-    Returns:
-        dict: Assessment period data.
     """
-    # copy the worksheet
-    sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
-    marks_and_name = []
-    assessment_id =necessary_data_dict['assessment_id']
-    education_grade_id =necessary_data_dict['education_grade_i']
-    institution_class_id =necessary_data_dict['institution_class_id']
-    
-    # rename the new worksheet
-    sheet_copy.title = title
-    sheet_copy.sheet_view.rightToLeft = True
-    
-    marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
-    data_font = Font(name='Arial', size=16, bold=False)
-    
-    if 'عشر' in class_name :
-        students_names = sorted([i['name'] for i in secandary_students])
-        print(students_names)
-        students_id_and_names = []
-        for IdAndName in secandary_students:
-            students_id_and_names.append({'student_name': IdAndName['name'] , 'student_id':IdAndName['id']})
+    for class_data in classes_data:
+        # copy the worksheet
+        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
+        marks_and_name = []
 
-        students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
-        for row_number, dataFrame in enumerate(students_id_and_names, start=3):
-            sheet_copy.cell(row=row_number, column=1).value = row_number-2
-            sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
-            sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
+        # rename the new worksheet
+        sheet_copy.title = class_data['title']
+        sheet_copy.sheet_view.rightToLeft = True
         
-        assessments_period_data = ''
-    else:
-        print([d['name'] for d in marks_and_name if d['name'] != ''])
+        # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
+        # marks_and_name = []
+        data_font = Font(name='Arial', size=16, bold=False)
         
-        assessments_period_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
+        # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
+        
+        # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
         # Write data to the worksheet and calculate the sum of some columns in each row
-        for row_number, dataFrame in enumerate(marks_and_name, start=3):
+        for row_number, dataFrame in enumerate(class_data['students_data'], start=3):
             sheet_copy.cell(row=row_number, column=1).value = row_number-2
             sheet_copy.cell(row=row_number, column=2).value = dataFrame['id']
             sheet_copy.cell(row=row_number, column=3).value = dataFrame['name']
@@ -844,7 +825,6 @@ def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessment
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
 
-    return assessments_period_data
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
@@ -861,8 +841,6 @@ def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,gra
                                             existing_wb=your_existing_workbook,
                                             session=session
                                         )
-                
-                
     assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
 
     Parameters:
@@ -7699,7 +7677,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     melady2 = str(school_year[0]['end_year'])
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
-    assessments = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+    assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,inst_id, user_id, period_id)['data'] if lst]
     assessments_period_data = []
@@ -7708,16 +7686,17 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     # load the existing workbook
     existing_wb = load_workbook(template)
 
-    assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessments ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
+    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session)
     
+    # assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessment_periods ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
+    insert_to_e_side_marks_doc(teacher_load_marks_data , template_sheet_or_file=existing_wb)
     
-    assessments_period_data_text = '\\\\'.join(
-            [
-                str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1] if i)
-                for dictionary in assessments_period_data if len(dictionary)
-                
-            ]
-        )
+    classes_institution_assessment_education_ides = [f"{i['institution_class_id']}-{i['assessment_id']}-{i['education_grade_id']}" for i in teacher_load_marks_data]
+    assessments_periods_lists = [i['students_data'][0]['assessments_periods_ides'] for i in teacher_load_marks_data]
+    assessments_periods_lists_strings = [','.join(map(str,i)) for i in assessments_periods_lists]
+    joined_class_data_and_assessment_periods_string = [ ','.join(class_data_and_assessment_periods_string) for  _, class_data_and_assessment_periods_string in enumerate(zip(classes_institution_assessment_education_ides, assessments_periods_lists_strings)) if len(class_data_and_assessment_periods_string[1])]
+    
+    assessments_period_data_text ='\\\\'.join(joined_class_data_and_assessment_periods_string)
     
     existing_wb.remove(existing_wb['Sheet1'])
 
@@ -9241,12 +9220,15 @@ def main():
     # session = requests.Session()
     # fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
     # create_certs_wrapper(9972015261,'Aa9972015261@',session=session)
-    auth = get_auth(9971055725 , '9971055725@Aa')
+    # auth = get_auth(9971055725 , '9971055725@Aa')
     # inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
     # period_id = get_curr_period(auth , session=session)['data'][0]['id']
     # data_frames = get_school_marks(auth , inst_id , period_id , limit =1000)
     # create_excel_from_data(data_frames )
-    create_excel_for_school_students_with_class_status(auth)
+    # create_excel_for_school_students_with_class_status(auth)
+    
+    # create_e_side_marks_doc( 9971055725 , '9971055725@Aa' , session = session )
+    create_e_side_marks_doc( 9881028790 , 9881028790 , session = session)
 
 if __name__ == "__main__":
     main()
