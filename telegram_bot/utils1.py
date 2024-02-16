@@ -299,7 +299,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                         ]
                         , outdir)
 
-def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None ):
+def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ):
     """
     Retrieves marks data for the specified classes and periods.    
     
@@ -369,7 +369,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         
         title = f'{class_name}={subject_name}={institution_subject_id}={subject_id}'.replace('/', '~')
         if 'عشر' in class_name :
-            id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,session=session)
+            id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
         else:
             id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json)
         
@@ -824,7 +824,6 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
             # Set the font for the data rows
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
-
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
@@ -1921,7 +1920,7 @@ def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,s
             'data_frames' : data_frames
             }
 
-def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True, session=None):
+def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True,student_status_ids=[1],session=None):
     """
     Retrieves secondary students enrolled in a specific institution class.
 
@@ -1938,11 +1937,11 @@ def get_secondery_students(auth , institution_class_id , inst_id=None , curr_yea
     global secondery_students 
     id_and_name_dic_list = []
     if not len(secondery_students):
-        secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year , session=session) 
-    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] ==1]
+        secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year ,student_status_ids=student_status_ids , session=session)
+    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] in student_status_ids]
     data = {'data': data , 'total': len(data)}
-            
-    enrolled = [i for i in data['data'] if i['student_status_id'] ==1]
+    
+    enrolled = [i for i in data['data'] if i['student_status_id'] in student_status_ids]
     data = {'data': enrolled , 'total': len(enrolled)}
     if just_id_and_name_and_empty_marks:
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
@@ -7103,7 +7102,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
 
     return dic_list
 
-def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
+def get_school_students_ids(auth, inst_id=None ,curr_year=None,student_status_ids=[1],session=None ):
     """
     Retrieves the IDs of students enrolled in a school for the current academic year.
 
@@ -7124,13 +7123,12 @@ def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
                 i['student_id'] 
                 for i in make_request(session=session ,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data']
                     
-                    if i['student_status_id'] == 1
+                    if i['student_status_id'] in student_status_ids
                 ]
     InstitutionClassStudents = [
                                 i 
                                 for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users',session=session)['data'] 
-                                
-                                    if i['student_status_id'] == 1 and i['student_id'] in students
+                                    if i['student_status_id'] in student_status_ids and i['student_id'] in students
                                 ]
     return [
             i
@@ -7595,7 +7593,7 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     
     return required_data_to_enter_marks
 
-def get_grade_info(auth,session=None):    
+def get_grade_info(auth,period_id=None,session=None):    
     """
     The function "get_grade_info" takes an authentication token as input and returns information about a
     student's grades.
@@ -7604,8 +7602,8 @@ def get_grade_info(auth,session=None):
     :param session: The "session" parameter is used for requests.Session() incase function used again to make it faster
     :return: a sorted list of dictionaries containing assessment data.
     """
-    
-    period_id = get_curr_period(auth)['data'][0]['id']
+    if period_id is None :
+        period_id = get_curr_period(auth)['data'][0]['id']
     my_list = make_request(session=session ,auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0&academic_period_id={period_id}')['data']
     return my_list
 
@@ -7640,7 +7638,7 @@ def get_assessment_id_from_grade_id(auth , grade_id,session=None):
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
-def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,session=None):
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , session=None):
     """
     The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
     template and saves it in a specified output directory.
@@ -7658,7 +7656,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     authentication or other purposes. If no session object is provided, a new session will be created
     """
     auth = get_auth(username , password )
-    period_id = get_curr_period(auth,session=session)['data'][0]['id']
+    if period_id is None :
+        period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
@@ -7681,18 +7680,18 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,inst_id, user_id, period_id)['data'] if lst]
     assessments_period_data = []
-    grades_info = get_grade_info(auth)
+    grades_info = get_grade_info(auth,period_id,session=session)
     
     # load the existing workbook
     existing_wb = load_workbook(template)
 
-    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session)
+    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session,student_status_ids=student_status_ids)
     
     # assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessment_periods ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
     insert_to_e_side_marks_doc(teacher_load_marks_data , template_sheet_or_file=existing_wb)
     
     classes_institution_assessment_education_ides = [f"{i['institution_class_id']}-{i['assessment_id']}-{i['education_grade_id']}" for i in teacher_load_marks_data]
-    assessments_periods_lists = [i['students_data'][0]['assessments_periods_ides'] for i in teacher_load_marks_data]
+    assessments_periods_lists = [i['students_data'][0]['assessments_periods_ides'] for i in teacher_load_marks_data ]
     assessments_periods_lists_strings = [','.join(map(str,i)) for i in assessments_periods_lists]
     joined_class_data_and_assessment_periods_string = [ ','.join(class_data_and_assessment_periods_string) for  _, class_data_and_assessment_periods_string in enumerate(zip(classes_institution_assessment_education_ides, assessments_periods_lists_strings)) if len(class_data_and_assessment_periods_string[1])]
     
@@ -9228,7 +9227,7 @@ def main():
     # create_excel_for_school_students_with_class_status(auth)
     
     # create_e_side_marks_doc( 9971055725 , '9971055725@Aa' , session = session )
-    create_e_side_marks_doc( 9881028790 , 9881028790 , session = session)
+    create_e_side_marks_doc( 9881018748 , 9881018748 , period_id=13 , student_status_ids=[1,5,6,7] ,session = session)
 
 if __name__ == "__main__":
     main()
