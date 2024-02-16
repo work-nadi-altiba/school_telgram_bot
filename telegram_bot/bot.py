@@ -63,10 +63,10 @@ def send_absent_notebook_doc(update, context):
         password = context.user_data['creds'][1]
         # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
             fill_student_absent_doc_wrapper(username, password)
             files = count_files()
@@ -103,11 +103,11 @@ def send_side_marks_note_doc(update, context):
     else:
         update.message.reply_text("انتظر لحظة لو سمحت")     
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
             return CREDS_2
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             if term == 'term1':            
                 side_marks_document_with_marks(username , password ,term=1 )
             elif term == "term2":
@@ -203,12 +203,12 @@ def upload_marks_bot_version(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         auth = get_auth(username,password)
         if auth == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
             return CREDS_2
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
             # TODO: handle empty editable_assessments list
             editable_assessments = get_editable_assessments(auth ,username ,session)
@@ -263,10 +263,10 @@ def print_available_assessments_light_version(update, context):
     username = context.user_data['creds'][0]
     password = context.user_data['creds'][1]
     print(username, password)
-    logger.info(f"username:{username} ----> password :{password}")
     if get_auth(username, password) == False:
         update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
     else:
+        logger.info(f"username:{username} ----> password :{password}")
         update.message.reply_text("انتظر لحظة لو سمحت") 
         auth = get_auth(username,password)
         # TODO: handle empty editable_assessments list
@@ -286,11 +286,11 @@ def print_available_assessments(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         auth = get_auth(username,password)
         if auth == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
             # TODO: handle empty editable_assessments list
             editable_assessments = get_editable_assessments(auth ,username,session=session)
@@ -476,6 +476,7 @@ def help_command(update, context):
 def error(update, context):
     update.message.reply_text(f"حصل هذا الخطا : {context.error} ")
     traceback.print_exc()
+    logger.error(traceback.format_exc())
     print(f'Update {update} caused error {context.error}')
     return ConversationHandler.END
     
@@ -571,10 +572,10 @@ def send_performance_side_marks_note_doc(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             side_marks_document(username, password)
             files = count_files()
             chat_id = update.message.chat.id
@@ -596,10 +597,10 @@ def send_students_certs(update, context):
         password = context.user_data['creds'][1]
         # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت")
             if term == 'term1':            
                 create_certs_wrapper(username, password)
@@ -633,10 +634,10 @@ def send_students_tables(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت")
             if term == 'term1':            
                 create_tables_wrapper(username, password)
@@ -670,10 +671,10 @@ def send_official_marks_doc(update, context):
         password = context.user_data['creds'][1]
         # update.message.reply_text("Thanks for sharing! You're a credentials user {} and password {}.".format(context.user_data['creds'][0], context.user_data['creds'][1] ) )
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
             fill_official_marks_doc_wrapper(username, password)
             files = count_files()
@@ -697,10 +698,10 @@ def send_e_side_marks_note_doc(update, context):
         username = context.user_data['creds'][0]
         password = context.user_data['creds'][1]
         print(username, password)
-        logger.info(f"username:{username} ----> password :{password}")
         if get_auth(username, password) == False:
             update.message.reply_text("اسم المستخدم او كلمة السر خطأ") 
         else:
+            logger.info(f"username:{username} ----> password :{password}")
             create_e_side_marks_doc(username, password , session =session)
             files = count_files()
             chat_id = update.message.chat.id
