@@ -47,12 +47,34 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from itertools import groupby
 import traceback
 import pandas as pd
+from loguru import logger
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # Global variables should under her please
 secondery_students = []
 
 # New code should be under here please
+
+def setup_logging(log_file_path: str):
+    log_directory = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_directory, exist_ok=True)
+    log_file = os.path.join(log_directory, log_file_path)
+    
+    logger.remove()  # Remove existing handlers
+    logger.add(log_file, rotation="500 MB", compression="zip", backtrace=True, diagnose=True, format="{time} | {function} | {level} | {message}")
+
+def log_info(message: str):
+    logger.info(message)
+
+def log_warning(message: str):
+    logger.warning(message)
+
+def log_error(message: str):
+    logger.error(message)
+
+def log_exception(message: str):
+    logger.exception(message)
 
 def get_school_classed_and_unclassed_students(auth,session=None):
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
@@ -9227,7 +9249,8 @@ def main():
     # create_excel_for_school_students_with_class_status(auth)
     
     # create_e_side_marks_doc( 9971055725 , '9971055725@Aa' , session = session )
-    create_e_side_marks_doc( 9881018748 , 9881018748 , period_id=13 , student_status_ids=[1,5,6,7] ,session = session)
-
+    # create_e_side_marks_doc( 9881018748 , 9881018748 , period_id=13 , student_status_ids=[1,5,6,7] ,session = session)
+    
+    logger.info("This is an information message.")
 if __name__ == "__main__":
     main()
