@@ -11,3 +11,4 @@ hijri_converter
 webcolors
 ezodf
 PyMuPDF
+loguru
