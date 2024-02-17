@@ -47,12 +47,127 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from itertools import groupby
 import traceback
 import pandas as pd
+from loguru import logger
+from setting import *
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 # Global variables should under her please
 secondery_students = []
 
 # New code should be under here please
+
+def setup_logging(log_file_path: str):
+    log_directory = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_directory, exist_ok=True)
+    log_file = os.path.join(log_directory, log_file_path)
+    
+    logger.remove()  # Remove existing handlers
+    logger.add(log_file, rotation="500 MB", compression="zip", backtrace=True, diagnose=True, format="{time} | {function} | {level} | {message}")
+
+def log_info(message: str):
+    logger.info(message)
+
+def log_warning(message: str):
+    logger.warning(message)
+
+def log_error(message: str):
+    logger.error(message)
+
+def log_exception(message: str):
+    logger.exception(message)
+
+def get_school_classed_and_unclassed_students(auth,session=None):
+    inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+    curr_year = get_curr_period(auth)['data'][0]['id']
+    unclassed_ss = [
+                i 
+                for i in make_request(session=session ,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data']
+                    
+                    if i['student_status_id'] == 1
+                ]
+    classed_ss = [
+                    i 
+                    for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data'] 
+                    
+                        if i['student_status_id'] == 1 
+                    ]
+    return {
+        'unclassed_ss' : unclassed_ss ,
+        'classed_ss' : classed_ss ,
+        }
+
+def turn_classed_and_unclassed_students_to_diclist(data):
+    classed_ss = [
+                    {
+                        'student_id' :i['student_id'] , 
+                        'student_openemis_no' :i['user']['openemis_no']  , 
+                        'identity_number' :i['user']['identity_number'] , 
+                        'full_name' :i['user']['name'],
+                        'institution_class_id' : i['institution_class_id'],
+                        'grade_id' : i['education_grade_id']
+                    } for i in data['classed_ss']
+                ]
+
+    unclassed_ss = [
+                    {
+                        'student_id' :i['student_id'] , 
+                        'student_openemis_no' :i['user']['openemis_no'] , 
+                        'identity_number' :i['user']['identity_number'] , 
+                        'full_name' :i['user']['name'],
+                        'grade_id' : i['education_grade_id']
+                    } for i in data['unclassed_ss']
+                ]
+    return  classed_ss, unclassed_ss
+
+def get_classes_ids_with_names_dict(auth=None , classes_data=None , session = None ):
+    if classes_data is None :
+        inst_id = inst_name(auth)['data'][0]['Institutions']['id']
+        period_id = get_curr_period(auth)['data'][0]['id']
+        student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0', session=session)['data']
+        class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classess}
+        classes = [i for i in class_names_dic]
+        classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
+        url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
+        classes_data = make_request(url=url,auth=auth,session=session)['data']
+        return { i['institution_class']['id'] : i['institution_class']['name'] for i in classes_data}
+    
+    return { i['institution_class']['id'] : i['institution_class']['name'] for i in classes_data}
+
+def get_education_grade_id_with_grade_name_dic(auth=None , grades_data=None):
+    if grades_data is None :
+        grades_data = get_grade_info(auth)
+    pattern = r'.* للصف'
+    replacement = 'الصف'
+    returned_dict = { i['education_grade_id'] : re.sub(pattern, replacement, i['name'])  for i in grades_data}
+    returned_dict[0] = 'بدون صف'
+    return returned_dict
+
+def create_excel_for_school_students_with_class_status(auth):
+    classes_dictionary = get_classes_ids_with_names_dict(auth=auth)
+    grades_dictionary = get_education_grade_id_with_grade_name_dic(auth=auth)
+
+
+    classed_ss , unclassed_ss  = turn_classed_and_unclassed_students_to_diclist (get_school_classed_and_unclassed_students(auth))
+
+    unique_classed_ss ,unique_unclassed_ss = [dict(t) for t in {tuple(d.items()) for d in classed_ss}] , [dict(t) for t in {tuple(d.items()) for d in unclassed_ss}]
+
+    students = []
+
+    for unclassed_student in unique_unclassed_ss:
+        find_classed_student = [i for i in unique_classed_ss if i['student_id'] == unclassed_student['student_id']]    
+        
+        if len(find_classed_student):
+            find_classed_student[0]['student_class_status'] = 'مشعب'
+            find_classed_student[0]['grade_name'] =  grades_dictionary[find_classed_student[0]['grade_id']] 
+            find_classed_student[0]['institution_class_name'] =  classes_dictionary[find_classed_student[0]['institution_class_id']]        
+            students.append(find_classed_student[0])
+        else:
+            unclassed_student['grade_name'] =  grades_dictionary[unclassed_student['grade_id']] 
+            unclassed_student['student_class_status'] = 'غير مشعب'
+            students.append(unclassed_student)
+    create_excel_from_data(students , 'send_folder/الطلاب بالشعب.xlsx')
+
 def divide_teacher_load(classes):
     pages = 0
     divided_lists = []
@@ -89,7 +204,7 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,session = None):
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,empty_marks=False,session = None):
     
     if A3_context is None:
         A3_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
@@ -102,6 +217,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         A4_context = A4_context
     # ods_file = f'{ods_name}{ods_num}.ods'
     
+    
     if (username is not None and password is not None ):
         auth = get_auth(username , password)
         period_id = get_curr_period(auth , session=session)['data'][0]['id']
@@ -110,8 +226,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         
         user = user_info(auth , username, session=session)
         school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
-        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
-        # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id), session=session)['data'][0]['address'].split('-')[0]
+        # grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
         modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
         school_year = get_curr_period(auth, session=session)['data']
         hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -124,15 +240,26 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
         assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
         grades_info = get_grade_info(auth)
-        students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session)
+        students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session , empty_marks=empty_marks)
     else: 
         students_data_lists = e_side_notebook_data
         
     devided_teacher_load_list = divide_teacher_load(students_data_lists)
     print('hi')
+    inst_id = inst_name(get_auth(username,password), session=session)['data'][0]['Institutions']['id']
+    school_place_data= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id), session=session)['data'][0]
+    area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+    area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+    modeeriah_v2=area_chain_list[1]
+    if indcator_of_private_techers_sector == 12 : 
+        modeeriah=f'التعليم الخاص / {modeeriah_v2}'
+    else:
+        modeeriah=f'{modeeriah}'
+    
     
     custom_shapes = {
-                    'modeeriah': f'لواء {modeeriah}',
+                    'modeeriah':modeeriah,
                     'hejri1': hejri1,
                     'hejri2': hejri2,
                     'melady1': melady1,
@@ -140,7 +267,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'baldah': baldah,
                     'school': school_name,
                     'teacher': teacher,
-                    'modeeriah_20_2': f'لواء {modeeriah}',
+                    'modeeriah_20_2': f' {modeeriah}',
                     'hejri_20_1': hejri1,
                     'hejri_20_2': hejri2,
                     'melady_20_1': melady1,
@@ -189,17 +316,6 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
         os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
         os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
-    
-    # copy_ods_file(templet_file , f'{outdir}/{ods_file}')
-    # custom_shapes , classes_data = fill_official_marks_v2(username= username, password= password , ods_file=f'{outdir}/{ods_file}' , session=session)
-    # teacher_name = custom_shapes['teacher']
-    
-    # fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-    # fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{ods_file}")
-    # os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file}')
-    # os.rename(f"{outdir}/final_send1.ods", f"{outdir}/{teacher_name}_A3.ods")
-    # os.rename(f"{outdir}/final_send1.pdf", f"{outdir}/{teacher_name}_A3.pdf")
-
     delete_files_except(
                         [
                             i for i in os.listdir("./send_folder") 
@@ -207,7 +323,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                         ]
                         , outdir)
 
-def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None ):
+def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ,empty_marks=False):
     """
     Retrieves marks data for the specified classes and periods.    
     
@@ -238,7 +354,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
     Returns:
         list: List of dictionaries containing marks data for each class.    
     """
-    classes_id_3,assessments_period_data ,secandary_students , classes_data_and_marks= [] ,[], [] ,[]
+    classes_id_3, classes_data_and_marks= [] ,[]
     global secondery_students
     
     for class_info in classes_id_2:
@@ -268,6 +384,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         # education grade id
         education_grade_id = classes_id_3[v][0]['education_grade_id']
         
+        # assessment id 
         assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
         
         print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
@@ -276,9 +393,9 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         
         title = f'{class_name}={subject_name}={institution_subject_id}={subject_id}'.replace('/', '~')
         if 'عشر' in class_name :
-            id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,session=session)
+            id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
         else:
-            id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json)
+            id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json ,empty_marks=empty_marks)
         
         classes_data_and_marks.append(
                                         {
@@ -290,9 +407,9 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
                                             'subject_id' :subject_id,
                                             'institution_subject_id' :institution_subject_id,
                                             'education_grade_id' :education_grade_id,
+                                            'assessment_id':assessment_id
                                         }
                                     )
-
     return classes_data_and_marks
 
 def fill_official_marks_v2(username=None, password=None , ods_file=None ,students_data_lists=None, context={} ,session=None ):
@@ -323,8 +440,8 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
         
         user = user_info(auth , username, session=session)
         school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
-        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
-        # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id), session=session)['data'][0]['address'].split('-')[0]
+        # grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
         modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
         school_year = get_curr_period(auth, session=session)['data']
         hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -573,7 +690,7 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
     delete_pdf_page(outdir+f'send{counter}.pdf', outdir+f'SEND{counter}.pdf', 1)
     delete_file(outdir+f'send{counter}.pdf')
 
-def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json):
+def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json,empty_marks=False):
     """
     Extracts marks and names dictionary list from assessment data.
 
@@ -594,17 +711,17 @@ def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessm
         dic['id'] = id
         dic['name'] = values[0]['the_student_name']
 
-        if 'عشر' not in class_name :
+        if 'عشر' not in class_name  :
             values = offline_sort_assessement_period_ids_v2( values ,assessment_periods)
             dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
-            dic['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None else ''
-            dic['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None else ''
-            dic['term1']['assessment3'] = float(values[2]["mark"]) if values[2]["mark"] is not None else ''
-            dic['term1']['assessment4'] = float(values[3]["mark"]) if values[3]["mark"] is not None else ''
-            dic['term2']['assessment1'] = float(values[4]["mark"]) if values[4]["mark"] is not None else ''
-            dic['term2']['assessment2'] = float(values[5]["mark"]) if values[5]["mark"] is not None else ''
-            dic['term2']['assessment3'] = float(values[6]["mark"]) if values[6]["mark"] is not None else ''
-            dic['term2']['assessment4'] = float(values[7]["mark"]) if values[7]["mark"] is not None else ''
+            dic['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment3'] = float(values[2]["mark"]) if values[2]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment4'] = float(values[3]["mark"]) if values[3]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment1'] = float(values[4]["mark"]) if values[4]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment2'] = float(values[5]["mark"]) if values[5]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment3'] = float(values[6]["mark"]) if values[6]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment4'] = float(values[7]["mark"]) if values[7]["mark"] is not None and not empty_marks else ''
         marks_and_names.append(dic)
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
     
@@ -682,7 +799,7 @@ def get_assessment_periods_dictionary_offline(assessments_periods ):
             for i in assessments_periods['data']
             }
 
-def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessments,secandary_students ,necessary_data_dict=None ,counter = None , template_sheet_or_file=None):
+def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
     """
     Insert marks data into the E-side marks document.
 
@@ -695,44 +812,25 @@ def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessment
         necessary_data_dict (dict): Necessary data dictionary.
         counter (int): Counter value.
         template_sheet_or_file: Template sheet or file.
-
-    Returns:
-        dict: Assessment period data.
     """
-    # copy the worksheet
-    sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
-    marks_and_name = []
-    assessment_id =necessary_data_dict['assessment_id']
-    education_grade_id =necessary_data_dict['education_grade_i']
-    institution_class_id =necessary_data_dict['institution_class_id']
-    
-    # rename the new worksheet
-    sheet_copy.title = title
-    sheet_copy.sheet_view.rightToLeft = True
-    
-    marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
-    data_font = Font(name='Arial', size=16, bold=False)
-    
-    if 'عشر' in class_name :
-        students_names = sorted([i['name'] for i in secandary_students])
-        print(students_names)
-        students_id_and_names = []
-        for IdAndName in secandary_students:
-            students_id_and_names.append({'student_name': IdAndName['name'] , 'student_id':IdAndName['id']})
+    for class_data in classes_data:
+        # copy the worksheet
+        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
+        marks_and_name = []
 
-        students_id_and_names = sorted(students_id_and_names, key=lambda x: x['student_name'])
-        for row_number, dataFrame in enumerate(students_id_and_names, start=3):
-            sheet_copy.cell(row=row_number, column=1).value = row_number-2
-            sheet_copy.cell(row=row_number, column=2).value = dataFrame['student_id']
-            sheet_copy.cell(row=row_number, column=3).value = dataFrame['student_name']
+        # rename the new worksheet
+        sheet_copy.title = class_data['title']
+        sheet_copy.sheet_view.rightToLeft = True
         
-        assessments_period_data = ''
-    else:
-        print([d['name'] for d in marks_and_name if d['name'] != ''])
+        # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
+        # marks_and_name = []
+        data_font = Font(name='Arial', size=16, bold=False)
         
-        assessments_period_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
+        # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
+        
+        # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
         # Write data to the worksheet and calculate the sum of some columns in each row
-        for row_number, dataFrame in enumerate(marks_and_name, start=3):
+        for row_number, dataFrame in enumerate(class_data['students_data'], start=3):
             sheet_copy.cell(row=row_number, column=1).value = row_number-2
             sheet_copy.cell(row=row_number, column=2).value = dataFrame['id']
             sheet_copy.cell(row=row_number, column=3).value = dataFrame['name']
@@ -751,8 +849,6 @@ def insert_to_e_side_marks_doc(title, class_name , assessments_json , assessment
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
 
-    return assessments_period_data
-
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
     Get marks data for specified classes and subjects.
@@ -768,8 +864,6 @@ def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,gra
                                             existing_wb=your_existing_workbook,
                                             session=session
                                         )
-                
-                
     assessments_period_data_text = '\\\\'.join([str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1]) for dictionary in assessments_period_data])
 
     Parameters:
@@ -1378,7 +1472,7 @@ def get_class_subjects(auth , class_id , assessment_id , academic_period_id , in
     Returns:
         list: A list of dictionaries containing information about the subjects for the specified class.
     """    
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
+    url = GET_SUB_INFO_URL.format(class_id=class_id,assessment_id=assessment_id,academic_period_id=academic_period_id,institution_id=institution_id)
     return make_request(auth=auth , url=url , session=session)['data']
 
 def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dictionary , _subject_mapping_for_teachers ,_teacher_with_subject_mapping):
@@ -1547,7 +1641,7 @@ def get_school_marks(auth , inst_id , period_id , limit =1000,session = None):
     
     return school_marks
 
-def create_excel_for_marks(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx'):
+def create_excel_from_data(data_frames , excel_file_name = 'علامات الطلاب الدقيقة.xlsx' ,rtl=True):
     """
     Calculates the percentage of a part compared to a whole.
 
@@ -1562,6 +1656,18 @@ def create_excel_for_marks(data_frames , excel_file_name = 'علامات الط�
     df = pd.DataFrame(data_frames)
     # Write the DataFrame to an Excel file
     df.to_excel(excel_file_name, index=False)
+    
+    if rtl:
+        # Load the workbook
+        workbook = load_workbook(excel_file_name)
+
+        # Set right-to-left direction
+        for sheetname in workbook.sheetnames:
+            sheet = workbook[sheetname]
+            sheet.sheet_view.rightToLeft = True
+
+        # Save the Excel file
+        workbook.save(excel_file_name)
 
     print(f"Excel file '{excel_file_name}' has been created.")
 
@@ -1838,7 +1944,7 @@ def get_marks_upload_percentages(auth , inst_id , period_id ,first_term =False,s
             'data_frames' : data_frames
             }
 
-def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True, session=None):
+def get_secondery_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True,student_status_ids=[1],session=None):
     """
     Retrieves secondary students enrolled in a specific institution class.
 
@@ -1855,11 +1961,11 @@ def get_secondery_students(auth , institution_class_id , inst_id=None , curr_yea
     global secondery_students 
     id_and_name_dic_list = []
     if not len(secondery_students):
-        secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year , session=session) 
-    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] ==1]
+        secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year ,student_status_ids=student_status_ids , session=session)
+    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] in student_status_ids]
     data = {'data': data , 'total': len(data)}
-            
-    enrolled = [i for i in data['data'] if i['student_status_id'] ==1]
+    
+    enrolled = [i for i in data['data'] if i['student_status_id'] in student_status_ids]
     data = {'data': enrolled , 'total': len(enrolled)}
     if just_id_and_name_and_empty_marks:
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
@@ -2773,49 +2879,6 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
 
     return present_days
 
-# def group_students(dic_list , i = None):
-#     """
-#     Groups a list of dictionaries by the 'student_class_name_letter' key.
-
-#     Parameters:
-#     - dic_list (list): List of dictionaries to be grouped.
-#     - i (int or None): If provided, prints the count and first 'student_class_name_letter' for each group (default is None).
-
-#     Returns:
-#     - list or int: If i is None, returns a list of grouped dictionaries. If i is provided, returns 0.
-
-#     Example Usage:
-#     ```python
-#     # Assuming dic_list is a list of dictionaries containing student information
-#     grouped_students = group_students(dic_list)
-#     ```
-
-#     If you want to print the count and 'student_class_name_letter' for each group, you can provide the 'i' parameter:
-#     ```python
-#     group_students(dic_list, i=1)
-#     ```
-
-#     Note:
-#     The function uses the 'student_class_name_letter' key to group the list of dictionaries.
-#     If 'i' is provided, it prints the count and first 'student_class_name_letter' for each group.
-
-#     """    
-#     # sort the list based on the 'class_name' key
-#     sorted_list = sorted(dic_list, key=lambda x: x['student_class_name_letter'])
-
-#     # group the sorted list by the 'student_class_name_letter' key
-#     grouped_list = []
-#     for key, group in itertools.groupby(sorted_list, key=lambda x: x['student_class_name_letter']):
-#         group_list = list(group)
-#         if all(x.get('student_class_name_letter') for x in group_list ):
-#             grouped_list.append(group_list)
-#     if i :
-#         for i in grouped_list:
-#             print(len(i),i[0]['student_class_name_letter'])
-#         return 0
-#     else : 
-#         return grouped_list
-
 def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None , timout_req_delay = 1000000):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
 
@@ -2938,7 +3001,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
     
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    url = ENTER_MARK_URL
     
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
@@ -3664,7 +3727,7 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
             url='https://emis.moe.gov.jo/openemis-core/restful/Institution-StudentUser?_limit=0&_contain=BirthplaceAreas,CustomFieldValues,Identities&_orWhere='+joined_string
             students_info_data = make_request(auth=auth , url=url,session=session)['data']
             final_dict_info.extend(process_students_info(students_info_data, identity_types, nationality_data , area_data))
-           
+
     sorted_final_dict_info=sorted(final_dict_info, key=lambda x: x['full_name'])
     
     # c['code'] ====> '2022-2023'
@@ -3951,7 +4014,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
     # school_name = school_data['Institutions']['name']
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     # school_year = get_curr_period(auth)['data']
 
     
@@ -4240,7 +4303,7 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
     # school_name = school_data['Institutions']['name']
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     # school_year = get_curr_period(auth)['data']
 
     
@@ -4383,8 +4446,8 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
         inst_id = school_data['Institutions']['id']
         school_name = school_data['Institutions']['name']
         school_name_id = f'{school_name}={inst_id}'
-        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-        # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+        # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
         modeeriah = inst_area(auth)['data'][0]['Areas']['name']
         school_year = get_curr_period(auth)['data']
         melady1 = str(school_year[0]['start_year'])
@@ -5117,7 +5180,7 @@ def create_tables_wrapper(username , password ,term2=False):
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
 
-def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,session=None):
+def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,session=None):
     """
     The function create_certs_wrapper is a Python function that takes in parameters username, password,
     term2 (with a default value of False), and session (with a default value of None).
@@ -5136,7 +5199,7 @@ def create_certs_wrapper(username , password , student_identity_number = None ,t
     grouped_list = group_students(dic_list4 )
     
     add_subject_sum_dictionary(grouped_list)
-    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport)
     
     create_certs(grouped_list , term2=term2)
 
@@ -7063,7 +7126,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
 
     return dic_list
 
-def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
+def get_school_students_ids(auth, inst_id=None ,curr_year=None,student_status_ids=[1],session=None ):
     """
     Retrieves the IDs of students enrolled in a school for the current academic year.
 
@@ -7084,13 +7147,12 @@ def get_school_students_ids(auth, inst_id=None ,curr_year=None,session=None ):
                 i['student_id'] 
                 for i in make_request(session=session ,auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.Students?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users')['data']
                     
-                    if i['student_status_id'] == 1
+                    if i['student_status_id'] in student_status_ids
                 ]
     InstitutionClassStudents = [
                                 i 
                                 for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=0&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users',session=session)['data'] 
-                                
-                                    if i['student_status_id'] == 1 and i['student_id'] in students
+                                    if i['student_status_id'] in student_status_ids and i['student_id'] in students
                                 ]
     return [
             i
@@ -7365,7 +7427,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
     
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    url = ENTER_MARK_URL
     
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
@@ -7432,12 +7494,13 @@ def get_editable_assessments( auth , username ,assessment_grade_id=None , class_
         return sorted_dict    
 
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
+    from setting import ASSESSMENTS_PERIODS_MIN_MAX_MARK_URL
     """
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
+    url = ASSESSMENTS_PERIODS_MIN_MAX_MARK_URL.format(assessment_id=assessment_id,education_subject_id=education_subject_id)
     return make_request(url,auth,session=session)
 
 def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id,session=None):
@@ -7511,12 +7574,13 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,assessment_period_id= assessment_period_id)
 
 def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
+    from setting import GET_CLASS_STUDENTS_IDS_URL
     """
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    url = GET_CLASS_STUDENTS_IDS_URL.format(academic_period_id=academic_period_id,institution_subject_id=institution_subject_id,institution_class_id=institution_class_id,institution_id=institution_id)
     student_ids = [student['student_id'] for student in make_request(url,auth,session=session)['data']]
     return student_ids
 
@@ -7555,7 +7619,8 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     
     return required_data_to_enter_marks
 
-def get_grade_info(auth,session=None):    
+def get_grade_info(auth,period_id=None,session=None):
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL    
     """
     The function "get_grade_info" takes an authentication token as input and returns information about a
     student's grades.
@@ -7564,7 +7629,9 @@ def get_grade_info(auth,session=None):
     :param session: The "session" parameter is used for requests.Session() incase function used again to make it faster
     :return: a sorted list of dictionaries containing assessment data.
     """
-    my_list = make_request(session=session ,auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    if period_id is None :
+        period_id = get_curr_period(auth)['data'][0]['id']
+    my_list = make_request(session=session ,auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}&academic_period_id={period_id}')['data']
     return my_list
 
 def get_grade_name_from_grade_id(auth , grade_id):
@@ -7576,12 +7643,13 @@ def get_grade_name_from_grade_id(auth , grade_id):
     request
     :param grade_id: The grade_id parameter is the unique identifier for a specific grade
     """
-    
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
+    my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}')['data']
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
 
 def get_assessment_id_from_grade_id(auth , grade_id,session=None):
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     """
     This function retrieves the assessment ID associated with a given grade ID.
     
@@ -7594,11 +7662,11 @@ def get_assessment_id_from_grade_id(auth , grade_id,session=None):
     from the grade ID. If a session is not provided, a new session will be created
     """
     
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
+    my_list = make_request(auth=auth , url=GET_GRADE_ID_FROM_ASSESSMENT_ID_URL,session=session)['data']
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
-def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,session=None):
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None):
     """
     The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
     template and saves it in a specified output directory.
@@ -7616,7 +7684,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     authentication or other purposes. If no session object is provided, a new session will be created
     """
     auth = get_auth(username , password )
-    period_id = get_curr_period(auth,session=session)['data'][0]['id']
+    if period_id is None :
+        period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
     user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
@@ -7625,9 +7694,19 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     inst_id = school_data['Institutions']['id']
     school_name = school_data['Institutions']['name']
     school_name_id = f'{school_name}={inst_id}'
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id),session=session)['data'][0]['address'].split('-')[0]
+    # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     modeeriah = inst_area(auth , session=session)['data'][0]['Areas']['name']
+    inst_id = inst_name(get_auth(username,password), session=session)['data'][0]['Institutions']['id']
+    school_place_data= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id), session=session)['data'][0]
+    area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+    area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+    modeeriah_v2=area_chain_list[1]
+    if indcator_of_private_techers_sector == 12 : 
+        modeeriah=f'التعليم الخاص / {modeeriah_v2}'
+    else:
+        modeeriah=f'{modeeriah}'
     school_year = get_curr_period(auth,session=session)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
     hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
@@ -7635,25 +7714,26 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     melady2 = str(school_year[0]['end_year'])
     teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
     
-    assessments = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+    assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
     # ما بعرف كيف سويتها لكن زبطت 
     classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,inst_id, user_id, period_id)['data'] if lst]
     assessments_period_data = []
-    grades_info = get_grade_info(auth)
+    grades_info = get_grade_info(auth,period_id,session=session)
     
     # load the existing workbook
     existing_wb = load_workbook(template)
 
-    assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessments ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
+    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session,student_status_ids=student_status_ids, empty_marks=empty_marks)
     
+    # assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessment_periods ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
+    insert_to_e_side_marks_doc(teacher_load_marks_data , template_sheet_or_file=existing_wb)
     
-    assessments_period_data_text = '\\\\'.join(
-            [
-                str(list(dictionary.items())[0][0]) + ',' + ','.join(str(i) for i in list(dictionary.items())[0][1] if i)
-                for dictionary in assessments_period_data if len(dictionary)
-                
-            ]
-        )
+    classes_institution_assessment_education_ides = [f"{i['institution_class_id']}-{i['assessment_id']}-{i['education_grade_id']}" for i in teacher_load_marks_data]
+    assessments_periods_lists = [i['students_data'][0]['assessments_periods_ides'] for i in teacher_load_marks_data ]
+    assessments_periods_lists_strings = [','.join(map(str,i)) for i in assessments_periods_lists]
+    joined_class_data_and_assessment_periods_string = [ ','.join(class_data_and_assessment_periods_string) for  _, class_data_and_assessment_periods_string in enumerate(zip(classes_institution_assessment_education_ides, assessments_periods_lists_strings)) if len(class_data_and_assessment_periods_string[1])]
+    
+    assessments_period_data_text ='\\\\'.join(joined_class_data_and_assessment_periods_string)
     
     existing_wb.remove(existing_wb['Sheet1'])
 
@@ -7888,8 +7968,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     
     user = user_info(auth , username)
     school_name = inst_name(auth)['data'][0]['Institutions']['name']
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+    grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -8112,7 +8192,7 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     و عواملها التوكن رقم السنة التعريفي ورقم المادة التعريفي و رقم المؤسسة و  رقم الصف التعريفي
     و تعود باسماء الطالب و علاماتهم
     """
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
+    url = GET_STUDENTS_MARKS_URL.format(period_id=period_id,sub_id=sub_id,instit_class_id=instit_class_id,instit_id=instit_id)
     return make_request(url,auth)
 
 def get_assessments_periods(auth ,term, assessment_id,session=None):
@@ -8121,7 +8201,7 @@ def get_assessments_periods(auth ,term, assessment_id,session=None):
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
+    url = GET_ASSESSMENTS_PERIODS_URL_1.format(term=term,assessment_id=assessment_id)
     return make_request(url=url,auth=auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
@@ -8156,7 +8236,7 @@ def get_AcademicTerms(auth,assessment_id,session=None):
     و عواملها التوكن و رقم تقيم الصف 
     و تعود باسماء الفصول على شكل جيسن
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
+    url = GET_ACADEMIC_TERMS_URL.format(assessment_id=assessment_id)   
     return make_request(url,auth,session=session)        
 
 def draw_rect_top(page, page_width, fill_color , width=50):
@@ -8272,8 +8352,8 @@ def get_basic_info (username , password):
     inst_data = inst_name(auth)['data'][0]['Institutions']
     school_name = inst_data['name']
     inst_id= inst_name(auth)['data'][0]['Institutions']['id']
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+    grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth)['data']
     melady = str(school_year[0]['end_year'])+' '+str(school_year[0]['start_year'])
@@ -8534,7 +8614,7 @@ def get_auth(username , password ,proxies=None):
     Returns:
         str: Token if login successful, False otherwise.
     """
-    url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
+    url = GET_AUTH_URL_1
     payload = {
         "username": username,
         "password": password
@@ -8560,7 +8640,7 @@ def inst_name(auth,session=None):
         عوامل الدالة الرابط و التوكن
         تعود بالرقم التعريفي و الرقم الوطني و اسم المدرسة 
     """
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
+    url = INST_NAME_URL
     return make_request(url,auth,session=session)   # institution
 
 def inst_area(auth , inst_id = None ,session=None):
@@ -8580,7 +8660,7 @@ def user_info(auth,username,session=None):
         عوامل الدالة الرابط و التوكن و رقم المستخدم
         تعود برقم المستخدم الوطني و اسمه الرباعي  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/User-Users?username={username}&is_staff=1&_fields=id,username,openemis_no,first_name,middle_name,third_name,last_name,preferred_name,email,date_of_birth,nationality_id,identity_type_id,identity_number,status&_limit=1"
+    url = USER_INFO_URL.format(username=username)
     return make_request(url,auth,session=session)
 
 def get_teacher_classes1(auth,ins_id,staff_id,academic_period,session=None):
@@ -8609,7 +8689,7 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     تعود باسم الصف و تعريفي الصف و عدد الطلاب في الصف و اسم المادة التي يدرسها المعلم في الصف
     """
     # url = "https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:10513896,institution_subject_id:10513912,institution_subject_id:10513928,institution_subject_id:10513944"
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:{inst_sub_id}"
+    url = GET_TEACHER_CLASSES2_URL.format(inst_sub_id=inst_sub_id)
     
     return make_request(url,auth,session=session)
 
@@ -8631,7 +8711,7 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
     Returns:
         list: تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     """       
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    url = GET_CLASS_STUDENTS_URL.format(academic_period_id=academic_period_id,institution_subject_id=institution_subject_id,institution_class_id=institution_class_id,institution_id=institution_id)
     data = make_request(url,auth,session=session)
     if not data['total']:
         try:
@@ -8683,7 +8763,7 @@ def enter_mark(auth
                 ,assessment_period_id= 624)
     و تعود الدالة بكود الاجابة 200 و اذا لم يعود به تصدر الدالة خطا
     """
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json'
+    url = ENTER_MARK_URL
     headers = {"Authorization": auth , "ControllerAction" : "Results" }
     json_data = {
         'marks':marks,
@@ -8712,7 +8792,7 @@ def get_curr_period(auth,session=None):
     التوكن 
     و تعود على المستخدم بمعلومات السنة الدراسية الحالية 
     """
-    url = "https://emis.moe.gov.jo/openemis-core/restful/AcademicPeriod-AcademicPeriods?current=1&_fields=id,code,start_date,end_date,start_year,end_year,school_days"
+    url = GET_CURR_PERIOD_URL
     return make_request(url,auth,session=session)
 
 def get_assessments(auth,academic_term,assessment_id):
@@ -8728,7 +8808,7 @@ def get_assessments(auth,academic_term,assessment_id):
     Returns:
         list: قائمة بمعلومات التقويمات للصف او المرحلة الصفية
     """    
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{academic_term}]&assessment_id={assessment_id}&_limit=0"
+    url = GET_ASSESSMENTS_URL.format(academic_term=academic_term,assessment_id=assessment_id)
     return make_request(url,auth)
 
 def get_sub_info(auth,class_id,assessment_id,academic_period_id,institution_id):
@@ -8984,7 +9064,7 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
         list: قائمة بقواميس معلومات علامات الطلاب 
     """
     
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
+    url = GET_STUDENTS_MARKS_URL.format(period_id=period_id,sub_id=sub_id,instit_class_id=instit_class_id,instit_id=instit_id)
     return make_request(url,auth)
 
 def sort_send_folder_into_two_folders(folder='./send_folder'):
@@ -9009,174 +9089,19 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
             else:
                 shutil.move(file_path, editable_folder)
 
+
+
+
 def main():
     print('starting script')
-
-    # """9752045067/2761975
-    # 9932039648/9932039648
-    # 9832049975/9832049975
-    # 9892023550/0772626275
-    # 9902044251/9902044251
-    # 9942011966/9942011966
-    # 9872556471/9872556471
-    # 1300902041/1300902041
-    # 9832041371/123456
-    # 9732044574/222222
-    # 9932039564/9932039564
-    # 9862045517/9862045517
-    # 9852045060/9852045060
-    # 9862055767/123456
-    # 9892023326/9892023326
-    # 2000223096/Besan@2001
-    # 9902050711/9902050711
-    # 9762045800/9762045800
-    # 9942022052/Aa@9942022052
-    # 9922052534/20182018
-    # 9942036547/9942036547
-    # 9842053654/654321
-    # 9962040167/9962040167E$e
-    # 9892055264/9892055264
-    # 9922052664/9922052664
-    # 1635857406/123456
-    # 9832008276/ANMSOA
-    # 9842053211/9842053211
-    # 9722011390/9722011390
-    # 9842048442/123456
-    # 9921009580/9921009580
-    # 9971055725/9971055725
-    # 9991039132/9991039132Mm@
-    # 9991014194/Zzaid#079079
-    # 9961055140/Mtm#123456789
-    # 9862053521
-    # 0772323488/weam@137342
-    # 9782051311/Aa@12345678
-    # 9762051028
-    # 9862049623/199435
-    # 9772015488
-    # 9692012484
-    # 9781053164
-    # 9822041975/Aa@9822041975
-    # 9841008012/123456
-    # 9931057574
-    # 9912040947/alaa1991HT**
-    # 9992026308/E.eman123
-    # 9902061749/S.sozan123
-    # 9982050486/D.dodo123
-    # 9872016980/D.doaa123
-    # 9962041555/S.sara123
-    # 9892014106/F.fatmeh123
-    # 9892060209/H.heba123
-    # 2000258435
-    # 9841021668/Aa@9841021668
-    # 9951036266
-    # 9891009452
-    # 9861043795
-    # 2000358321
-    # 9991053369
-    # """
+    # create_e_side_marks_doc(9872016980,'D.doaa123' , empty_marks=True)
+    # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     
-    passwords = """2000222725/2000222725@Ss"""
-
-    # تعمل في مؤسستين 
-    # 9892050032/Manar@100 
-    # فيها خلل غريب لا اعرف عنه 
-    # الي هو الرابط عندي فيه مشكلة غريبة
-    # 9892022099/9892022099 
-    # برضو هذي بدها تعديل و شغل 
-    # في صفوف بسحبهن api بس ما بظهرن على المنظومة (على الويب)
-    # في الصف التوجيهي ما بدقر عند رقم الاسيسمنت ما بقدر يحوله
-    # 2000223096/Besan@2001
-
-    # File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4464, in create_e_side_marks_doc
-    #     students = get_class_students(auth
-    # ما بعرف سبب هذا الخطأ
-    # 9942022052/Aa@9942022052
-
-    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 5622, in main
-    #     print(username , password)
-    #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4444, in create_e_side_marks_doc
-    #     print (classes_id_3[v][0]['institution_class_id'])
-    #            ~~~~~~~~~~~~^^^
-    # IndexError: list index out of range
-    # 9922052534/20182018
     
-    # There is error in 
-    # 9962040167/9962040167E$e
-    # There is error in 
-    # 9842053211/9842053211
-    # There is error in 
-    # 9842048442/123456
-    # There is error in 
-    # 9862053521/9862053521
-    # There is error in 
-    # 9782051311/Aa@12345678
-    # There is error in 
-    # 9762051028/9762051028
-    # There is error in 
-    # 9692012484/9692012484
-    # There is error in 
-    # 9781053164/9781053164
-
-    # bulk_e_side_note_marks(passwords)
     
-    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
-    session = requests.Session()
-    # create_certs_wrapper(2000161149,2000161149,session=session)
-    # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
-    # read_all_xlsx_in_folder()
-    # fill_student_absent_doc_wrapper(9971055725,9971055725)
-
-    # auth=get_auth(9991014194,'Zzaid#079079') # inst_id=2055, inst_id=2618
-    # auth = get_auth(9971055725,9971055725)
-    # teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
-    # create_e_side_marks_doc(9971055725,9971055725,session=session)
-    school_nats = """112187
-112183
-112177
-112188
-112192
-112181
-112194
-112184
-112191
-112189
-112185
-112186
-112193
-113547
-112182
-112190
-113831
-114346
-114082
-113026
-114347
-113196
-113837
-113850
-112226
-114657
-112195"""
     
-    # schools = [int(i) for i in school_nats.split('\n')] 
-    # vacancies ,faulty_nats = Vacancies(9971055725,9971055725 , schools )
-    # vacancies.append( Vacancies(9971055725,9971055725 , faulty_nats )[0])
-    # vacancies_dictionary2Html(vacancies)
-    # side_marks_document_with_marks(9971055725,9971055725)
-    # create_e_side_marks_doc(9971055725,9971055725)
-    # 7315076/9881028790
-    # session = None
-    # auth = get_auth(9881028790,9881028790)
-    # classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,2600, 7315076, 15)['data'] if lst]
-    # assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
-    # grades_info = get_grade_info(auth)
     
-    # get_marks_v2(auth , 2600 , 15 , classes_id_2 , grades_info , assessment_periods)
 
-    # session = requests.Session()
-    fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
-    # create_certs_wrapper(2000161149,2000161149,2001836137,session=session)
 
 if __name__ == "__main__":
     main()
