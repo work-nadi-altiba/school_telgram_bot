@@ -12,3 +12,4 @@ webcolors
 ezodf
 PyMuPDF
 loguru
+decouple
