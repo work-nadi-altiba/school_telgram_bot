@@ -48,6 +48,7 @@ from itertools import groupby
 import traceback
 import pandas as pd
 from loguru import logger
+from setting import *
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -216,6 +217,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         A4_context = A4_context
     # ods_file = f'{ods_name}{ods_num}.ods'
     
+    
     if (username is not None and password is not None ):
         auth = get_auth(username , password)
         period_id = get_curr_period(auth , session=session)['data'][0]['id']
@@ -224,6 +226,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         
         user = user_info(auth , username, session=session)
         school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
+
         baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
         
@@ -238,6 +241,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
             modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
             modeeriah=f'{modeeriah}'
                     
+
         school_year = get_curr_period(auth, session=session)['data']
         hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
         hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
@@ -255,7 +259,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         
     devided_teacher_load_list = divide_teacher_load(students_data_lists)
     print('hi')
-    
+
     
     custom_shapes = {
                     'modeeriah':modeeriah,
@@ -439,8 +443,8 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
         
         user = user_info(auth , username, session=session)
         school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
-        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
-        # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id), session=session)['data'][0]['address'].split('-')[0]
+        # grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
         modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
         school_year = get_curr_period(auth, session=session)['data']
         hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -1470,7 +1474,7 @@ def get_class_subjects(auth , class_id , assessment_id , academic_period_id , in
     Returns:
         list: A list of dictionaries containing information about the subjects for the specified class.
     """    
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
+    url = GET_SUB_INFO_URL.format(class_id=class_id,assessment_id=assessment_id,academic_period_id=academic_period_id,institution_id=institution_id)
     return make_request(auth=auth , url=url , session=session)['data']
 
 def get_class_subject_teacher_mapping_dictionary(_class_data_with_subjects_dictionary , _subject_mapping_for_teachers ,_teacher_with_subject_mapping):
@@ -2999,7 +3003,7 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
     
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    url = ENTER_MARK_URL
     
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
@@ -4012,7 +4016,7 @@ def five_names_every_class(auth, emp_username ,session=None ):
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
     # school_name = school_data['Institutions']['name']
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     # school_year = get_curr_period(auth)['data']
 
     
@@ -4301,7 +4305,7 @@ def teachers_marks_upload_percentage(auth, emp_username, template='./templet_fil
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
     # school_name = school_data['Institutions']['name']
-    # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     # school_year = get_curr_period(auth)['data']
 
     
@@ -4444,8 +4448,8 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
         inst_id = school_data['Institutions']['id']
         school_name = school_data['Institutions']['name']
         school_name_id = f'{school_name}={inst_id}'
-        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-        # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+        # grades = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
         modeeriah = inst_area(auth)['data'][0]['Areas']['name']
         school_year = get_curr_period(auth)['data']
         melady1 = str(school_year[0]['start_year'])
@@ -7425,7 +7429,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
 
     headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "Results"),("Content-Type" , "application/json")]
     
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json"
+    url = ENTER_MARK_URL
     
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
 
@@ -7492,12 +7496,13 @@ def get_editable_assessments( auth , username ,assessment_grade_id=None , class_
         return sorted_dict    
 
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
+    from setting import ASSESSMENTS_PERIODS_MIN_MAX_MARK_URL
     """
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&assessment_id={assessment_id}&education_subject_id={education_subject_id}&_limit=0"
+    url = ASSESSMENTS_PERIODS_MIN_MAX_MARK_URL.format(assessment_id=assessment_id,education_subject_id=education_subject_id)
     return make_request(url,auth,session=session)
 
 def get_all_assessments_periods_data2(auth , assessment_id ,education_subject_id,session=None):
@@ -7571,12 +7576,13 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,assessment_period_id= assessment_period_id)
 
 def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
+    from setting import GET_CLASS_STUDENTS_IDS_URL
     """
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
     تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    url = GET_CLASS_STUDENTS_IDS_URL.format(academic_period_id=academic_period_id,institution_subject_id=institution_subject_id,institution_class_id=institution_class_id,institution_id=institution_id)
     student_ids = [student['student_id'] for student in make_request(url,auth,session=session)['data']]
     return student_ids
 
@@ -7615,7 +7621,8 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     
     return required_data_to_enter_marks
 
-def get_grade_info(auth,period_id=None,session=None):    
+def get_grade_info(auth,period_id=None,session=None):
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL    
     """
     The function "get_grade_info" takes an authentication token as input and returns information about a
     student's grades.
@@ -7626,7 +7633,7 @@ def get_grade_info(auth,period_id=None,session=None):
     """
     if period_id is None :
         period_id = get_curr_period(auth)['data'][0]['id']
-    my_list = make_request(session=session ,auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0&academic_period_id={period_id}')['data']
+    my_list = make_request(session=session ,auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}&academic_period_id={period_id}')['data']
     return my_list
 
 def get_grade_name_from_grade_id(auth , grade_id):
@@ -7638,12 +7645,13 @@ def get_grade_name_from_grade_id(auth , grade_id):
     request
     :param grade_id: The grade_id parameter is the unique identifier for a specific grade
     """
-    
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0')['data']
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
+    my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}')['data']
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
 
 def get_assessment_id_from_grade_id(auth , grade_id,session=None):
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     """
     This function retrieves the assessment ID associated with a given grade ID.
     
@@ -7656,7 +7664,7 @@ def get_assessment_id_from_grade_id(auth , grade_id,session=None):
     from the grade ID. If a session is not provided, a new session will be created
     """
     
-    my_list = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-Assessments.json?_limit=0',session=session)['data']
+    my_list = make_request(auth=auth , url=GET_GRADE_ID_FROM_ASSESSMENT_ID_URL,session=session)['data']
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
@@ -7688,6 +7696,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     inst_id = school_data['Institutions']['id']
     school_name = school_data['Institutions']['name']
     school_name_id = f'{school_name}={inst_id}'
+
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
@@ -7961,8 +7970,8 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     
     user = user_info(auth , username)
     school_name = inst_name(auth)['data'][0]['Institutions']['name']
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+    grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
@@ -8185,7 +8194,7 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     و عواملها التوكن رقم السنة التعريفي ورقم المادة التعريفي و رقم المؤسسة و  رقم الصف التعريفي
     و تعود باسماء الطالب و علاماتهم
     """
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
+    url = GET_STUDENTS_MARKS_URL.format(period_id=period_id,sub_id=sub_id,instit_class_id=instit_class_id,instit_id=instit_id)
     return make_request(url,auth)
 
 def get_assessments_periods(auth ,term, assessment_id,session=None):
@@ -8194,7 +8203,7 @@ def get_assessments_periods(auth ,term, assessment_id,session=None):
         عوامل الدالة تعريفي السنة الدراسية و التوكن
         تعود بمعلومات عن تقيمات الصفوف في السنة الدراسية  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{term}]&assessment_id={assessment_id}&_limit=0"
+    url = GET_ASSESSMENTS_PERIODS_URL_1.format(term=term,assessment_id=assessment_id)
     return make_request(url=url,auth=auth,session=session)
 
 def get_all_assessments_periods(auth , assessment_id):
@@ -8229,7 +8238,7 @@ def get_AcademicTerms(auth,assessment_id,session=None):
     و عواملها التوكن و رقم تقيم الصف 
     و تعود باسماء الفصول على شكل جيسن
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=uniqueAssessmentTerms&assessment_id={assessment_id}&_limit=0"
+    url = GET_ACADEMIC_TERMS_URL.format(assessment_id=assessment_id)   
     return make_request(url,auth,session=session)        
 
 def draw_rect_top(page, page_width, fill_color , width=50):
@@ -8345,8 +8354,8 @@ def get_basic_info (username , password):
     inst_data = inst_name(auth)['data'][0]['Institutions']
     school_name = inst_data['name']
     inst_id= inst_name(auth)['data'][0]['Institutions']['id']
-    baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues')['data'][0]['address'].split('-')[0]
-    grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+    baldah = make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_1.format(inst_id=inst_id))['data'][0]['address'].split('-')[0]
+    grades= make_request(auth=auth , url=FILL_OFFICIAL_MARKS_DOC_WRAPPER_OFFLINE_URL_2)
     modeeriah = inst_area(auth)['data'][0]['Areas']['name']
     school_year = get_curr_period(auth)['data']
     melady = str(school_year[0]['end_year'])+' '+str(school_year[0]['start_year'])
@@ -8607,7 +8616,7 @@ def get_auth(username , password ,proxies=None):
     Returns:
         str: Token if login successful, False otherwise.
     """
-    url = "https://emis.moe.gov.jo/openemis-core/oauth/login"
+    url = GET_AUTH_URL_1
     payload = {
         "username": username,
         "password": password
@@ -8633,7 +8642,7 @@ def inst_name(auth,session=None):
         عوامل الدالة الرابط و التوكن
         تعود بالرقم التعريفي و الرقم الوطني و اسم المدرسة 
     """
-    url = "https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-Staff?_limit=1&_contain=Institutions&_fields=Institutions.code,Institutions.id,Institutions.name"
+    url = INST_NAME_URL
     return make_request(url,auth,session=session)   # institution
 
 def inst_area(auth , inst_id = None ,session=None):
@@ -8653,7 +8662,7 @@ def user_info(auth,username,session=None):
         عوامل الدالة الرابط و التوكن و رقم المستخدم
         تعود برقم المستخدم الوطني و اسمه الرباعي  
     """
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/User-Users?username={username}&is_staff=1&_fields=id,username,openemis_no,first_name,middle_name,third_name,last_name,preferred_name,email,date_of_birth,nationality_id,identity_type_id,identity_number,status&_limit=1"
+    url = USER_INFO_URL.format(username=username)
     return make_request(url,auth,session=session)
 
 def get_teacher_classes1(auth,ins_id,staff_id,academic_period,session=None):
@@ -8682,7 +8691,7 @@ def get_teacher_classes2(auth,inst_sub_id,session=None):
     تعود باسم الصف و تعريفي الصف و عدد الطلاب في الصف و اسم المادة التي يدرسها المعلم في الصف
     """
     # url = "https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:10513896,institution_subject_id:10513912,institution_subject_id:10513928,institution_subject_id:10513944"
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere=institution_subject_id:{inst_sub_id}"
+    url = GET_TEACHER_CLASSES2_URL.format(inst_sub_id=inst_sub_id)
     
     return make_request(url,auth,session=session)
 
@@ -8704,7 +8713,7 @@ def get_class_students(auth,academic_period_id,institution_subject_id,institutio
     Returns:
         list: تعود بمعلومات تفصيلية عن كل طالب في الصف بما في ذلك اسمه الرباعي و التعريفي و مكان سكنه
     """       
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_subject_id={institution_subject_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
+    url = GET_CLASS_STUDENTS_URL.format(academic_period_id=academic_period_id,institution_subject_id=institution_subject_id,institution_class_id=institution_class_id,institution_id=institution_id)
     data = make_request(url,auth,session=session)
     if not data['total']:
         try:
@@ -8756,7 +8765,7 @@ def enter_mark(auth
                 ,assessment_period_id= 624)
     و تعود الدالة بكود الاجابة 200 و اذا لم يعود به تصدر الدالة خطا
     """
-    url = 'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemResults.json'
+    url = ENTER_MARK_URL
     headers = {"Authorization": auth , "ControllerAction" : "Results" }
     json_data = {
         'marks':marks,
@@ -8785,7 +8794,7 @@ def get_curr_period(auth,session=None):
     التوكن 
     و تعود على المستخدم بمعلومات السنة الدراسية الحالية 
     """
-    url = "https://emis.moe.gov.jo/openemis-core/restful/AcademicPeriod-AcademicPeriods?current=1&_fields=id,code,start_date,end_date,start_year,end_year,school_days"
+    url = GET_CURR_PERIOD_URL
     return make_request(url,auth,session=session)
 
 def get_assessments(auth,academic_term,assessment_id):
@@ -8801,7 +8810,7 @@ def get_assessments(auth,academic_term,assessment_id):
     Returns:
         list: قائمة بمعلومات التقويمات للصف او المرحلة الصفية
     """    
-    url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_finder=academicTerm[academic_term:{academic_term}]&assessment_id={assessment_id}&_limit=0"
+    url = GET_ASSESSMENTS_URL.format(academic_term=academic_term,assessment_id=assessment_id)
     return make_request(url,auth)
 
 def get_sub_info(auth,class_id,assessment_id,academic_period_id,institution_id):
@@ -9057,7 +9066,7 @@ def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
         list: قائمة بقواميس معلومات علامات الطلاب 
     """
     
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id={sub_id}&institution_classes_id={instit_class_id}&institution_id={instit_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects'
+    url = GET_STUDENTS_MARKS_URL.format(period_id=period_id,sub_id=sub_id,instit_class_id=instit_class_id,instit_id=instit_id)
     return make_request(url,auth)
 
 def sort_send_folder_into_two_folders(folder='./send_folder'):
@@ -9082,11 +9091,16 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
             else:
                 shutil.move(file_path, editable_folder)
 
+
+
+
 def main():
     print('starting script')
+
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
     fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+
 
 
 if __name__ == "__main__":
