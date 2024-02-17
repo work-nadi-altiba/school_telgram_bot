@@ -181,7 +181,7 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,session = None):
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,empty_marks=False,session = None):
     
     if A3_context is None:
         A3_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
@@ -216,7 +216,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
         assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
         grades_info = get_grade_info(auth)
-        students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session)
+        students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session , empty_marks=empty_marks)
     else: 
         students_data_lists = e_side_notebook_data
         
@@ -281,17 +281,6 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
         os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
         os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
-    
-    # copy_ods_file(templet_file , f'{outdir}/{ods_file}')
-    # custom_shapes , classes_data = fill_official_marks_v2(username= username, password= password , ods_file=f'{outdir}/{ods_file}' , session=session)
-    # teacher_name = custom_shapes['teacher']
-    
-    # fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-    # fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{ods_file}")
-    # os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file}')
-    # os.rename(f"{outdir}/final_send1.ods", f"{outdir}/{teacher_name}_A3.ods")
-    # os.rename(f"{outdir}/final_send1.pdf", f"{outdir}/{teacher_name}_A3.pdf")
-
     delete_files_except(
                         [
                             i for i in os.listdir("./send_folder") 
@@ -9053,7 +9042,8 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-    create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
+    # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
+    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
 
 if __name__ == "__main__":
     main()
