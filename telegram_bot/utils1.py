@@ -226,7 +226,18 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         school_name = inst_name(auth, session=session)['data'][0]['Institutions']['name']
         baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]['address'].split('-')[0]
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-        modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
+        
+        school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        if indcator_of_private_techers_sector == 12 : 
+            area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+            area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
+            indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+            modeeriah_v2=area_chain_list[1]
+            modeeriah=f'التعليم الخاص / {modeeriah_v2}'
+        else:
+            modeeriah = inst_area(auth, session=session)['data'][0]['Areas']['name']
+            modeeriah=f'{modeeriah}'
+                    
         school_year = get_curr_period(auth, session=session)['data']
         hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
         hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
@@ -245,8 +256,9 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
     devided_teacher_load_list = divide_teacher_load(students_data_lists)
     print('hi')
     
+    
     custom_shapes = {
-                    'modeeriah': f'لواء {modeeriah}',
+                    'modeeriah':modeeriah,
                     'hejri1': hejri1,
                     'hejri2': hejri2,
                     'melady1': melady1,
@@ -254,7 +266,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'baldah': baldah,
                     'school': school_name,
                     'teacher': teacher,
-                    'modeeriah_20_2': f'لواء {modeeriah}',
+                    'modeeriah_20_2': f' {modeeriah}',
                     'hejri_20_1': hejri1,
                     'hejri_20_2': hejri2,
                     'melady_20_1': melady1,
@@ -812,9 +824,8 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
         # marks_and_name = []
         data_font = Font(name='Arial', size=16, bold=False)
-        
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
-        
+       
         # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
         # Write data to the worksheet and calculate the sum of some columns in each row
         for row_number, dataFrame in enumerate(class_data['students_data'], start=3):
@@ -7679,7 +7690,16 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     school_name_id = f'{school_name}={inst_id}'
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
-    modeeriah = inst_area(auth , session=session)['data'][0]['Areas']['name']
+    school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+    if indcator_of_private_techers_sector == 12 : 
+        area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+        area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+        modeeriah_v2=area_chain_list[1]
+        modeeriah=f'التعليم الخاص / {modeeriah_v2}'
+    else:
+        modeeriah = inst_area(auth , session=session)['data'][0]['Areas']['name']
+        modeeriah=f'{modeeriah}'
     school_year = get_curr_period(auth,session=session)['data']
     hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
     hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
@@ -9064,6 +9084,7 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
+    #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
     fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
 
