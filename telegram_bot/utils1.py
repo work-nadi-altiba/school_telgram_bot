@@ -299,7 +299,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                         ]
                         , outdir)
 
-def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ):
+def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ,empty_marks=False):
     """
     Retrieves marks data for the specified classes and periods.    
     
@@ -371,7 +371,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         if 'عشر' in class_name :
             id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
         else:
-            id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json)
+            id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json ,empty_marks=empty_marks)
         
         classes_data_and_marks.append(
                                         {
@@ -666,7 +666,7 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
     delete_pdf_page(outdir+f'send{counter}.pdf', outdir+f'SEND{counter}.pdf', 1)
     delete_file(outdir+f'send{counter}.pdf')
 
-def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json):
+def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json,empty_marks=False):
     """
     Extracts marks and names dictionary list from assessment data.
 
@@ -687,17 +687,17 @@ def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessm
         dic['id'] = id
         dic['name'] = values[0]['the_student_name']
 
-        if 'عشر' not in class_name :
+        if 'عشر' not in class_name  :
             values = offline_sort_assessement_period_ids_v2( values ,assessment_periods)
             dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
-            dic['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None else ''
-            dic['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None else ''
-            dic['term1']['assessment3'] = float(values[2]["mark"]) if values[2]["mark"] is not None else ''
-            dic['term1']['assessment4'] = float(values[3]["mark"]) if values[3]["mark"] is not None else ''
-            dic['term2']['assessment1'] = float(values[4]["mark"]) if values[4]["mark"] is not None else ''
-            dic['term2']['assessment2'] = float(values[5]["mark"]) if values[5]["mark"] is not None else ''
-            dic['term2']['assessment3'] = float(values[6]["mark"]) if values[6]["mark"] is not None else ''
-            dic['term2']['assessment4'] = float(values[7]["mark"]) if values[7]["mark"] is not None else ''
+            dic['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment3'] = float(values[2]["mark"]) if values[2]["mark"] is not None and not empty_marks else ''
+            dic['term1']['assessment4'] = float(values[3]["mark"]) if values[3]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment1'] = float(values[4]["mark"]) if values[4]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment2'] = float(values[5]["mark"]) if values[5]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment3'] = float(values[6]["mark"]) if values[6]["mark"] is not None and not empty_marks else ''
+            dic['term2']['assessment4'] = float(values[7]["mark"]) if values[7]["mark"] is not None and not empty_marks else ''
         marks_and_names.append(dic)
         dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
     
@@ -7638,7 +7638,7 @@ def get_assessment_id_from_grade_id(auth , grade_id,session=None):
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
-def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , session=None):
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None):
     """
     The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
     template and saves it in a specified output directory.
@@ -7685,7 +7685,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     # load the existing workbook
     existing_wb = load_workbook(template)
 
-    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session,student_status_ids=student_status_ids)
+    teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session,student_status_ids=student_status_ids, empty_marks=empty_marks)
     
     # assessments_period_data = get_marks(auth, inst_id , period_id , classes_id_2 , grades_info, assessments=assessment_periods ,insert_function = insert_to_e_side_marks_doc ,template_sheet_or_file=existing_wb)
     insert_to_e_side_marks_doc(teacher_load_marks_data , template_sheet_or_file=existing_wb)
@@ -9053,181 +9053,7 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 
 def main():
     print('starting script')
-
-    # """9752045067/2761975
-    # 9932039648/9932039648
-    # 9832049975/9832049975
-    # 9892023550/0772626275
-    # 9902044251/9902044251
-    # 9942011966/9942011966
-    # 9872556471/9872556471
-    # 1300902041/1300902041
-    # 9832041371/123456
-    # 9732044574/222222
-    # 9932039564/9932039564
-    # 9862045517/9862045517
-    # 9852045060/9852045060
-    # 9862055767/123456
-    # 9892023326/9892023326
-    # 2000223096/Besan@2001
-    # 9902050711/9902050711
-    # 9762045800/9762045800
-    # 9942022052/Aa@9942022052
-    # 9922052534/20182018
-    # 9942036547/9942036547
-    # 9842053654/654321
-    # 9962040167/9962040167E$e
-    # 9892055264/9892055264
-    # 9922052664/9922052664
-    # 1635857406/123456
-    # 9832008276/ANMSOA
-    # 9842053211/9842053211
-    # 9722011390/9722011390
-    # 9842048442/123456
-    # 9921009580/9921009580
-    # 9971055725/9971055725
-    # 9991039132/9991039132Mm@
-    # 9991014194/Zzaid#079079
-    # 9961055140/Mtm#123456789
-    # 9862053521
-    # 0772323488/weam@137342
-    # 9782051311/Aa@12345678
-    # 9762051028
-    # 9862049623/199435
-    # 9772015488
-    # 9692012484
-    # 9781053164
-    # 9822041975/Aa@9822041975
-    # 9841008012/123456
-    # 9931057574
-    # 9912040947/alaa1991HT**
-    # 9992026308/E.eman123
-    # 9902061749/S.sozan123
-    # 9982050486/D.dodo123
-    # 9872016980/D.doaa123
-    # 9962041555/S.sara123
-    # 9892014106/F.fatmeh123
-    # 9892060209/H.heba123
-    # 2000258435
-    # 9841021668/Aa@9841021668
-    # 9951036266
-    # 9891009452
-    # 9861043795
-    # 2000358321
-    # 9991053369
-    # """
-    
-    passwords = """2000222725/2000222725@Ss"""
-
-    # تعمل في مؤسستين 
-    # 9892050032/Manar@100 
-    # فيها خلل غريب لا اعرف عنه 
-    # الي هو الرابط عندي فيه مشكلة غريبة
-    # 9892022099/9892022099 
-    # برضو هذي بدها تعديل و شغل 
-    # في صفوف بسحبهن api بس ما بظهرن على المنظومة (على الويب)
-    # في الصف التوجيهي ما بدقر عند رقم الاسيسمنت ما بقدر يحوله
-    # 2000223096/Besan@2001
-
-    # File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4464, in create_e_side_marks_doc
-    #     students = get_class_students(auth
-    # ما بعرف سبب هذا الخطأ
-    # 9942022052/Aa@9942022052
-
-    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 5622, in main
-    #     print(username , password)
-    #     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    #   File "/opt/programming/school_programms1/telegram_bot/utils1.py", line 4444, in create_e_side_marks_doc
-    #     print (classes_id_3[v][0]['institution_class_id'])
-    #            ~~~~~~~~~~~~^^^
-    # IndexError: list index out of range
-    # 9922052534/20182018
-    
-    # There is error in 
-    # 9962040167/9962040167E$e
-    # There is error in 
-    # 9842053211/9842053211
-    # There is error in 
-    # 9842048442/123456
-    # There is error in 
-    # 9862053521/9862053521
-    # There is error in 
-    # 9782051311/Aa@12345678
-    # There is error in 
-    # 9762051028/9762051028
-    # There is error in 
-    # 9692012484/9692012484
-    # There is error in 
-    # 9781053164/9781053164
-
-    # bulk_e_side_note_marks(passwords)
-    
-    # convert_to_marks_offline_from_send_folder(template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods', color='#FFFFFF')
-    session = requests.Session()
-    # create_certs_wrapper(2000161149,2000161149,session=session)
-    # fill_official_marks_doc_wrapper("2000213495","Ay@2000213495",templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
-    # read_all_xlsx_in_folder()
-    # fill_student_absent_doc_wrapper(9971055725,9971055725)
-
-    # auth=get_auth(9991014194,'Zzaid#079079') # inst_id=2055, inst_id=2618
-    # auth = get_auth(9971055725,9971055725)
-    # teachers_marks_upload_percentage_wrapper_version_2(auth ,inst_id=2055, first_term=True , session=session)
-    # create_e_side_marks_doc(9971055725,9971055725,session=session)
-    school_nats = """112187
-112183
-112177
-112188
-112192
-112181
-112194
-112184
-112191
-112189
-112185
-112186
-112193
-113547
-112182
-112190
-113831
-114346
-114082
-113026
-114347
-113196
-113837
-113850
-112226
-114657
-112195"""
-    
-    # schools = [int(i) for i in school_nats.split('\n')] 
-    # vacancies ,faulty_nats = Vacancies(9971055725,9971055725 , schools )
-    # vacancies.append( Vacancies(9971055725,9971055725 , faulty_nats )[0])
-    # vacancies_dictionary2Html(vacancies)
-    # side_marks_document_with_marks(9971055725,9971055725)
-    # create_e_side_marks_doc(9971055725,9971055725)
-    # 7315076/9881028790
-    # session = None
-    # auth = get_auth(9881028790,9881028790)
-    # classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,2600, 7315076, 15)['data'] if lst]
-    # assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
-    # grades_info = get_grade_info(auth)
-    
-    # get_marks_v2(auth , 2600 , 15 , classes_id_2 , grades_info , assessment_periods)
-
-    # session = requests.Session()
-    # fill_official_marks_functions_wrapper_v2( 2000222725 , '2000222725@Ss' , session=session)
-    # create_certs_wrapper(9972015261,'Aa9972015261@',session=session)
-    # auth = get_auth(9971055725 , '9971055725@Aa')
-    # inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
-    # period_id = get_curr_period(auth , session=session)['data'][0]['id']
-    # data_frames = get_school_marks(auth , inst_id , period_id , limit =1000)
-    # create_excel_from_data(data_frames )
-    # create_excel_for_school_students_with_class_status(auth)
-    
-    # create_e_side_marks_doc( 9971055725 , '9971055725@Aa' , session = session )
-    create_e_side_marks_doc( 9881018748 , 9881018748 , period_id=13 , student_status_ids=[1,5,6,7] ,session = session)
+    create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
 
 if __name__ == "__main__":
     main()
