@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests
 import json
 from pygments import highlight
@@ -231,6 +233,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
         
         school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         if indcator_of_private_techers_sector == 12 : 
             area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
             area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
@@ -297,7 +300,11 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         modified_classes = []
         mawad = [i['subject_name'] for i in section]
         classes = [i['class_name'] for i in section]
-        for i in classes: 
+        all_class_names = classes
+        unique_class_names = set(all_class_names)
+        unique_class_names_list = list(unique_class_names)
+        
+        for i in unique_class_names_list: 
             if '-' not in i:
                 i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
             modified_classes.append(get_class_short(i))
@@ -7700,6 +7707,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
     if indcator_of_private_techers_sector == 12 : 
         area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
         area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
@@ -9097,9 +9105,10 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
 
-    #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
+    fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+    # fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+    # create_e_side_marks_doc(9872016980,'D.doaa123')
 
 
 
