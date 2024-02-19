@@ -420,7 +420,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
         
-        title = f'{class_name}={subject_name}={institution_subject_id}={subject_id}'.replace('/', '~')
+        title = f'{class_name}={subject_name}={institution_class_id}={subject_id}'.replace('/', '~')
         if 'عشر' in class_name :
             id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
         else:
@@ -7411,7 +7411,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     
     return read_file_output_dict
 
-def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId, range1='' , range2=''):
+def enter_marks_arbitrary_controlled_version(username , password , required_data_list ,AssessId=None, assess_period_data=None ,range1='' , range2=''):
     """
     This function allows a user to enter marks for a specific assessment, with optional range
     restrictions. and if the function is provided without range1 or range2 then it will empty the 
@@ -7435,22 +7435,26 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     auth = get_auth(username , password)
     period_id = get_curr_period(auth)['data'][0]['id']
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
-    fuzz_postdata_list = []
+    fuzz_postdata_list ,grade_period_ids= [] , []
     
     for item in required_data_list : 
-        for Student_id in item['students_ids']:
-            fuzz_postdata = {
-                                'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else 'null',
-                                'assessment_id': item['assessment_id'],
-                                'education_subject_id': item['education_subject_id'],
-                                'education_grade_id': item['education_grade_id'],
-                                'institution_classes_id': item['institution_classes_id'],
-                                'student_id': Student_id,
-                                'assessment_period_id': AssessId,
-                                'action_type': 'default'
-                            }
-            fuzz_postdata_list.append(json.dumps(fuzz_postdata).replace('{','').replace('}',''))
-                        
+        if assess_period_data : 
+            grade_period_ids = [i for i in assess_period_data if i.get('gradeId') == item['assessment_id']]
+            
+        for AssessPeriod in grade_period_ids :
+            for Student_id in item['students_ids']:
+                fuzz_postdata = {
+                                    'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else 'null',
+                                    'assessment_id': item['assessment_id'],
+                                    'education_subject_id': item['education_subject_id'],
+                                    'education_grade_id': item['education_grade_id'],
+                                    'institution_classes_id': item['institution_classes_id'],
+                                    'student_id': Student_id,
+                                    'assessment_period_id': AssessPeriod['AssesId'] if not AssessId else AssessId,
+                                    'action_type': 'default'
+                                }
+                fuzz_postdata_list.append(json.dumps(fuzz_postdata).replace('{','').replace('}',''))
+        
     body_postdata = json.dumps({
             'assessment_grading_option_id': 8,
             'institution_id': inst_id,
@@ -7463,7 +7467,7 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     url = ENTER_MARK_URL
     
     unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
-
+    
     while len(unsuccessful_requests) != 0:
         unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,body_postdata)
 
