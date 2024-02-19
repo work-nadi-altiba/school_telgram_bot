@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests
 import json
 from pygments import highlight
@@ -323,7 +325,11 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         modified_classes = []
         mawad = [i['subject_name'] for i in section]
         classes = [i['class_name'] for i in section]
-        for i in classes: 
+        all_class_names = classes
+        unique_class_names = set(all_class_names)
+        unique_class_names_list = list(unique_class_names)
+        
+        for i in unique_class_names_list: 
             if '-' not in i:
                 i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
             modified_classes.append(get_class_short(i))
@@ -9128,8 +9134,9 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
 def main():
     print('starting script')
 
-    #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
+    fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
+
     fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True, A3_templet_file='./templet_files/plus_numbered_a4_official_marks_document.ods')
     # fill_student_absent_A4_doc_wrapper(9991039132 , '9991039132Mm@')
 
