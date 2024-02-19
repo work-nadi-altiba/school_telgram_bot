@@ -231,6 +231,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
         
         school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+
         if indcator_of_private_techers_sector == 12 : 
             area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
             area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
@@ -4705,20 +4707,20 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
     for i in classes:
         modified_classes.append(get_class_short(i))
 
-    school_name = info_sheet['A1'].value.split('=')[0]
-    school_id = info_sheet['A1'].value.split('=')[1]
-    modeeriah = info_sheet['A2'].value
-    hejri1 = info_sheet['A3'].value
-    hejri2 = info_sheet['A4'].value
-    melady1 = info_sheet['A5'].value
-    melady2 = info_sheet['A6'].value
-    baldah = info_sheet['A7'].value
+    school_id=info_sheet['A1'].value    
+    school_name = info_sheet['A2'].value.split('=')[0]
+    modeeriah = info_sheet['A3'].value
+    hejri1 = info_sheet['A4'].value
+    hejri2 = info_sheet['A5'].value
+    melady1 = info_sheet['A6'].value
+    melady2 = info_sheet['A7'].value
+    baldah = info_sheet['A8'].value
     modified_classes = ' ، '.join(modified_classes)
     mawad = sorted(set(mawad))
     mawad = ' ، '.join(mawad)
-    teacher = info_sheet['A8'].value
-    required_data_mrks_text = info_sheet['A9'].value
-    period_id = info_sheet['A10'].value
+    teacher = info_sheet['A9'].value
+    required_data_mrks_text = info_sheet['A10'].value
+    period_id = info_sheet['A11'].value
 
     custom_shapes = {
         'modeeriah': f'لواء {modeeriah}',
@@ -7305,20 +7307,20 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     for i in classes: 
         modified_classes.append(get_class_short(i))
         
-    school_name = info_sheet['A1'].value.split('=')[0]
-    school_id = info_sheet['A1'].value.split('=')[1]
-    modeeriah = info_sheet['A2'].value
-    hejri1 = info_sheet['A3'].value
-    hejri2 = info_sheet['A4'].value
-    melady1 = info_sheet['A5'].value
-    melady2 = info_sheet['A6'].value
-    baldah = info_sheet['A7'].value
+    school_id=info_sheet['A1'].value    
+    school_name = info_sheet['A2'].value.split('=')[0]
+    modeeriah = info_sheet['A3'].value
+    hejri1 = info_sheet['A4'].value
+    hejri2 = info_sheet['A5'].value
+    melady1 = info_sheet['A6'].value
+    melady2 = info_sheet['A7'].value
+    baldah = info_sheet['A8'].value
     modified_classes = ' ، '.join(modified_classes)
     mawad = sorted(set(mawad))
     mawad = ' ، '.join(mawad)
-    teacher = info_sheet['A8'].value
-    required_data_mrks_text = info_sheet['A9'].value
-    period_id = info_sheet['A10'].value
+    teacher = info_sheet['A9'].value
+    required_data_mrks_text = info_sheet['A10'].value
+    period_id = info_sheet['A11'].value
     custom_shapes = {
     'modeeriah': f'لواء {modeeriah}',
     'hejri1': hejri1,
@@ -7696,10 +7698,12 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     inst_id = school_data['Institutions']['id']
     school_name = school_data['Institutions']['name']
     school_name_id = f'{school_name}={inst_id}'
+    school_id=inst_id
 
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
     if indcator_of_private_techers_sector == 12 : 
         area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
         area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
@@ -7748,16 +7752,17 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     info_sheet = existing_wb["info_sheet"]
 
     # Write data to the new sheet
-    info_sheet["A1"] = school_name_id
-    info_sheet["A2"] = modeeriah
-    info_sheet["A3"] = hejri1
-    info_sheet["A4"] = hejri2
-    info_sheet["A5"] = melady1
-    info_sheet["A6"] = melady2
-    info_sheet["A7"] = baldah
-    info_sheet["A8"] = teacher
-    info_sheet["A9"] = assessments_period_data_text
-    info_sheet["A10"] = str(period_id)
+    info_sheet["A1"] = school_id
+    info_sheet["A2"] = school_name_id
+    info_sheet["A3"] = modeeriah
+    info_sheet["A4"] = hejri1
+    info_sheet["A5"] = hejri2
+    info_sheet["A6"] = melady1
+    info_sheet["A7"] = melady2
+    info_sheet["A8"] = baldah
+    info_sheet["A9"] = teacher
+    info_sheet["A10"] = assessments_period_data_text
+    info_sheet["A11"] = str(period_id)
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
@@ -9098,8 +9103,9 @@ def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+    create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
+    # Read_E_Side_Note_Marks_xlsx()
+    # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
 
 
 
