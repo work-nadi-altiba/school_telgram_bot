@@ -58,6 +58,32 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+def fill_student_absent_A4_doc_wrapper(username, password ,template='./templet_files/plus_st_abs_A4.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
+    """
+    Fills the student absent notebook document template with data and saves it.
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+    - template (str): Path to the ODS template file (default: './templet_files/new_empty_absence_notebook_doc_white_cover.ods').
+    - outdir (str): Directory to save the filled document (default: './send_folder/').
+    - teacher_full_name (bool): Flag to include teacher's full name in the document (default: False).
+
+    Example Usage:
+    ```python
+    fill_student_absent_doc_wrapper('your_username', 'your_password', teacher_full_name=True)
+    ```
+
+    Note:
+    - This function fetches student statistical information using the provided credentials.
+    - It then uses the data to fill the specified ODS template with student details and saves the filled document.
+    - The filled document is saved in the specified output directory.
+
+    """
+    if context is None :
+        context = {2: 'Y69=AP123', 1: 'A69=V123', 4: 'Y128=AP182', 3: 'A128=V182', 6: 'Y186=AP240', 5: 'A186=V240', 8: 'Y244=AP298', 7: 'A244=V298', 10: 'Y302=AP356', 9: 'A302=V356', 12: 'Y360=AP414', 11: 'A360=V414', 14: 'Y418=AP472', 13: 'A418=V472', 16: 'Y476=AP530', 15: 'A476=V530', 18: 'Y534=AP588', 17: 'A534=V588', 20: 'Y592=AP646', 19: 'A592=V646', 22: 'Y650=AP704', 21: 'A650=V704', 24: 'Y708=AP762', 23: 'A708=V762', 26: 'Y766=AP820', 25: 'A766=V820'}
+    student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
+    fill_student_absent_doc_name_days_cover(student_details , template , outdir , context = context )
 
 def setup_logging(log_file_path: str):
     log_directory = os.path.join(os.getcwd(), "logs")
@@ -237,7 +263,6 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         if indcator_of_private_techers_sector == 12 : 
             area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
             area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-            indcator_of_private_techers_sector=school_place_data['institution_sector_id']
             modeeriah_v2=area_chain_list[1]
             modeeriah=f'التعليم الخاص / {modeeriah_v2}'
         else:
@@ -285,7 +310,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'baldah_20_2': baldah,
                     'school_20_2': school_name,
                     'teacher_20_2': teacher,
-                    'modeeriah_20_1': f'لواء {modeeriah}',
+                    'modeeriah_20_1': f'{modeeriah}',
                     'hejri1': hejri1,
                     'hejri2': hejri2,
                     'melady1': melady1,
@@ -555,7 +580,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
 
     if username is not None and password is not None:
         custom_shapes = {
-            'modeeriah': f'لواء {modeeriah}',
+            'modeeriah': f'{modeeriah}',
             'hejri1': hejri1,
             'hejri2': hejri2,
             'melady1': melady1,
@@ -565,7 +590,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
             'classes': modified_classes,
             'mawad': mawad,
             'teacher': teacher,
-            'modeeriah_20_2': f'لواء {modeeriah}',
+            'modeeriah_20_2': f'{modeeriah}',
             'hejri_20_1': hejri1,
             'hejri_20_2': hejri2,
             'melady_20_1': melady1,
@@ -579,7 +604,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
             'classes_20_2': modified_classes,
             'mawad_20_2': mawad,
             'teacher_20_2': teacher,
-            'modeeriah_20_1': f'لواء {modeeriah}',
+            'modeeriah_20_1': f'{modeeriah}',
             'hejri1': hejri1,
             'hejri2': hejri2,
             'melady1': melady1,
@@ -2644,7 +2669,7 @@ def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_
     for file_content in dic_list:
         fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
-def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False):
+def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
     """
     Fills the student absent notebook document template with data and saves it.
 
@@ -2667,7 +2692,7 @@ def fill_student_absent_doc_wrapper(username, password ,template='./templet_file
 
     """
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
-    fill_student_absent_doc_name_days_cover(student_details , template , outdir )
+    fill_student_absent_doc_name_days_cover(student_details , template , outdir , context = context )
 
 def vacancies_dictionary2Html(dict_list , outdir='./send_folder/'):
     """
@@ -3283,7 +3308,7 @@ class RandomNumberGenerator:
         ranges = [(1, int(number)) for number in numbers]
         return ranges
 
-def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
+def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir ,context = None):
     """
     Fill an OpenDocument Spreadsheet (ODS) file with student information and generate corresponding documents.
 
@@ -3323,10 +3348,11 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
 
     students_data_lists = student_details['students_info']
     class_name = student_details['class_name']
-    context = {27 : 'Y69=AP123', 2 : 'A69=V123' ,3 : 'Y128=AP182', 26 : 'A128=V182' ,25 : 'Y186=AP240', 4 : 'A186=V240' ,5 : 'Y244=AP298', 24 : 'A244=V298' ,
-                    23 : 'Y302=AP356', 6 : 'A302=V356' ,7 : 'Y360=AP414', 22 : 'A360=V414' ,21 : 'Y418=AP472', 8 : 'A418=V472' ,9 : 'Y476=AP530', 20 : 'A476=V530' ,
-                    19 : 'Y534=AP588', 10 : 'A534=V588' ,11 : 'Y592=AP646', 18 : 'A592=V646' ,17 : 'Y650=AP704', 12 : 'A650=V704' ,13 : 'Y708=AP762', 16 : 'A708=V762' ,
-                    15 : 'Y766=AP820', 14 : 'A766=V820' }
+    if context is None :
+        context = {27 : 'Y69=AP123', 2 : 'A69=V123' ,3 : 'Y128=AP182', 26 : 'A128=V182' ,25 : 'Y186=AP240', 4 : 'A186=V240' ,5 : 'Y244=AP298', 24 : 'A244=V298' ,
+                        23 : 'Y302=AP356', 6 : 'A302=V356' ,7 : 'Y360=AP414', 22 : 'A360=V414' ,21 : 'Y418=AP472', 8 : 'A418=V472' ,9 : 'Y476=AP530', 20 : 'A476=V530' ,
+                        19 : 'Y534=AP588', 10 : 'A534=V588' ,11 : 'Y592=AP646', 18 : 'A592=V646' ,17 : 'Y650=AP704', 12 : 'A650=V704' ,13 : 'Y708=AP762', 16 : 'A708=V762' ,
+                        15 : 'Y766=AP820', 14 : 'A766=V820' }
 
     year1 , year2 = student_details['year_code'].split('-')
     for i in range(183,820,58):
@@ -3336,8 +3362,12 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
     for counter,student_info in enumerate(students_data_lists, start=0):
         
         # row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
-        row_idx = counter + 69
-        row_idx2 = counter + 128
+        if context is not None:
+            row_idx = counter + int(context[1].split('=')[0][1:])
+            row_idx2 = counter + int(context[2].split('=')[0][1:])
+        else:
+            row_idx = counter + 69
+            row_idx2 = counter + 128
         birth_data = student_info['birth_date'].split('-')
         years, months, days = calculate_age(student_info['birth_date'],student_details['start_date'] )
         
@@ -3361,7 +3391,7 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir):
         sheet[f"AL{row_idx2}"].set_value(student_info['guardian_employment'])
         sheet[f"AN{row_idx2}"].set_value(student_info['guardian_phone_number'])
         sheet[f"AO{row_idx2}"].set_value(student_info['address'])
-        sheet[f"AP{row_idx2}"].set_value(student_info['student_id']       )
+        sheet[f"AP{row_idx2}"].set_value(student_info['student_id'])
         
     months_range = [14,16,18,20,22,24,4,6,8,10,12]
 
@@ -4728,7 +4758,7 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
     period_id = info_sheet['A10'].value
 
     custom_shapes = {
-        'modeeriah': f'لواء {modeeriah}',
+        'modeeriah': f'{modeeriah}',
         'hejri1': hejri1,
         'hejri2': hejri2,
         'melady1': melady1,
@@ -4738,7 +4768,7 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
         'classes': modified_classes,
         'mawad': mawad,
         'teacher': teacher,
-        'modeeriah_20_2': f'لواء {modeeriah}',
+        'modeeriah_20_2': f'{modeeriah}',
         'hejri_20_1': hejri1,
         'hejri_20_2': hejri2,
         'melady_20_1': melady1,
@@ -4752,7 +4782,7 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
         'classes_20_2': modified_classes,
         'mawad_20_2': mawad,
         'teacher_20_2': teacher,
-        'modeeriah_20_1': f'لواء {modeeriah}',
+        'modeeriah_20_1': f'{modeeriah}',
         'hejri1': hejri1,
         'hejri2': hejri2,
         'melady1': melady1,
@@ -7327,7 +7357,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     required_data_mrks_text = info_sheet['A9'].value
     period_id = info_sheet['A10'].value
     custom_shapes = {
-    'modeeriah': f'لواء {modeeriah}',
+    'modeeriah': f'{modeeriah}',
     'hejri1': hejri1,
     'hejri2': hejri2,
     'melady1': melady1,
@@ -7337,7 +7367,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'classes': modified_classes,
     'mawad': mawad,
     'teacher' : teacher,
-    'modeeriah_20_2': f'لواء {modeeriah}',
+    'modeeriah_20_2': f'{modeeriah}',
     'hejri_20_1': hejri1,
     'hejri_20_2': hejri2,
     'melady_20_1': melady1,
@@ -7347,7 +7377,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     'classes_20_2': modified_classes,
     'mawad_20_2': mawad,
     'teacher_20_2': teacher ,
-    'modeeriah_20_1': f'لواء {modeeriah}',
+    'modeeriah_20_1': f'{modeeriah}',
     'hejri1': hejri1,
     'hejri2': hejri2,
     'melady1': melady1,
@@ -7711,7 +7741,6 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     if indcator_of_private_techers_sector == 12 : 
         area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
         area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         modeeriah_v2=area_chain_list[1]
         modeeriah=f'التعليم الخاص / {modeeriah_v2}'
     else:
@@ -9107,8 +9136,10 @@ def main():
 
     fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    # fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
-    # create_e_side_marks_doc(9872016980,'D.doaa123')
+
+    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True, A3_templet_file='./templet_files/plus_numbered_a4_official_marks_document.ods')
+    # fill_student_absent_A4_doc_wrapper(9991039132 , '9991039132Mm@')
+
 
 
 
