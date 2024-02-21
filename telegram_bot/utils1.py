@@ -231,10 +231,10 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
         
         school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         if indcator_of_private_techers_sector == 12 : 
             area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
             area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-            indcator_of_private_techers_sector=school_place_data['institution_sector_id']
             modeeriah_v2=area_chain_list[1]
             modeeriah=f'التعليم الخاص / {modeeriah_v2}'
         else:
@@ -317,6 +317,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
         fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
         os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['middle_name']} {user['data'][0]['third_name']} {user['data'][0]['last_name']}"
         os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
         os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
     delete_files_except(
@@ -7690,7 +7691,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
-    user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
+    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['third_name']} {userInfo['last_name']} - {str(username)}"  
     # years = get_curr_period(auth)
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
@@ -7700,10 +7701,10 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
     if indcator_of_private_techers_sector == 12 : 
         area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
         area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         modeeriah_v2=area_chain_list[1]
         modeeriah=f'التعليم الخاص / {modeeriah_v2}'
     else:
