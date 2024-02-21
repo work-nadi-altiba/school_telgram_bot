@@ -231,10 +231,10 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         # grades= make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
         
         school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         if indcator_of_private_techers_sector == 12 : 
             area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
             area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-            indcator_of_private_techers_sector=school_place_data['institution_sector_id']
             modeeriah_v2=area_chain_list[1]
             modeeriah=f'التعليم الخاص / {modeeriah_v2}'
         else:
@@ -292,33 +292,81 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'teacher_20_1': teacher,
                     'period_id': period_id
                     }
+    
+    primary_classes,other_classes=extract_primary_and_other_classes(devided_teacher_load_list)
+    
+    if len(primary_classes) > 0 :
+        A3_templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods'
+        for counter , section in enumerate(devided_teacher_load_list, start=1 ):
+            modified_classes = []
+            primary_classes = ['الصف الأول','الصف الثاني','الصف الثالث',]
+            mawad = [i['subject_name'] for i in section]
+            classes = [i['class_name'] for i in section]
+            all_classes = [i['class_name'] for i in section]
+            classes = [class_name for class_name in all_classes if any(primary_class in class_name for primary_class in primary_classes)]
+            filtered_basedOnPrimary_section = [class_data for class_data in section if any(primary_class in class_data['class_name'] for primary_class in primary_classes)]
+            section=filtered_basedOnPrimary_section
+            for i in classes: 
+                if '-' not in i:
+                    i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
+                modified_classes.append(get_class_short(i))
+            modified_classes = ' ، '.join(modified_classes)
+            mawad = sorted(set(mawad))
+            mawad = ' ، '.join(mawad)
 
-    for counter , section in enumerate(devided_teacher_load_list , start=1 ):
-        modified_classes = []
-        mawad = [i['subject_name'] for i in section]
-        classes = [i['class_name'] for i in section]
-        for i in classes: 
-            if '-' not in i:
-                i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
-            modified_classes.append(get_class_short(i))
-        modified_classes = ' ، '.join(modified_classes)
-        mawad = sorted(set(mawad))
-        mawad = ' ، '.join(mawad)
+            custom_shapes['mawad'] = mawad
+            custom_shapes['classes'] = modified_classes
+            custom_shapes['classes_20_2'] = modified_classes
+            custom_shapes['mawad_20_2'] = mawad
+            custom_shapes['classes_20_1'] = modified_classes
+            custom_shapes['mawad_20_1'] = mawad
+            
+            copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
+            fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
+            fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
+            fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
+            os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+            os.rename(f"{outdir}/final_{counter}", f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائيA3.ods")
+            os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائيA3.pdf")
+    
 
-        custom_shapes['mawad'] = mawad
-        custom_shapes['classes'] = modified_classes
-        custom_shapes['classes_20_2'] = modified_classes
-        custom_shapes['mawad_20_2'] = mawad
-        custom_shapes['classes_20_1'] = modified_classes
-        custom_shapes['mawad_20_1'] = mawad
         
-        copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-        fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
-        fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
-        fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
-        os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
-        os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
-        os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
+        
+        
+        
+    if len(other_classes) > 0 :
+        
+        for counter , section in enumerate(devided_teacher_load_list, start=1 ):
+            modified_classes = []
+            mawad = [i['subject_name'] for i in section]
+            classes = [i['class_name'] for i in section]
+            primary_classes = ['الصف الأول','الصف الثاني','الصف الثالث',]
+            all_classes = [i['class_name'] for i in section]
+            classes = [class_name for class_name in all_classes if all(primary_class not in class_name for primary_class in primary_classes)]
+            other_classes = [class_data for class_data in section if all(primary_class not in class_data['class_name'] for primary_class in primary_classes)]
+            section=other_classes
+            for i in classes: 
+                if '-' not in i:
+                    i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
+                modified_classes.append(get_class_short(i))
+            modified_classes = ' ، '.join(modified_classes)
+            mawad = sorted(set(mawad))
+            mawad = ' ، '.join(mawad)
+
+            custom_shapes['mawad'] = mawad
+            custom_shapes['classes'] = modified_classes
+            custom_shapes['classes_20_2'] = modified_classes
+            custom_shapes['mawad_20_2'] = mawad
+            custom_shapes['classes_20_1'] = modified_classes
+            custom_shapes['mawad_20_1'] = mawad
+            
+            copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
+            fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
+            fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
+            fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
+            os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+            os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
+            os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
     delete_files_except(
                         [
                             i for i in os.listdir("./send_folder") 
@@ -435,7 +483,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
     context = context 
     page = 4
     name_counter = 1
-    if username is not None and password is not None:
+    if username is not None and password is not Non0e:
         auth = get_auth(username , password)
         period_id = get_curr_period(auth , session=session)['data'][0]['id']
         inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
@@ -9092,6 +9140,31 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
                 shutil.move(file_path, editable_folder)
 
 
+def extract_primary_and_other_classes(nested_classes):
+    """تقوم هذه الداله بفصل الصفوف الاساسيه عن الصفوف الابتدائيه
+
+    Args:
+        nested_classes (_type_): ابعث لها الصفوف 
+
+    Returns:
+        _type_:   ترجع قيمتين القيمه الاولى الصفوف الابتدائيه والقيمه الثانيه الصفوف الاساسيه
+    """    
+    primary_keywords = ['الصف الأول', 'الصف الثاني', 'الصف الثالث']
+
+    primary_classes = [
+        cls for class_list in nested_classes
+        for cls in class_list
+        if any(keyword in cls['class_name'] for keyword in primary_keywords)
+    ]
+
+    other_classes = [
+        cls for class_list in nested_classes
+        for cls in class_list
+        if cls not in primary_classes
+    ]
+
+    return primary_classes, other_classes
+
 
 
 def main():
@@ -9099,7 +9172,7 @@ def main():
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+    fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=True)
 
 
 
