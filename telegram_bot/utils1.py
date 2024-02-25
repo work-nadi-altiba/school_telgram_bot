@@ -748,7 +748,7 @@ def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessm
         dic['name'] = values[0]['the_student_name']
 
         if 'عشر' not in class_name  :
-            values = offline_sort_assessement_period_ids_v2( values ,assessment_periods)
+            values = offline_sort_assessement_period_ids_v2( values , assessment_periods)
             dic['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
             dic['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None and not empty_marks else ''
             dic['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None and not empty_marks else ''
@@ -1211,7 +1211,6 @@ def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic):
         unsuccessful_requests = requests[0]
         _data_list.append(requests[1])
     
-    
     for i in _data_list:
         if len(i):
             try :
@@ -1247,7 +1246,6 @@ def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , ses
         class_names_dic[i['institution_class_id']]['name'] = i['institution_class']['name']
     for clas in class_names_dic:
         class_names_dic[clas]['assessment_id'] = offline_get_assessment_id_from_grade_id(class_names_dic[clas]['education_grade_id'] ,grades_info)
-
     return class_names_dic , students_with_data_dic
 
 def get_marks_upload_percentages_v2(auth , inst_id , period_id ,first_term =False,second_term = False, both_terms=False, student_status_list = [1],subject_search_name_wanted_index = [2,3,5],session=None):
@@ -7008,7 +7006,7 @@ def group_students(dic_list4 , i = None):
     else : 
         return grouped_list
 
-def get_students_info_subjectsMarks(username , password , student_identity_number = None , session=None ):
+def get_students_info_subjectsMarks(username , password , student_identity_number = None , empty_marks = False , session=None ):
     """
     دالة لاستخراج معلومات و علامات الطلاب لاستخدامها لاحقا في انشاء الجداول و العلامات
     """
@@ -7049,68 +7047,119 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
                             'subjects_assessments_info':[] ,
                         }
                         )
-        
-        data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&_limit=1000&_page={page}', session=session)
-        length = len(data['data'])
-        students_marks_data.extend(data['data'])
-        print(f'total school marks:{data["total"]}')
-        while length :
-            page += 1
-            print(page*1000)
-            data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&_limit=1000&_page={page}' , session=session)
-            students_marks_data.extend(data['data'])
-            length = len(data['data'])
+        class_data_dic , students_with_data_dic = get_school_classes_and_students_with_classes(auth ,inst_id , curr_year ,session=session)
+
+        # add subjects to the class dictionary variable which is class_data_dic
+        class_data_with_subjects_dictionary = add_subjects_to_class_data_dic(auth,inst_id , curr_year ,class_data_dic,session=session)
+
+        open_emis_core_marks = get_school_marks_version_2(auth,inst_id , curr_year ,class_data_dic)
+
+        # get the teachers or staff data (what the subjects they teach and the class names)
+        SubjectStaff_data = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStaff.json?institution_id={inst_id}&academic_period_id={curr_year}&_contain=Users,InstitutionSubjects&_limit=0',session=session)['data']
+
+        # get the assessment periods dictionary 
+        assessment_periods  = { 'data':get_assessment_periods_list(auth)}
+
+        # map the followings 
+        # teachers load  
+        # subjects for each teacher  
+        # the teacher with subjects
+        staff_load_mapping = {
+                            x['staff_id'] : {
+                                'name': x['user']['name'],
+                                'teacher_subjects':
+                                    [
+                                        {
+                                            'subject_class_id' :i['institution_subject']['id'] ,
+                                            'subject_name' :i['institution_subject']['name'] ,
+                                            'subject_grade_id' :i['institution_subject']['education_grade_id'],
+                                            'subject_id' :i['institution_subject']['education_subject_id'] ,
+                                        
+                                        } for i in SubjectStaff_data if x['staff_id'] == i['staff_id']
+                                    ]
+                                }
+                            for x in SubjectStaff_data
+                                if x['end_date'] is None
+                            }
+        subject_mapping_for_teachers = {
+                                        i['id'] : { 
+                                                'name': i['name'] , 
+                                                'class_id': class_id ,
+                                                'class_name' : class_data_dic[class_id]['name'] ,
+                                                'education_subject_id': i['education_subject_id']
+                                                }    
+                                        for class_id in class_data_with_subjects_dictionary 
+                                        for i in class_data_with_subjects_dictionary[class_id]['subjects']
+                                        }
+        teacher_with_subject_mapping = {
+                                            i['subject_class_id'] : { 
+                                                    'teacher_name': staff_load_mapping[teacher_id]['name'] , 
+                                                    'education_subject_name': i['subject_name'],
+                                                    'education_subject_id': i['subject_id']
+                                                    }    
+                                            for teacher_id in staff_load_mapping 
+                                            for i in staff_load_mapping[teacher_id]['teacher_subjects']
+                                        }
+        class_subject_teacher_mapping = get_class_subject_teacher_mapping_dictionary( class_data_with_subjects_dictionary , subject_mapping_for_teachers , teacher_with_subject_mapping)
+
     else:
         for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=5&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&identity_number={student_identity_number}&academic_period_id={curr_year}&_contain=Users',session=session)['data']:
             dic_list.append(
-                        {
-                            'student_id':i['student_id'],
-                            'student__full_name':i['user']['name'],
-                            'student_nat':i['user']['nationality_id'],
-                            'student_birth_place':i['user']['birthplace_area_id'] if i['user']['birthplace_area_id'] is not None and i['user']['birthplace_area_id'] != 'None' else '' ,
-                            'student_birth_date' : i['user']['date_of_birth'] ,
-                            'student_nat_id': '' if i['user']['identity_number'] is None else i['user']['identity_number'],
-                            'student_grade_id':i['education_grade_id'],
-                            'student_grade_name' : i['education_grade_id'] ,
-                            'student_class_name_letter': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
-                            'student_edu_place' : edu_directory ,
-                            'student_directory':edu_directory,
-                            'student_school_name':school_name,
-                            'subjects_assessments_info':[] ,
-                        }
-                        )
+                            {
+                                'student_id':i['student_id'],
+                                'student__full_name':i['user']['name'],
+                                'student_nat':i['user']['nationality_id'],
+                                'student_birth_place':i['user']['birthplace_area_id'] if i['user']['birthplace_area_id'] is not None and i['user']['birthplace_area_id'] != 'None' else '' ,
+                                'student_birth_date' : i['user']['date_of_birth'] ,
+                                'student_nat_id': '' if i['user']['identity_number'] is None else i['user']['identity_number'],
+                                'student_grade_id':i['education_grade_id'],
+                                'student_grade_name' : i['education_grade_id'] ,
+                                'student_class_name_letter': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
+                                'student_edu_place' : edu_directory ,
+                                'student_directory':edu_directory,
+                                'student_school_name':school_name,
+                                'subjects_assessments_info':[] ,
+                            }
+                            )
         target_student_marks = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=created_user_id,AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id={curr_year}&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&student_id={dic_list[0]["student_id"]}&_limit=1000')['data'] # 2001419515
-
-    for item in dic_list:
-        student_id= item['student_id']
-        sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
-        for mark in students_marks_data:
-            if student_id in mark.values():
-                target_student_marks.append(mark)
+    
+    # معنى هذه الجملة التكرارية هو لكل طالب من الطلاب الموجودين في القاموس
+    for student_data in dic_list:
+        student_id= student_data['student_id']
+        subject_dict = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
+        # العلامات التي استخرجتها من الرابط
+        # استطيع الاستغناء عنها باستخدام دالة 
+        target_student_marks = [ mark for mark in open_emis_core_marks if mark['student_id'] == student_id ]
+        
+        # رتب المواد حسب رقم المادة و احذف المتكرر 
         target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
         for subject in target_student_subjects:
-            dictionaries = [assessments for assessments in target_student_marks if subject == assessments['education_subject_id']]
-            sub_dic['subject_name'] = dictionaries[0]['education_subject']['name']
-            sub_dic['subject_number']= dictionaries[0]['education_subject_id']
-            sub_dic['term1']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['assessment1'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['assessment2'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['assessment3'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['assessment4'] = [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['marks'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
+            assessments_list = [assessment for assessment in target_student_marks if subject == assessment['education_subject_id']]
+            subject_dict['subject_name'] = class_subject_teacher_mapping[students_with_data_dic[student_id]['class_id']][subject]['name']
+            subject_dict['subject_number']= subject
             
-            sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A1' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A2' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A3' in assessments['assessment_period']['code']] else ''
-            sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S1A4' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A1' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A2' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A3' in assessments['assessment_period']['code']] else ''
-            sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if assessments['assessment_period']  and 'S2A4' in assessments['assessment_period']['code']] else ''
-            subjects_assessments_info.append(sub_dic)   
-            sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
+            values = offline_sort_assessement_period_ids_v2( assessments_list , assessment_periods)
+            subject_dict['assessments_periods_ides'] = [int(x) for x in [i['assessment_period_id'] for i in values ] if x is not None]
+            subject_dict['term1']['assessment1'] = float(values[0]["mark"]) if values[0]["mark"] is not None and not empty_marks else ''
+            subject_dict['term1']['assessment2'] = float(values[1]["mark"]) if values[1]["mark"] is not None and not empty_marks else ''
+            subject_dict['term1']['assessment3'] = float(values[2]["mark"]) if values[2]["mark"] is not None and not empty_marks else ''
+            subject_dict['term1']['assessment4'] = float(values[3]["mark"]) if values[3]["mark"] is not None and not empty_marks else ''
+            subject_dict['term2']['assessment1'] = float(values[4]["mark"]) if values[4]["mark"] is not None and not empty_marks else ''
+            subject_dict['term2']['assessment2'] = float(values[5]["mark"]) if values[5]["mark"] is not None and not empty_marks else ''
+            subject_dict['term2']['assessment3'] = float(values[6]["mark"]) if values[6]["mark"] is not None and not empty_marks else ''
+            subject_dict['term2']['assessment4'] = float(values[7]["mark"]) if values[7]["mark"] is not None and not empty_marks else ''
+            
+            # لا احتاج الان للعلامة الكبرى 
+            # sub_dic['term1']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A1' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A1' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term1']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A2' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A2' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term1']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A3' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A3' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term1']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A4' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S1A4' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term2']['max_mark_assessment1'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A1' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A1' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term2']['max_mark_assessment2'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A2' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A2' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term2']['max_mark_assessment3'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A3' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A3' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            # sub_dic['term2']['max_mark_assessment4'] = [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A4' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']][0] if [assessments['assessment_grading_option']['max'] for assessments in dictionaries if 'S2A4' in assessment_periods_dictionary[int(assessments['assessment_period_id'])]['code']] else ''
+            subjects_assessments_info.append(subject_dict)   
+            subject_dict = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
             # [dic for dic in dic_list if dic['student_id']==3439303][0]['subjects_assessments_info']
         target_index = next((i for i, dic in enumerate(dic_list) if dic['student_id'] == student_id != 0 ), None)
         if target_index is not None and len(target_student_subjects) != 0:
@@ -7119,7 +7168,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
             # print(dic_list[target_index])
             subjects_assessments_info=[]
             target_student_marks = []
-
+    
     class_name_letter = list(set([i['student_class_name_letter'] for i in dic_list if i['student_class_name_letter'] != '' ]))
     joined_string = ','.join(str(i) for i in [f'institution_class_id:{i}' for i in class_name_letter])
     classes_data = make_request(session=session,auth=auth,url='https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere='+joined_string)['data']
@@ -7132,7 +7181,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
         if class_id != '':
             i['student_class_name_letter'] = class_dict.get(class_id, class_id)
     grade_id = list(set([i['student_grade_id'] for i in dic_list if i['student_grade_id'] != '' ]))
-    grade_data = get_grade_info(auth,session)
+    grade_data = get_grade_info(auth=auth,session=session)
     grade_list = []
     for i in grade_data:
         grade_list.append({'grade_id': i['education_grade_id'] , 'grade_name': re.sub('.*للصف','الصف', i['name']) })
@@ -7141,7 +7190,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
         grade_id = i['student_grade_id']
         if grade_id != '':
             i['student_grade_name'] = grade_dict.get(grade_id, grade_id)
-            
+    
     nat_id = list(set([i['student_grade_id'] for i in dic_list if i['student_grade_id'] != '' ]))
     birth_place_id = list(set([i['student_grade_id'] for i in dic_list if i['student_grade_id'] != '' ]))
     birth_place_data = make_request(session=session,auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/v2/Area-AreaAdministratives?_limit=0&_contain=AreaAdministrativeLevels')['data']
@@ -9135,20 +9184,14 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
             else:
                 shutil.move(file_path, editable_folder)
 
-
-
-
 def main():
     print('starting script')
 
-
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
+    # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True )
+    create_certs_wrapper(9971055725,'9971055725@Aa',session=requests.Session())
     # Read_E_Side_Note_Marks_xlsx()
     # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-
-
-
 
 if __name__ == "__main__":
     main()
