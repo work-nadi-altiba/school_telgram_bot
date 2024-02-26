@@ -82,7 +82,7 @@ def check_if_send_folder_exist():
         # If it doesn't exist, create it
         os.makedirs(folder_name)
         print(f"Folder '{folder_name}' created.")
-        
+
 # https://forms.gle/1PMSeb75mQVJUEnw5
 def links(update, context):
     update.message.reply_text("رابط بنك الاسئلة : \nhttps://forms.gle/1PMSeb75mQVJUEnw5") 
@@ -128,7 +128,7 @@ def send_side_marks_note_doc(update, context):
             send_files(bot, chat_id, files)
             delete_send_folder()
             return ConversationHandler.END
-        
+
 def init_check_five_names_marks(update, context):
     update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS_2
@@ -475,7 +475,7 @@ def error(update, context):
     logger.error(traceback.format_exc())
     print(f'Update {update} caused error {context.error}')
     return ConversationHandler.END
-    
+
 def cancel(update, context):
     user = update.message.from_user
     update.message.reply_text("تم ")
