@@ -82,7 +82,7 @@ def check_if_send_folder_exist():
         # If it doesn't exist, create it
         os.makedirs(folder_name)
         print(f"Folder '{folder_name}' created.")
-        
+
 # https://forms.gle/1PMSeb75mQVJUEnw5
 def links(update, context):
     update.message.reply_text("رابط بنك الاسئلة : \nhttps://forms.gle/1PMSeb75mQVJUEnw5") 
@@ -128,7 +128,7 @@ def send_side_marks_note_doc(update, context):
             send_files(bot, chat_id, files)
             delete_send_folder()
             return ConversationHandler.END
-        
+
 def init_check_five_names_marks(update, context):
     update.message.reply_text("هل تريد التحقق من علامات الطلاب ؟ \n اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
     return CREDS_2
@@ -230,9 +230,7 @@ def upload_marks_bot_version(update, context):
 
             # فرغ كل التقومات من العلامات
             assess_data = [i for i in editable_assessments]
-            for assessment in assess_data:
-                wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
-                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+            enter_marks_arbitrary_controlled_version(username , password , data_to_enter_marks , assess_period_data=assess_data)
 
             # عبي التقويم من ملف سجل العلامات الجانبي
             if file_extension == 'xlsx':
@@ -314,9 +312,7 @@ def fill_assess_empty(update, context):
         logger.info(f"username:{username} ----> password :{password}// {code}")
         if code == 'All_asses':
             assess_data = [i for i in editable_assessments]
-            for assessment in assess_data:
-                wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assessment['gradeId']]
-                enter_marks_arbitrary_controlled_version(username,password,wanted_grades,assessment['AssesId'])
+            enter_marks_arbitrary_controlled_version(username , password , data_to_enter_marks , assess_period_data=assess_data)
         else:
             assess_data = [i for i in editable_assessments if i.get('code') == code][0]
             wanted_grades = [i for i in data_to_enter_marks if i.get('assessment_id') == assess_data['gradeId']]
@@ -468,7 +464,7 @@ def send_files(bot, chat_id, files , outdir='./send_folder',name="ملف مضغ�
             bot.send_document(chat_id=chat_id, document=open(file, 'rb'), timeout=900)
         return False
 
-# Lets us use the /help command
+# Lets us use the /help command1
 def help_command(update, context):
     update.message.reply_text(help_text)
 
@@ -479,7 +475,7 @@ def error(update, context):
     logger.error(traceback.format_exc())
     print(f'Update {update} caused error {context.error}')
     return ConversationHandler.END
-    
+
 def cancel(update, context):
     user = update.message.from_user
     update.message.reply_text("تم ")
