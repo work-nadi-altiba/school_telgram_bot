@@ -822,14 +822,15 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         marks_and_name = []
 
         # rename the new worksheet
-        sheet_copy.title = class_data['title']
+        sheet_copy.title = f"{class_data['title'].split('=')[0]}--{class_data['title'].split('=')[1]}"
+        # sheet_copy.title = class_data['title']
         sheet_copy.sheet_view.rightToLeft = True
         
         # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
         # marks_and_name = []
         data_font = Font(name='Arial', size=16, bold=False)
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
-       
+        
         # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
         # Write data to the worksheet and calculate the sum of some columns in each row
         for row_number, dataFrame in enumerate(class_data['students_data'], start=3):
@@ -850,6 +851,7 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
             # Set the font for the data rows
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
+        
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
@@ -4700,8 +4702,8 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
 
     modified_classes = []
 
-    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
-    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
+    classes = [i['class_name'].split('--')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('--')[1] for i in read_file_output_lists]
     for i in classes:
         modified_classes.append(get_class_short(i))
 
@@ -7300,8 +7302,8 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
     
     modified_classes = []
 
-    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
-    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
+    classes = [i['class_name'].split('--')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('--')[1] for i in read_file_output_lists]
     for i in classes: 
         modified_classes.append(get_class_short(i))
         
@@ -7700,10 +7702,10 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
     baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
     # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
     school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+    indcator_of_private_techers_sector=school_place_data['institution_sector_id']
     if indcator_of_private_techers_sector == 12 : 
         area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
         area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
-        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
         modeeriah_v2=area_chain_list[1]
         modeeriah=f'التعليم الخاص / {modeeriah_v2}'
     else:
@@ -7761,6 +7763,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
+    
 
 def split_A3_pages(input_file, outdir):
     """
@@ -9098,8 +9101,9 @@ def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
+    # create_e_side_marks_doc(9872016980,'D.doaa123' , empty_marks=True)
+    Read_E_Side_Note_Marks_xlsx('./send_folder/دعاء المشني-9872016980.xlsx')
+    # fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
 
 
 
