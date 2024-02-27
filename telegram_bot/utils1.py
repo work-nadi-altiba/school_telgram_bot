@@ -247,7 +247,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
         melady1 = str(school_year[0]['start_year'])
         melady2 = str(school_year[0]['end_year'])
-        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['middle_name']} {user['data'][0]['last_name']}"
+        teacher = f"{user['data'][0]['first_name']}  {user['data'][0]['last_name']}"
         
         
         classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
