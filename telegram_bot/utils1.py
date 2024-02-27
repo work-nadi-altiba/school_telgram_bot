@@ -276,7 +276,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
         melady1 = str(school_year[0]['start_year'])
         melady2 = str(school_year[0]['end_year'])
-        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['middle_name']} {user['data'][0]['last_name']}"
+        teacher = f"{user['data'][0]['first_name']}  {user['data'][0]['last_name']}"
         
         
         classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
@@ -350,6 +350,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
         fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
         os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['last_name']}"
         os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
         os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
     delete_files_except(
@@ -7781,7 +7782,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
-    user_id , user_name = userInfo['id'] , userInfo['first_name']+' '+ userInfo['last_name']+'-' + str(username)
+    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['third_name']} {userInfo['last_name']} - {str(username)}"  
     # years = get_curr_period(auth)
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
