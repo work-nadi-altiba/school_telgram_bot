@@ -317,7 +317,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
         fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
         os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
-        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['middle_name']} {user['data'][0]['third_name']} {user['data'][0]['last_name']}"
+        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['last_name']}"
         os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
         os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
     delete_files_except(
