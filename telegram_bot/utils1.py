@@ -58,6 +58,10 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+def get_subjects_dictionary_list_from_the_site(auth , session):
+    url = GET_SUBJCTS_DATA
+    return make_request(auth=auth , url=url , session=session)
+
 def fill_student_absent_A4_doc_wrapper(username, password ,template='./templet_files/plus_st_abs_A4.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
     """
     Fills the student absent notebook document template with data and saves it.
@@ -6827,9 +6831,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                             term_1_avarage +=round(value[0]/3,1)
                             term_2_avarage +=round(value[1]/3,1)
                             # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass
+                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                            pass
                         else:
                             # print(key , value[0])
                             term_1_avarage += value[0]
@@ -6845,9 +6848,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                             term_1_avarage +=round(value[0]/3,1)
                             term_2_avarage +=round(value[1]/3,1)
                             # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
+                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                            pass                        
                         else:
                             # print(key , value[0])
                             term_1_avarage += value[0]
@@ -6863,9 +6865,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                             term_1_avarage += round(value[0]*2/3,1)
                             term_2_avarage += round(value[1]*2/3,1)
                             # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
+                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                            pass                        
                         else:
                             # print(key , value[0])
                             term_1_avarage += value[0]
@@ -6881,9 +6882,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                             term_1_avarage +=round(value[0]*2/3,1)
                             term_2_avarage +=round(value[1]*2/3,1)
                             # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
+                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                            pass                        
                         else:
                             # print(key , value[0])
                             term_1_avarage += value[0]
@@ -6899,9 +6899,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                             term_1_avarage +=round(value[0]*2/3,1)
                             term_2_avarage +=round(value[1]*2/3,1)
                             # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif skip_art_sport :
-                            if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                pass                        
+                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                            pass
                         else:
                             # print(key , value[0])
                             term_1_avarage += value[0]
@@ -6918,9 +6917,8 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
                                 term_1_avarage +=round(value[0]*2/3,1)
                                 term_2_avarage +=round(value[1]*2/3,1)
                                 # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif skip_art_sport :
-                                if 'التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key:
-                                    pass                        
+                            elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                                pass                        
                             else:
                                 # print(key , value[0])
                                 term_1_avarage += value[0]
@@ -7020,12 +7018,9 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
     edu_directory = inst_area(session=session,auth=auth)['data'][0]['Areas']['name']
     curr_year = get_curr_period(auth,session)['data'][0]['id']
     
-    sub_dic = {'subject_name':'','subject_number':'','term1':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''} ,'term2':{ 'assessment1': '','max_mark_assessment1':'' ,'assessment2': '','max_mark_assessment2':'' , 'assessment3': '','max_mark_assessment3':'' , 'assessment4': '','max_mark_assessment4':''}}
     subjects_assessments_info=[]
     # target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
-    
-    page = 1
-    students_marks_data = []
+
     # data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id=15&_contain=Users,AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&institution_classes_id=904841&_limit=0')
     # students_marks_data.extend(data['data'])
     # dic_list =[x for x in dic_list if x['student_id'] in [i['student_id'] for i in students_marks_data]]
@@ -7101,7 +7096,8 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
                                             for teacher_id in staff_load_mapping 
                                             for i in staff_load_mapping[teacher_id]['teacher_subjects']
                                         }
-        class_subject_teacher_mapping = get_class_subject_teacher_mapping_dictionary( class_data_with_subjects_dictionary , subject_mapping_for_teachers , teacher_with_subject_mapping)
+        # class_subject_teacher_mapping = get_class_subject_teacher_mapping_dictionary( class_data_with_subjects_dictionary , subject_mapping_for_teachers , teacher_with_subject_mapping)
+        subjects_list = get_subjects_dictionary_list_from_the_site(auth ,session)
 
     else:
         for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=5&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&identity_number={student_identity_number}&academic_period_id={curr_year}&_contain=Users',session=session)['data']:
@@ -7136,7 +7132,10 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
         target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
         for subject in target_student_subjects:
             assessments_list = [assessment for assessment in target_student_marks if subject == assessment['education_subject_id']]
-            subject_dict['subject_name'] = class_subject_teacher_mapping[students_with_data_dic[student_id]['class_id']][subject]['name']
+            
+            subject_data = [i for i in subjects_list['data'] if i['assessment_period_id'] == int(assessments_list[0]['assessment_period_id']) and i['education_subject_id'] == subject][0]
+            
+            subject_dict['subject_name'] = subject_data['education_subject']['name']
             subject_dict['subject_number']= subject
             
             values = offline_sort_assessement_period_ids_v2( assessments_list , assessment_periods)
@@ -9189,8 +9188,8 @@ def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True )
-    create_certs_wrapper(9971055725,'9971055725@Aa',session=requests.Session())
+    # create_e_side_marks_doc(9991039132,'9991039132Mm@' , empty_marks=True )
+    create_certs_wrapper(9991039132,'9991039132Mm@',session=requests.Session())
     # Read_E_Side_Note_Marks_xlsx()
     # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
 
