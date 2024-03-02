@@ -4700,8 +4700,7 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                     'term2': {'assessment1': int(row_data[8]) if not isinstance(row_data[8],str) else '', 'assessment2': int(row_data[9]) if not isinstance(row_data[9],str) else '', 'assessment3': int(row_data[10]) if not isinstance(row_data[10],str) else '', 'assessment4': int(row_data[11]) if not isinstance(row_data[11],str) else ''}
                 }
                 data.append(dic)
-        idsClass=sheet['AM1'].value.split('=')
-        idsClass='--'.join(idsClass)
+        idsClass=sheet['AM1'].value
         temp_dic = {'class_name':f"{sheet.name}--{idsClass}" ,"students_data": data}
         # temp_dic = {'class_name': sheet.name, "students_data": data}
         read_file_output_lists.append(temp_dic)
@@ -7303,8 +7302,7 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
                     'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
                         }
                 data.append(dic)
-        idsClass=wb[sheet]['AM1'].value.split('=')
-        idsClass='--'.join(idsClass)
+        idsClass=wb[sheet]['AM1'].value
         temp_dic = {'class_name':f"{sheet}--{idsClass}" ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
