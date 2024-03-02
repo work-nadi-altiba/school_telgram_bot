@@ -829,6 +829,10 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
         # marks_and_name = []
         data_font = Font(name='Arial', size=16, bold=False)
+        title_parts = class_data['title'].split('=')[2:]
+        formatted_title = '='.join(title_parts)
+        sheet_copy.cell(row=1, column=39).value = formatted_title
+
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
         
         # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
@@ -4696,8 +4700,10 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                     'term2': {'assessment1': int(row_data[8]) if not isinstance(row_data[8],str) else '', 'assessment2': int(row_data[9]) if not isinstance(row_data[9],str) else '', 'assessment3': int(row_data[10]) if not isinstance(row_data[10],str) else '', 'assessment4': int(row_data[11]) if not isinstance(row_data[11],str) else ''}
                 }
                 data.append(dic)
-
-        temp_dic = {'class_name': sheet.name, "students_data": data}
+        idsClass=sheet['AM1'].value.split('=')
+        idsClass='--'.join(idsClass)
+        temp_dic = {'class_name':f"{sheet.name}--{idsClass}" ,"students_data": data}
+        # temp_dic = {'class_name': sheet.name, "students_data": data}
         read_file_output_lists.append(temp_dic)
 
     modified_classes = []
@@ -7297,7 +7303,9 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
                     'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
                         }
                 data.append(dic)
-        temp_dic = {'class_name':sheet ,"students_data": data}
+        idsClass=wb[sheet]['AM1'].value.split('=')
+        idsClass='--'.join(idsClass)
+        temp_dic = {'class_name':f"{sheet}--{idsClass}" ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
     modified_classes = []
@@ -9102,7 +9110,8 @@ def main():
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9872016980,'D.doaa123' , empty_marks=True)
-    Read_E_Side_Note_Marks_xlsx('./send_folder/دعاء المشني-9872016980.xlsx')
+    # print(Read_E_Side_Note_Marks_xlsx('./send_folder/دعاء المشني-9872016980.xlsx'))
+    print(Read_E_Side_Note_Marks_ods('./send_folder/anas.ods'))
     # fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
 
 
