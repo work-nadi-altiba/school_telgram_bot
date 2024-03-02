@@ -27,7 +27,7 @@ GET_CURR_PERIOD_URL = config('get_curr_period_url')
 GET_ASSESSMENTS_URL = config('get_assessments_url')
 GET_SUB_INFO_URL = config('get_sub_info_url')
 CREATE_EXCEL_SHEETS_MARKS_URL = config('create_excel_sheets_marks_url')
-GET_STUDENTS_MARKS_URL = config('get_students_marks_url')
+GET_SUBJCTS_DATA = config('get_subjects_data')
 def ENTER_MARK_JSON_DATA_FUN(marks, assessment_grading_option_id, assessment_id, education_subject_id, education_grade_id, institution_id, academic_period_id, institution_classes_id, student_status_id, student_id, assessment_period_id):
     """_summary_
 
