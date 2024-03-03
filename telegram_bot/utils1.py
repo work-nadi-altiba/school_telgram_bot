@@ -931,14 +931,19 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         marks_and_name = []
 
         # rename the new worksheet
-        sheet_copy.title = class_data['title']
+        sheet_copy.title = f"{class_data['title'].split('=')[0]}={class_data['title'].split('=')[1]}"
+        # sheet_copy.title = class_data['title']
         sheet_copy.sheet_view.rightToLeft = True
         
         # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
         # marks_and_name = []
         data_font = Font(name='Arial', size=16, bold=False)
+        
+        
+        sheet_copy.cell(row=1, column=39).value = f"{class_data['institution_class_id']}={class_data['subject_id']}"
+
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
-       
+        
         # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
         # Write data to the worksheet and calculate the sum of some columns in each row
         for row_number, dataFrame in enumerate(class_data['students_data'], start=3):
@@ -959,6 +964,7 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
             # Set the font for the data rows
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
+        
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
@@ -4806,8 +4812,9 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                     'term2': {'assessment1': int(row_data[8]) if not isinstance(row_data[8],str) else '', 'assessment2': int(row_data[9]) if not isinstance(row_data[9],str) else '', 'assessment3': int(row_data[10]) if not isinstance(row_data[10],str) else '', 'assessment4': int(row_data[11]) if not isinstance(row_data[11],str) else ''}
                 }
                 data.append(dic)
-
-        temp_dic = {'class_name': sheet.name, "students_data": data}
+        idsClass=sheet['AM1'].value
+        temp_dic = {'class_name':f"{sheet.name}={idsClass}" ,"students_data": data}
+        # temp_dic = {'class_name': sheet.name, "students_data": data}
         read_file_output_lists.append(temp_dic)
 
     modified_classes = []
@@ -7453,7 +7460,8 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
                     'term2': {'assessment1': row[8], 'assessment2': row[9], 'assessment3': row[10], 'assessment4': row[11]}
                         }
                 data.append(dic)
-        temp_dic = {'class_name':sheet ,"students_data": data}
+        idsClass=wb[sheet]['AM1'].value
+        temp_dic = {'class_name':f"{sheet}={idsClass}" ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
     modified_classes = []
@@ -7925,6 +7933,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
+    
 
 def split_A3_pages(input_file, outdir):
     """
@@ -9289,8 +9298,10 @@ def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
+
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
     fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
+
 
 
 
