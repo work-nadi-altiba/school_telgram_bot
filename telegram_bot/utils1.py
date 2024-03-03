@@ -822,16 +822,16 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         marks_and_name = []
 
         # rename the new worksheet
-        sheet_copy.title = f"{class_data['title'].split('=')[0]}--{class_data['title'].split('=')[1]}"
+        sheet_copy.title = f"{class_data['title'].split('=')[0]}={class_data['title'].split('=')[1]}"
         # sheet_copy.title = class_data['title']
         sheet_copy.sheet_view.rightToLeft = True
         
         # marks_and_name = get_marks_and_names_dictionary_list(class_name , assessments ,assessments_json)
         # marks_and_name = []
         data_font = Font(name='Arial', size=16, bold=False)
-        title_parts = class_data['title'].split('=')[2:]
-        formatted_title = '='.join(title_parts)
-        sheet_copy.cell(row=1, column=39).value = formatted_title
+        
+        
+        sheet_copy.cell(row=1, column=39).value = f"{class_data['institution_class_id']}={class_data['subject_id']}"
 
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
         
@@ -4701,14 +4701,14 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                 }
                 data.append(dic)
         idsClass=sheet['AM1'].value
-        temp_dic = {'class_name':f"{sheet.name}--{idsClass}" ,"students_data": data}
+        temp_dic = {'class_name':f"{sheet.name}={idsClass}" ,"students_data": data}
         # temp_dic = {'class_name': sheet.name, "students_data": data}
         read_file_output_lists.append(temp_dic)
 
     modified_classes = []
 
-    classes = [i['class_name'].split('--')[0] for i in read_file_output_lists]
-    mawad = [i['class_name'].split('--')[1] for i in read_file_output_lists]
+    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
     for i in classes:
         modified_classes.append(get_class_short(i))
 
@@ -7303,13 +7303,13 @@ def Read_E_Side_Note_Marks_xlsx(file_path=None , file_content=None):
                         }
                 data.append(dic)
         idsClass=wb[sheet]['AM1'].value
-        temp_dic = {'class_name':f"{sheet}--{idsClass}" ,"students_data": data}
+        temp_dic = {'class_name':f"{sheet}={idsClass}" ,"students_data": data}
         read_file_output_lists.append(temp_dic)
     
     modified_classes = []
 
-    classes = [i['class_name'].split('--')[0] for i in read_file_output_lists]
-    mawad = [i['class_name'].split('--')[1] for i in read_file_output_lists]
+    classes = [i['class_name'].split('=')[0] for i in read_file_output_lists]
+    mawad = [i['class_name'].split('=')[1] for i in read_file_output_lists]
     for i in classes: 
         modified_classes.append(get_class_short(i))
         
@@ -9107,9 +9107,9 @@ def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    # create_e_side_marks_doc(9872016980,'D.doaa123' , empty_marks=True)
-    # print(Read_E_Side_Note_Marks_xlsx('./send_folder/دعاء المشني-9872016980.xlsx'))
-    print(Read_E_Side_Note_Marks_ods('./send_folder/anas.ods'))
+    create_e_side_marks_doc(9821041284,'9821041284' , empty_marks=False)
+    # print(Read_E_Side_Note_Marks_xlsx('./send_folder/خالد الجعارات-9821041284.xlsx'))
+    # print(Read_E_Side_Note_Marks_ods('./send_folder/anas.ods'))
     # fill_official_marks_functions_wrapper_v2(9971055725,'9971055725@Aa' , empty_marks=True)
 
 
