@@ -58,6 +58,44 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+
+def get_teacher_class_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True,student_status_ids=[1],session=None):
+    """
+    Retrieves secondary students enrolled in a specific institution class.
+
+    Parameters:
+    - auth (str): Authorization token.
+    - institution_class_id (int): Identifier for the institution class.
+    - inst_id (int, optional): Identifier for the institution (default is None).
+    - curr_year (int, optional): Current academic year (default is None).
+    - session (requests.Session, optional): Session object for making HTTP requests (default is None).
+
+    Returns:
+    - dict: Dictionary containing data about enrolled secondary students.
+    """    
+    id_and_name_dic_list = []
+    secondery_students =  get_school_students_ids(auth, inst_id=inst_id , curr_year=curr_year ,student_status_ids=student_status_ids , session=session)
+    data = [i for i in secondery_students if i['institution_class_id'] == int(institution_class_id) and i['student_status_id'] in student_status_ids]
+    data = {'data': data , 'total': len(data)}
+    
+    enrolled = [i for i in data['data'] if i['student_status_id'] in student_status_ids]
+    data = {'data': enrolled , 'total': len(enrolled)}
+    if just_id_and_name_and_empty_marks:
+        dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
+        
+        for item in data['data']:
+            dic['id'] = item['student_id']
+            dic['name'] = item['user']['name']
+            id_and_name_dic_list.append(dic)
+            dic = {'id':'' ,'name': '','term1':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'term2':{ 'assessment1': '' ,'assessment2': '' , 'assessment3': '' , 'assessment4': ''} ,'assessments_periods_ides':[]}
+        return id_and_name_dic_list
+    else:
+        return data
+
+def get_teacher_homeroom_class(auth,institution_id,period_id):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?institution_id={institution_id}&academic_period_id={period_id}&_limit=0'
+    return make_request(url=url , auth =auth)
+
 def get_subjects_dictionary_list_from_the_site(auth , session):
     url = GET_SUBJCTS_DATA
     return make_request(auth=auth , url=url , session=session)
@@ -964,7 +1002,6 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
             # Set the font for the data rows
             for cell in sheet_copy[row_number]:
                 cell.font = data_font    
-        
 
 def get_marks(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessments = None , insert_function=None , existing_wb=None ,necessary_data_dict=None, session=None , template_sheet_or_file = None):
     """
@@ -5301,7 +5338,7 @@ def create_tables_wrapper(username , password ,term2=False):
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
     create_tables(auth , grouped_list ,term2=term2 )
 
-def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,session=None):
+def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,just_teacher_class=True,session=None):
     """
     The function create_certs_wrapper is a Python function that takes in parameters username, password,
     term2 (with a default value of False), and session (with a default value of None).
@@ -5315,7 +5352,7 @@ def create_certs_wrapper(username , password , student_identity_number = None ,t
     session object. This can be useful if you want to reuse an existing session for making multiple
     requests
     """
-    student_info_marks = get_students_info_subjectsMarks( username , password ,student_identity_number = student_identity_number ,session=session)
+    student_info_marks = get_students_info_subjectsMarks( username , password ,student_identity_number = student_identity_number , just_teacher_class=just_teacher_class,session=session)
     dic_list4 = student_info_marks
     grouped_list = group_students(dic_list4 )
     
@@ -7083,7 +7120,7 @@ def group_students(dic_list4 , i = None):
     else : 
         return grouped_list
 
-def get_students_info_subjectsMarks(username , password , student_identity_number = None , empty_marks = False , session=None ):
+def get_students_info_subjectsMarks(username , password , student_identity_number = None , empty_marks = False , just_teacher_class=True , session=None ):
     """
     دالة لاستخراج معلومات و علامات الطلاب لاستخدامها لاحقا في انشاء الجداول و العلامات
     """
@@ -7097,13 +7134,15 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
     curr_year = get_curr_period(auth,session)['data'][0]['id']
     
     subjects_assessments_info=[]
-    # target_student_subjects = list(set(d['education_subject_id'] for d in target_student_marks))
 
-    # data = make_request(auth=auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&academic_period_id=15&_contain=Users,AssessmentPeriods,AssessmentGradingOptions,EducationSubjects&institution_id={inst_id}&institution_classes_id=904841&_limit=0')
-    # students_marks_data.extend(data['data'])
-    # dic_list =[x for x in dic_list if x['student_id'] in [i['student_id'] for i in students_marks_data]]
     if not student_identity_number : 
-        for i in get_school_students_ids(session=session,auth=auth):
+        if just_teacher_class:
+            teacher_class_id = get_teacher_homeroom_class(auth, inst_id , curr_year)['data'][0]['id']
+            students = get_teacher_class_students(auth , teacher_class_id , inst_id , curr_year , just_id_and_name_and_empty_marks=False)['data']
+        else : 
+            students = get_school_students_ids(session=session,auth=auth)
+        
+        for i in students:
             dic_list.append(
                         {
                             'student_id':i['student_id'],
@@ -9264,8 +9303,6 @@ def sort_send_folder_into_two_folders(folder='./send_folder'):
             else:
                 shutil.move(file_path, editable_folder)
 
-
-
 def extract_primary_and_other_classes(nested_classes):
     """تقوم هذه الداله بفصل الصفوف الاساسيه عن الصفوف الابتدائيه
 
@@ -9291,18 +9328,13 @@ def extract_primary_and_other_classes(nested_classes):
 
     return primary_classes, other_classes
 
-
-
-
 def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
-    fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
-
-
+    # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
+    create_certs_wrapper(9991039132,'9991039132Mm@' , session=requests.Session() , just_teacher_class = False)
 
 
 if __name__ == "__main__":
