@@ -3203,7 +3203,7 @@ def save_dictionary_to_json_file(dictionary, file_path='./send_folder/output.jso
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(dictionary, file, indent=indent, ensure_ascii=False)
 
-def create_coloured_certs_wrapper(username , password ,term2=False):
+def create_coloured_certs_wrapper(username , password ,term2=False , just_teacher_class=True):
     """
     Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
 
@@ -3235,7 +3235,7 @@ def create_coloured_certs_wrapper(username , password ,term2=False):
     """
     session = requests.Session()
     auth = get_auth(username , password)
-    student_info_marks = get_students_info_subjectsMarks( username , password , session=session)
+    student_info_marks = get_students_info_subjectsMarks( username , password ,just_teacher_class=just_teacher_class, session=session)
     students_statistics_assesment_data = get_student_statistic_info(username,password , student_ids=[i['student_id'] for i in get_school_students_ids(auth)] , session=session)
     
     dic_list4 = student_info_marks
@@ -5314,7 +5314,7 @@ def count_teacher_load(classes):
                 arabic_class_sum+=7
     return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
 
-def create_tables_wrapper(username , password ,term2=False): 
+def create_tables_wrapper(username , password ,term2=False , just_teacher_class=True): 
     """
     The function creates tables in using the provided username and password. It is wrapper and that 
     make my code more consise 
@@ -5327,7 +5327,7 @@ def create_tables_wrapper(username , password ,term2=False):
     """
     session = requests.Session()
     auth = get_auth(username, password)
-    student_info_marks = get_students_info_subjectsMarks( username , password ,session)
+    student_info_marks = get_students_info_subjectsMarks( username , password ,session ,just_teacher_class=just_teacher_class)
     dic_list4 = student_info_marks
     grouped_list = group_students(dic_list4 )
     
@@ -7972,7 +7972,6 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
-    
 
 def split_A3_pages(input_file, outdir):
     """
