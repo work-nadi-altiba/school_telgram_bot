@@ -58,6 +58,85 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 secondery_students = []
 
 # New code should be under here please
+def get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo):
+    """تقوم هذه الداله بأرجاع ليست مكونه من اسماء الطلاب وعدد ايام غيابهم والرقم التعريفي الخاص بالطالب 
+
+    Args:
+        dic_list4 (dic_list):create_cert_wrapper دكشنيري ليست الموجوده في دالة 
+        listo (_list_):get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className الليست التي تقوم بارجاعها دالة 
+
+    Returns:
+        list: ليست مكونه من اسم الطالب وعدد ايام الغياب والايدي الخاص به 
+    """    
+    student_ids=[[item['student_id'],item["student__full_name"]] for item in dic_list4]
+    absens_stu=[]
+    for i in student_ids :
+        for s in listo :
+            if i[0] == s[0]:
+                absens_stu.append([i[0], s[1],s[3],i[1]])
+    
+    return absens_stu
+
+def get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className(auth , required_data = None):
+    """_تقوم هذه الداله في جلب غياب المدرسه كاملا من خلال الاوثنيتكشن _
+
+    Args:
+        auth (_type_): _ الاوثنتيكشن المطلوب_
+        required_data (_type_, optional): عنصر اختياري يفضل تركه كما هوه 
+
+    Returns:
+        _list_: _قائمه تعود بها الداله تحتوي على الادي الخاص بالطالب و كم عدد ايام الغياب والايدي الخاص بالصف واسم الصف_
+    """    
+    
+    if not required_data:
+        required_data = get_required_data_to_enter_absent(auth)
+    
+    institution_id=required_data['institution_id']   
+    education_grade_id=required_data['education_grade_id']
+    academic_period_id=required_data['academic_period_id']
+    
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id={institution_id}&education_grade_id={education_grade_id}&academic_period_id={academic_period_id}&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id'
+    absent_data = make_request(auth=auth , url=url)
+    absent_data = [[i['student_id'] , i['date'],i['institution_class_id']] for i in absent_data['data']]
+    #########################عزل الصفوف مع الاسماء ###########################
+    class_names = get_classes_ids_with_names_dict(auth)
+    data = absent_data
+    # Dictionary to store class names
+    class_names_dict = {
+        class_id: class_name for class_id, class_name in class_names.items()
+    }
+    # List to store the updated data with class names
+    updated_data = []
+    # Iterate through the data
+    for item in data:
+        student_id, _, class_id = item
+        # Check if the class ID is in the dictionary
+        if class_id in class_names_dict:
+            # Add class name to the data
+            class_name = class_names_dict[class_id]
+            updated_item = [student_id, _, class_id, class_name]
+            updated_data.append(updated_item)
+        else:
+            # If the class ID is not in the dictionary, add a default value or handle as needed
+            updated_data.append(item)
+    listo = []
+
+    for i in updated_data:
+        student_id, date, class_id, class_name = i
+
+        # Check if the student ID is not in the listo
+        found = False
+        for item in listo:
+            if item[0] == student_id:
+                # If the student ID is already in the listo, increment the count
+                item[1] += 1
+                found = True
+                break
+
+        # If the student ID is not found, add it to the listo with count 1
+        if not found:
+                listo.append([student_id, 1,i[2],i[3]])
+    return listo
 
 def get_teacher_class_students(auth , institution_class_id , inst_id=None , curr_year=None , just_id_and_name_and_empty_marks =True,student_status_ids=[1],session=None):
     """
@@ -5902,6 +5981,10 @@ def create_certs(grouped_list ,absent_list_with_names, term2=False ,template='./
                         #النتيجة 
                         sheet2['b33']= 'مقصر' if any(item < 49 for item in [value[0] for key , value in group_item['subject_sums'].items()] ) else score_in_words(int(group_item['t1+t2+year_avarage'][0]))
                     
+                    # عدد ايام غياب الطالب 
+                    student_absent_count = [i for i in absent_list_with_names if i[0] == group_item['student_id'] ]
+                    sheet2['c35']= student_absent_count[0][1] if len(student_absent_count) else 0
+                    
                     #عدد ايام الدوام الرسمي الكامل 
                     sheet2['g35']= ''
                     #اسم و توقيع مربي الصف 
@@ -6313,7 +6396,7 @@ def create_coloured_certs_excel(grouped_list ,absent_list_with_names, term2=Fals
                         counter+=1
                     # طريقة طباعة الرقم صحيح اذا كان بدون اعشار 
                     # print(subject_name , int((S1_S2[0]+S1_S2[1])/2) if str((S1_S2[0]+S1_S2[1])/2).split('.')[1] == '0' else (S1_S2[0]+S1_S2[1])/2 )
-                    
+                
                 # print(counter)
                 if counter > 4 : 
                     print('يبقى في صفه')
@@ -6350,12 +6433,8 @@ def create_coloured_certs_excel(grouped_list ,absent_list_with_names, term2=Fals
                         sheet2[result_cell_positions[result]]= '✓'
                 
                 #عدد ايام غياب الطالب 
-                # sheet2['c35']= ''
-                for st_info in absent_list_with_names:
-                        
-                        if group_item['student_id']==st_info[0]:
-                            #عدد ايام غياب الطالب 
-                            sheet2['c35']= f"{st_info[1]}"d = group_item['student_id']
+                student_absent_count = [i for i in absent_list_with_names if i[0] == group_item['student_id'] ]
+                sheet2['c35']= student_absent_count[0][1] if len(student_absent_count) else 0
                 # #عدد ايام الدوام الرسمي الكامل 
                 sheet2[c['school_days']]= ''
                 #اسم و توقيع مربي الصف 
@@ -6811,12 +6890,8 @@ def create_coloured_certs_ods(grouped_list ,absent_list_with_names, term2=False 
                 
                 
                 # #عدد ايام غياب الطالب 
-                for st_info in absent_list_with_names:
-                        
-                        if group_item['student_id']==st_info[0]:
-                            #عدد ايام غياب الطالب 
-                            sheet2['c35']= f"{st_info[1]}"
-                # sheet2['c35'].set_value( '')
+                student_absent_count = [i for i in absent_list_with_names if i[0] == group_item['student_id'] ]
+                sheet2['c35']= student_absent_count if len(student_absent_count) else 0
                 # #عدد ايام الدوام الرسمي الكامل 
                 sheet2[c['school_days']].set_value( '')
                 
@@ -9340,93 +9415,13 @@ def extract_primary_and_other_classes(nested_classes):
 
     return primary_classes, other_classes
 
-def get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo):
-    """تقوم هذه الداله بأرجاع ليست مكونه من اسماء الطلاب وعدد ايام غيابهم والرقم التعريفي الخاص بالطالب 
-
-    Args:
-        dic_list4 (dic_list):create_cert_wrapper دكشنيري ليست الموجوده في دالة 
-        listo (_list_):get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className الليست التي تقوم بارجاعها دالة 
-
-    Returns:
-        list: ليست مكونه من اسم الطالب وعدد ايام الغياب والايدي الخاص به 
-    """    
-    student_ids=[[item['student_id'],item["student__full_name"]] for item in dic_list4]
-    absens_stu=[]
-    for i in student_ids :
-        for s in listo :
-            if i[0] == s[0]:
-                absens_stu.append([i[0], s[1],s[3],i[1]])
-    
-    return absens_stu
-
-def get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className(auth , required_data = None):
-    """_تقوم هذه الداله في جلب غياب المدرسه كاملا من خلال الاوثنيتكشن _
-
-    Args:
-        auth (_type_): _ الاوثنتيكشن المطلوب_
-        required_data (_type_, optional): عنصر اختياري يفضل تركه كما هوه 
-
-    Returns:
-        _list_: _قائمه تعود بها الداله تحتوي على الادي الخاص بالطالب و كم عدد ايام الغياب والايدي الخاص بالصف واسم الصف_
-    """    
-    
-    if not required_data:
-        required_data = get_required_data_to_enter_absent(auth)
-    
-    institution_id=required_data['institution_id']   
-    education_grade_id=required_data['education_grade_id']
-    academic_period_id=required_data['academic_period_id']
-    
-    url = f'https://emis.moe.gov.jo/openemis-core/restful/Institution.StudentAbsencesPeriodDetails?institution_id={institution_id}&education_grade_id={education_grade_id}&academic_period_id={academic_period_id}&_limit=0&_fields=student_id,institution_id,academic_period_id,institution_class_id,education_grade_id,date,period,comment,absence_type_id'
-    absent_data = make_request(auth=auth , url=url)
-    absent_data = [[i['student_id'] , i['date'],i['institution_class_id']] for i in absent_data['data']]
-    #########################عزل الصفوف مع الاسماء ###########################
-    class_names = get_classes_ids_with_names_dict(auth)
-    data = absent_data
-    # Dictionary to store class names
-    class_names_dict = {
-        class_id: class_name for class_id, class_name in class_names.items()
-    }
-    # List to store the updated data with class names
-    updated_data = []
-    # Iterate through the data
-    for item in data:
-        student_id, _, class_id = item
-        # Check if the class ID is in the dictionary
-        if class_id in class_names_dict:
-            # Add class name to the data
-            class_name = class_names_dict[class_id]
-            updated_item = [student_id, _, class_id, class_name]
-            updated_data.append(updated_item)
-        else:
-            # If the class ID is not in the dictionary, add a default value or handle as needed
-            updated_data.append(item)
-    listo = []
-
-    for i in updated_data:
-        student_id, date, class_id, class_name = i
-
-        # Check if the student ID is not in the listo
-        found = False
-        for item in listo:
-            if item[0] == student_id:
-                # If the student ID is already in the listo, increment the count
-                item[1] += 1
-                found = True
-                break
-
-        # If the student ID is not found, add it to the listo with count 1
-        if not found:
-                listo.append([student_id, 1,i[2],i[3]])
-    return listo
-
 def main():
     print('starting script')
 
     #fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
     # create_e_side_marks_doc(9971055725,'9971055725@Aa' , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
-    create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True)
+    create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())
 
 
 if __name__ == "__main__":
