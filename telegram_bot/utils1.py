@@ -547,9 +547,12 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 classes = [i['class_name'] for i in section]
                 all_classes = [i['class_name'] for i in section]
                 classes = [class_name for class_name in all_classes if any(primary_class in class_name for primary_class in primary_classes)]
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
                 filtered_basedOnPrimary_section = [class_data for class_data in section if any(primary_class in class_data['class_name'] for primary_class in primary_classes)]
                 section=filtered_basedOnPrimary_section
-                for i in classes: 
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
@@ -584,15 +587,22 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 primary_classes = ['الصف الأول','الصف الثاني','الصف الثالث',]
                 all_classes = [i['class_name'] for i in section]
                 classes = [class_name for class_name in all_classes if all(primary_class not in class_name for primary_class in primary_classes)]
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
                 other_classes = [class_data for class_data in section if all(primary_class not in class_data['class_name'] for primary_class in primary_classes)]
                 section=other_classes
-                for i in classes: 
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
                 modified_classes = ' ، '.join(modified_classes)
                 mawad = sorted(set(mawad))
+                unique_mawad_names=set(mawad)
+                unique_mawad_names_list=list(unique_mawad_names)
+                mawad=unique_mawad_names_list
                 mawad = ' ، '.join(mawad)
+                
 
                 custom_shapes['mawad'] = mawad
                 custom_shapes['classes'] = modified_classes
@@ -613,15 +623,19 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 modified_classes = []
                 mawad = [i['subject_name'] for i in section]
                 classes = [i['class_name'] for i in section]
-                section=other_classes
-                for i in classes: 
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
                 modified_classes = ' ، '.join(modified_classes)
                 mawad = sorted(set(mawad))
+                unique_mawad_names=set(mawad)
+                unique_mawad_names_list=list(unique_mawad_names)
+                mawad=unique_mawad_names_list
                 mawad = ' ، '.join(mawad)
-
                 custom_shapes['mawad'] = mawad
                 custom_shapes['classes'] = modified_classes
                 custom_shapes['classes_20_2'] = modified_classes
@@ -9558,8 +9572,8 @@ def main():
     # auth = get_auth(112183 , 112183)
     # auth = get_auth(9891009452 , 9891009452)
     # 3971236
-    # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
+    fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True,divded_dfter_to_primary_and_secnedry=True)
+    # create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
     # create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
