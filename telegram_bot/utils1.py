@@ -113,7 +113,7 @@ def read_large_json_files(files_list,item ='item.institution_class_id'):
         items = [i for i in praser2]
         data.extend(items)
     return data
-=======
+
 def find_assessment_above_max_for_one_student(student_data , max_assess_dict , class_name , subject_name):
     above_max = []
     mark_dict = {}
