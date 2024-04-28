@@ -10,7 +10,7 @@
         "request": "launch",
         "program": "${file}",
         "console": "integratedTerminal",
-        "cwd": "/opt/programming/school_programms1/telegram_bot",
+        "cwd": "/home/kali/programming/school_programms1/telegram_bot",
         "justMyCode": true,
         "args": ["-t"]
     },
@@ -22,6 +22,15 @@
       "console": "integratedTerminal",
       "justMyCode": true,
 
+    },
+    {
+      "name": "Python: Current Path/File",
+      "type": "python",
+      "request": "launch",
+      "cwd": "${fileDirname}",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
     }
   ]
 }

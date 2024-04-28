@@ -52,6 +52,7 @@ import pandas as pd
 from loguru import logger
 from setting import *
 import time 
+import ijson 
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -63,6 +64,55 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def is_valid_date(date_str):
+    try:
+        # Attempt to parse the date string
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return True
+    except ValueError:
+        # ValueError will be raised for invalid dates
+        return False
+
+def fill_student_absent_doc_wrapper_with_absent_filled(username, password ,template='./templet_files/plus_st_abs_A4.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
+    """
+    Fills the student absent notebook document template with data and saves it.
+
+    Parameters:
+    - username (str): The username for authentication.
+    - password (str): The password for authentication.
+    - template (str): Path to the ODS template file (default: './templet_files/new_empty_absence_notebook_doc_white_cover.ods').
+    - outdir (str): Directory to save the filled document (default: './send_folder/').
+    - teacher_full_name (bool): Flag to include teacher's full name in the document (default: False).
+
+    Example Usage:
+    ```python
+    fill_student_absent_doc_wrapper('your_username', 'your_password', teacher_full_name=True)
+    ```
+
+    Note:
+    - This function fetches student statistical information using the provided credentials.
+    - It then uses the data to fill the specified ODS template with student details and saves the filled document.
+    - The filled document is saved in the specified output directory.
+
+    """
+    if context is None :
+        context = {2: 'Y69=AP123', 1: 'A69=V123', 4: 'Y128=AP182', 3: 'A128=V182', 6: 'Y186=AP240', 5: 'A186=V240', 8: 'Y244=AP298', 7: 'A244=V298', 10: 'Y302=AP356', 9: 'A302=V356', 12: 'Y360=AP414', 11: 'A360=V414', 14: 'Y418=AP472', 13: 'A418=V472', 16: 'Y476=AP530', 15: 'A476=V530', 18: 'Y534=AP588', 17: 'A534=V588', 20: 'Y592=AP646', 19: 'A592=V646', 22: 'Y650=AP704', 21: 'A650=V704', 24: 'Y708=AP762', 23: 'A708=V762', 26: 'Y766=AP820', 25: 'A766=V820'}
+    auth = get_auth(username , password)
+    student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
+    
+    required_data = get_required_data_to_enter_absent(auth)
+    absent_data_list = get_class_absent_days_with_id(auth , required_data=required_data)
+    fill_student_absent_doc_name_days_cover(student_details , template , outdir , context = context ,absent_data_list=absent_data_list)
+
+def read_large_json_files(files_list,item ='item.institution_class_id'):
+    data = []
+    for file in files_list:
+        praser = ijson.parse(open(file, 'r'))
+        praser2 = ijson.items(praser, item)
+        items = [i for i in praser2]
+        data.extend(items)
+    return data
+
 def get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo):
     """تقوم هذه الداله بأرجاع ليست مكونه من اسماء الطلاب وعدد ايام غيابهم والرقم التعريفي الخاص بالطالب 
 
@@ -1064,7 +1114,7 @@ def insert_to_e_side_marks_doc(classes_data , template_sheet_or_file=None):
         
         
         sheet_copy.cell(row=1, column=39).value = f"{class_data['institution_class_id']}={class_data['subject_id']}"
-
+        
         # print([d['name'] for d in class_data['students_data'] if d['name'] != ''])
         
         # class_data = {f'{institution_class_id}-{assessment_id}-{education_grade_id}' : '' if len(marks_and_name) == 0 else marks_and_name[0]['assessments_periods_ides']}
@@ -2706,7 +2756,7 @@ def intended_for_pytest_for_the_absent_text(absent_days_list):
     # لاحضار الاشهر التي تحتاج الى تعديل او المختلفة 
     # set([i.split('/')[2] for i in l])
 
-def get_names_for_absent_purposes(auth , session=None):
+def get_names_for_absent_purposes(auth , session=None , current= True):
     """
     Retrieves a list of student names and IDs for absent purposes based on institution, class, and academic period.
 
@@ -2716,14 +2766,15 @@ def get_names_for_absent_purposes(auth , session=None):
 
     Returns:
     - list: Sorted list of tuples containing student IDs and names.
-    """    
+    """        
+    status = [1] if current else [1,2,3,4,5,6]
     d = get_required_data_to_enter_absent(auth=auth, session=session)
     institution_id = d['institution_id']
     institution_class_id = d['institution_class_id']
     academic_period_id = d['academic_period_id']
     url = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Institution.InstitutionSubjectStudents?_fields=student_id,student_status_id,Users.id,Users.username,Users.openemis_no,Users.first_name,Users.middle_name,Users.third_name,Users.last_name,Users.address,Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_type_id,Users.identity_number,Users.external_reference,Users.status,Users.is_guardian&_limit=0&academic_period_id={academic_period_id}&institution_class_id={institution_class_id}&institution_id={institution_id}&_contain=Users"
     students_with_ids = make_request(url=url,auth=auth,session=session)
-    u_names_with_ids = set([(i['student_id'] ,i['user']['name']) for i in students_with_ids['data']])
+    u_names_with_ids = set([(i['student_id'] ,i['user']['name']) for i in students_with_ids['data'] if i['student_status_id'] in status ])
 
     sorted_list = sorted(u_names_with_ids, key=lambda x: x[1])
     
@@ -3118,7 +3169,7 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
 
     return present_days
 
-def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None , timout_req_delay = 1000000):
+def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None , timout_req_delay = 1000000, threshhold=True):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
 
     Args:
@@ -3152,6 +3203,9 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
             #     print(r.content)
             #     print(r.history.code) # كود الركويست
                 if r.history.code != 200 :
+                    if threshhold and r.history.code in [i for i in range(499 , 600)]:
+                        time.sleep(30)
+                        print(r.history.code ,r.content)                    
                     unsuccessful_requests.append(r.description)
     return unsuccessful_requests
 
@@ -3514,7 +3568,7 @@ class RandomNumberGenerator:
         ranges = [(1, int(number)) for number in numbers]
         return ranges
 
-def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir ,context = None):
+def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir ,context = None ,absent_data_list = None):
     """
     Fill an OpenDocument Spreadsheet (ODS) file with student information and generate corresponding documents.
 
@@ -3569,11 +3623,11 @@ def fill_student_absent_doc_name_days_cover(student_details , ods_file, outdir ,
         
         # row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
         if context is not None:
-            row_idx = counter + int(context[1].split('=')[0][1:])
-            row_idx2 = counter + int(context[2].split('=')[0][1:])
-        else:
             row_idx = counter + 69
             row_idx2 = counter + 128
+        else:
+            row_idx = counter + int(context[1].split('=')[0][1:])
+            row_idx2 = counter + int(context[2].split('=')[0][1:])
         birth_data = student_info['birth_date'].split('-')
         years, months, days = calculate_age(student_info['birth_date'],student_details['start_date'] )
         
@@ -7728,13 +7782,13 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     fuzz_postdata_list ,grade_period_ids= [] , []
     
     for item in required_data_list : 
-        if assess_period_data : 
+        if  assess_period_data : 
             grade_period_ids = [i for i in assess_period_data if i.get('gradeId') == item['assessment_id']]
             
         for AssessPeriod in grade_period_ids :
             for Student_id in item['students_ids']:
                 fuzz_postdata = {
-                                    'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else 'null',
+                                    'marks': str("{:.2f}".format(float(random.randint(range1, range2)))) if range1 !='' and range2 !=''  else None,
                                     'assessment_id': item['assessment_id'],
                                     'education_subject_id': item['education_subject_id'],
                                     'education_grade_id': item['education_grade_id'],
@@ -8918,7 +8972,7 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
         json : رد بالمعلومات التي قام api بردها للطلب
     """    
     headers = {"Authorization": auth, "ControllerAction": "Results"}
-    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students']
+    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students',]
     
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
@@ -8935,15 +8989,20 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
                                     timeout=timeout_seconds,
                                     verify=False
                                     )
-        if "403 Forbidden" not in response.text and response.status_code not in [500 , 302]:
-            try:
-                response = requests.request("GET", url,headers=headers,timeout=timeout_seconds, verify=False )
-                i = response.json()
-            except:
-                response = requests.request("GET", url,headers=headers,timeout=timeout_seconds, verify=False )
-                pass
+        
+        if response.status_code != 200 :
+            for _ in range(50):
+                if session is None :
+                    response = requests.request("GET", url,headers=headers,timeout=timeout_seconds,verify=False)
+                else :
+                    response = session.get(url,headers=headers,timeout=timeout_seconds,verify=False)
+                
+                if response.status_code == 200:
+                    break
+        if "error" not in response.url :
             return response.json()
         
+    print('some thing wrong')
     return ['Some Thing Wrong']
 
 def get_auth(username , password ,proxies=None):
@@ -9464,11 +9523,12 @@ def main():
     # auth = get_auth(9891009452 , 9891009452)
     # 3971236
     # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
-    create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
+    # create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
     # create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
+    fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
     print('finished')
 
 if __name__ == "__main__":
