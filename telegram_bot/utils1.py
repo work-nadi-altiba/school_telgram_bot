@@ -64,6 +64,7 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+
 def is_valid_date(date_str):
     try:
         # Attempt to parse the date string
@@ -112,6 +113,93 @@ def read_large_json_files(files_list,item ='item.institution_class_id'):
         items = [i for i in praser2]
         data.extend(items)
     return data
+=======
+def find_assessment_above_max_for_one_student(student_data , max_assess_dict , class_name , subject_name):
+    above_max = []
+    mark_dict = {}
+    for term in ['term1' , 'term2']:
+        for assess in student_data[term]:
+            student_mark = student_data[term][assess]
+            term_name_in_arabic = " الفصل الاول /" if term =='term1' else ' الفصل الثاني /'
+            assess_name_in_arabic = assess.replace('assessment' , 'التقويم ').replace('1' , 'الاول').replace('2' , 'الثاني').replace('3' , 'الثالث').replace('4' , 'الرابع')
+            mark_dict =  { 'class_name':class_name ,
+                            'subject_name':subject_name ,
+                            'term&assess':term_name_in_arabic+assess_name_in_arabic  ,
+                            'name':student_data['name'] ,
+                            'id' : student_data['id'] 
+                        }
+            if student_mark == '':
+                mark_dict['mark'] = 'فارغ'
+                above_max.append(mark_dict)
+            elif student_mark > max_assess_dict[assess] :
+                mark_dict['mark'] = student_mark
+                above_max.append(mark_dict)
+    return above_max
+
+def find_above_max_mark_for_assessments(excel_output , max_assessments_dictionaries , skip_empty = True):
+    '''
+    function usage : 
+        auth = get_auth(9891009452 , 9891009452)
+        session = requests.Session()
+        max_marks_for_classes_based_on_subject_id = create_max_of_dictionaries(excel_output , auth , session)
+    '''
+    above_max_dictionaries = []
+    for class_data in excel_output['file_data'] :
+        class_info = class_data['class_name'].split('=')
+        class_name = class_info[0]
+        subject_name = class_info[1]
+        class_institution_id = class_info[2]
+        subject_id = class_info[3]
+        max_assess_dict = max_assessments_dictionaries[int(class_institution_id)][int(subject_id)]['max_marks_dictionary']
+        for student in class_data['students_data']:
+            marks_above_max = find_assessment_above_max_for_one_student(student , max_assess_dict ,class_name , subject_name)
+            above_max_dictionaries.extend(marks_above_max)
+            
+    if skip_empty:
+        return [i for i in above_max_dictionaries if i['mark'] != 'فارغ']
+    else:
+        return above_max_dictionaries
+
+def get_all_assessments(auth , session=None):
+    assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+    return assessment_periods
+
+def get_all_AssessmentItemsGradingTypes(auth ,session=None):
+    get_max_mark = f"https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions&_limit=0"
+    data = make_request(auth=auth , url =get_max_mark , session=session)
+    data = data['data']
+    return data 
+
+def create_max_marks_assessments_dictionary (data ,assessment_id , education_id , sorted_class_assessments_list):
+    sorted_class_assessments_list = sorted_class_assessments_list[0:4]
+    max_marks_assessments_dictionary = {'assessment1':'' , 'assessment2':'' , 'assessment3':'' , 'assessment4':''}
+    targeted_assessments_with_max = {
+                            i['assessment_period_id']: i['assessment_grading_type']['grading_options'][0]['max'] 
+                                for i in data 
+                                    if i['assessment_id'] == assessment_id 
+                                        and
+                                        i['education_subject_id'] == education_id 
+                            }
+    
+    for assessment_id ,dictionary_key in  zip(sorted_class_assessments_list , max_marks_assessments_dictionary.keys()) :
+        max_marks_assessments_dictionary[dictionary_key] = targeted_assessments_with_max[int(assessment_id)]
+    return max_marks_assessments_dictionary
+
+def create_max_of_dictionaries(e_side_document_output , auth , session=None):
+    max_of_assessments = get_all_AssessmentItemsGradingTypes(auth , session=session)
+    assessment_periods = get_all_assessments(auth , session=session)    
+    max_marks_dictionary = {}
+    for item in e_side_document_output['file_data']:
+        class_information = item['class_name'].split('=')
+        institution_class_id , subject_education_id = int(class_information[2]) , int(class_information[3]) 
+        class_data = e_side_document_output['required_data_for_mrks_enter'][institution_class_id]
+        assessment_grade_id = class_data['assessment_grade_id']
+        assessments_period_ids = [int(i) for i in class_data['assessments_period_ids']]
+        sorted_class_assessments_list = offline_sort_assessement_period_ids_v2(assessments_period_ids , assessment_periods , True)[0:4]
+        maxes_dictionary = create_max_marks_assessments_dictionary(max_of_assessments , assessment_grade_id , subject_education_id , sorted_class_assessments_list) 
+        max_marks_dictionary[institution_class_id] = {  subject_education_id : { 'max_marks_dictionary':maxes_dictionary } }
+    return max_marks_dictionary
+
 
 def get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo):
     """تقوم هذه الداله بأرجاع ليست مكونه من اسماء الطلاب وعدد ايام غيابهم والرقم التعريفي الخاص بالطالب 
@@ -511,9 +599,12 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 classes = [i['class_name'] for i in section]
                 all_classes = [i['class_name'] for i in section]
                 classes = [class_name for class_name in all_classes if any(primary_class in class_name for primary_class in primary_classes)]
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
                 filtered_basedOnPrimary_section = [class_data for class_data in section if any(primary_class in class_data['class_name'] for primary_class in primary_classes)]
                 section=filtered_basedOnPrimary_section
-                for i in classes: 
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
@@ -548,15 +639,22 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 primary_classes = ['الصف الأول','الصف الثاني','الصف الثالث',]
                 all_classes = [i['class_name'] for i in section]
                 classes = [class_name for class_name in all_classes if all(primary_class not in class_name for primary_class in primary_classes)]
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
                 other_classes = [class_data for class_data in section if all(primary_class not in class_data['class_name'] for primary_class in primary_classes)]
                 section=other_classes
-                for i in classes: 
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
                 modified_classes = ' ، '.join(modified_classes)
                 mawad = sorted(set(mawad))
+                unique_mawad_names=set(mawad)
+                unique_mawad_names_list=list(unique_mawad_names)
+                mawad=unique_mawad_names_list
                 mawad = ' ، '.join(mawad)
+                
 
                 custom_shapes['mawad'] = mawad
                 custom_shapes['classes'] = modified_classes
@@ -577,15 +675,19 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 modified_classes = []
                 mawad = [i['subject_name'] for i in section]
                 classes = [i['class_name'] for i in section]
-                section=other_classes
-                for i in classes: 
+                all_class_names = classes
+                unique_class_names = set(all_class_names)
+                unique_class_names_list = list(unique_class_names)
+                for i in unique_class_names_list: 
                     if '-' not in i:
                         i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
                     modified_classes.append(get_class_short(i))
                 modified_classes = ' ، '.join(modified_classes)
                 mawad = sorted(set(mawad))
+                unique_mawad_names=set(mawad)
+                unique_mawad_names_list=list(unique_mawad_names)
+                mawad=unique_mawad_names_list
                 mawad = ' ، '.join(mawad)
-
                 custom_shapes['mawad'] = mawad
                 custom_shapes['classes'] = modified_classes
                 custom_shapes['classes_20_2'] = modified_classes
@@ -1035,7 +1137,7 @@ def get_teacher_classes_v2(auth,ins_id,staff_id,academic_period,session=None):
     url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={joined_subjects}"
     return make_request(url,auth)
 
-def offline_sort_assessement_period_ids_v2(marks_data ,assessments_periods):
+def offline_sort_assessement_period_ids_v2(marks_data ,assessments_periods , assessments_periods_ara_just_digits = False):
     """
     Offline sorting of assessment IDs based on their codes.
 
@@ -1052,17 +1154,26 @@ def offline_sort_assessement_period_ids_v2(marks_data ,assessments_periods):
     assessments_codes = {f'S{i}A{x}' : { 'term': "الفصل ال"+num2words(i,lang='ar', to='ordinal_num'), 'assessment_name':"التقويم ال"+num2words(x,lang='ar', to='ordinal_num')} for i in [1,2] for x in [1,2,3,4]}
     for code in assessments_codes:
         # target_id = str([i['id'] for i in assessments_periods if code in i['code']][0])
-        target_value = [i for i in marks_data 
-                                if code in assessments_periods_dictionary[int(i['assessment_period_id'])]['code'] ]
+        if assessments_periods_ara_just_digits: 
+            target_value = [i for i in marks_data 
+                                if code in assessments_periods_dictionary[i]['code'] ]
+        else:
+            target_value = [i for i in marks_data 
+                                    if code in assessments_periods_dictionary[int(i['assessment_period_id'])]['code'] ]
         # Add code to each dictionary in target_value
-        for item in target_value:
-            # Add your code here
-            item['code'] = code
+        if not assessments_periods_ara_just_digits: 
+            for item in target_value:
+                # Add your code here
+                item['code'] = code
         sorted_values.extend(target_value)
     # Check if the length is less than 8
     while len(sorted_values) < 8:
         # Add dictionaries with the value {'mark': None}
-        sorted_values.append({'mark': None , 'assessment_period_id': None})
+        if assessments_periods_ara_just_digits: 
+            sorted_values.append(None)
+        else : 
+            sorted_values.append({'mark': None , 'assessment_period_id': None})
+        
     return sorted_values
 
 def get_assessment_periods_dictionary_offline(assessments_periods ):
@@ -5088,8 +5199,8 @@ def Read_E_Side_Note_Marks_ods(file_path=None, file_content=None):
                                         }
 
     read_file_output_dict = {'file_data': read_file_output_lists,
-                             'custom_shapes': custom_shapes,
-                             'required_data_for_mrks_enter': required_data_mrks_dic_list}
+                            'custom_shapes': custom_shapes,
+                            'required_data_for_mrks_enter': required_data_mrks_dic_list}
 
     return read_file_output_dict
 
@@ -8070,7 +8181,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
-    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['third_name']} {userInfo['last_name']} - {str(username)}"  
+    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['last_name']} - {str(username)}"  
     # years = get_curr_period(auth)
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
@@ -9522,7 +9633,9 @@ def main():
     # auth = get_auth(112183 , 112183)
     # auth = get_auth(9891009452 , 9891009452)
     # 3971236
-    # fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True)
+
+    fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True,divded_dfter_to_primary_and_secnedry=True)
+
     # create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
     # create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())

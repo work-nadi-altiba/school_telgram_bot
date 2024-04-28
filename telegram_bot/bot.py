@@ -210,6 +210,32 @@ def upload_marks_bot_version(update, context):
         else:
             logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
+
+            file_id = context.user_data['file']
+            file_name =context.user_data['file_name'] 
+            file_extension = file_name.split('.')[-1].lower()
+            username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
+            # Get the file object and read its content
+            file_obj = context.bot.get_file(file_id)
+            file_bytes = io.BytesIO(file_obj.download_as_bytearray())
+
+
+            if question == 'check_upload' :
+                if file_extension == 'xlsx':
+                    excel_output = Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)
+                    # fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes)) if question == 'document_marks' else None
+                elif file_extension == 'ods':
+                    excel_output = Read_E_Side_Note_Marks_ods(file_content=file_bytes)
+
+                max_marks_for_classes_based_on_subject_id = create_max_of_dictionaries(excel_output , auth , session)
+                above_max_marks = find_above_max_mark_for_assessments(excel_output , max_marks_for_classes_based_on_subject_id)
+                if len(above_max_marks):
+                    update.message.reply_text("هذه العلامات اكبر من العلامات القصوى و تحتاج الى تعديل")
+                    for item in above_max_marks: 
+                        # print(item['class_name'].replace('الصف ' , '') , item['subject_name'] , item['term&assess'] , item['name'] , item['mark'] , sep=' -- ')
+                        joined_item = f"{item['class_name'].replace('الصف ' , '')} -- {item['subject_name']} -- {item['term&assess']} -- {item['name']} -- {item['mark'] }" 
+                        update.message.reply_text(joined_item) 
+                    return ConversationHandler.END 
             # TODO: handle empty editable_assessments list
             editable_assessments = get_editable_assessments(auth ,username ,session)
             data_to_enter_marks = get_required_data_to_enter_marks(auth ,username,session)
@@ -219,14 +245,6 @@ def upload_marks_bot_version(update, context):
             context.user_data['data_to_enter_marks'] = data_to_enter_marks
             
             update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
-            file_id = context.user_data['file']
-            file_name =context.user_data['file_name'] 
-            file_extension = file_name.split('.')[-1].lower()
-            username , password = context.user_data['creds'][0] , context.user_data['creds'][1]
-            
-            # Get the file object and read its content
-            file_obj = context.bot.get_file(file_id)
-            file_bytes = io.BytesIO(file_obj.download_as_bytearray())
 
             # فرغ كل التقومات من العلامات
             assess_data = [i for i in editable_assessments]
@@ -365,7 +383,9 @@ def receive_file(update, context ):
 /documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
 /side_notes_first_term طباعة الكشف الجانبي الفصل الاول
 /side_notes_second_term طباعة الكشف الجانبي الفصل الثاني 
-/marks ادخال العلامات من الملف فقط'''
+/check_upload التأكد من صحة العلامات و رفعها اذا لم توجد مشكلة
+/marks ادخال العلامات من الملف فقط
+'''
         update.message.reply_text(receive_file_massage)  
         return ASK_QUESTION
     else:
@@ -445,6 +465,9 @@ def handle_question(update, context):
             send_files(bot, chat_id, files)
             delete_send_folder()
             return ConversationHandler.END                 
+        elif question == 'check_upload':
+            update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
+            return CREDS_2
         elif question == 'marks':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
             return CREDS_2
