@@ -1550,7 +1550,9 @@ def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , me
             #     print(r.content)
             #     print(r.history.code) # كود الركويست
                 if r.history.code != 200 :
-                    unsuccessful_requests.append(r.description)
+                    if r.history.code in [i for i in range(499 , 600)]:
+                        time.sleep(5)
+                        print(r.history.code ,r.content)
     return [unsuccessful_requests , _data]
 
 def get_school_marks_version_2(auth , inst_id , period_id , _class_data_dic):
@@ -3288,6 +3290,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
         headers (tuple-list): راسيات الطلب او الركويست
         body_postdata (str): جسم البوست داتا
         method (str, optional): طريقة الطلب. Defaults to 'POST'.
+        proxies (tuple_list) : [("127.0.0.1","8080","HTTP")]
 
     Returns:
         any : تعود بقائمة الطلبات غير الناجحة
@@ -3314,9 +3317,9 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
             #     print(r.content)
             #     print(r.history.code) # كود الركويست
                 if r.history.code != 200 :
-                    if threshhold and r.history.code in [i for i in range(499 , 600)]:
-                        time.sleep(30)
-                        print(r.history.code ,r.content)                    
+                    # if threshhold and r.history.code in [i for i in range(300 , 600)]:
+                        # print(r.history.code ,r.content)                    
+                        # time.sleep(30)
                     unsuccessful_requests.append(r.description)
     return unsuccessful_requests
 
@@ -3407,10 +3410,10 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     
     url = ENTER_MARK_URL
     
-    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata , proxies = [("127.0.0.1","8080","HTTP")])
 
     while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url ,unsuccessful_requests,headers,body_postdata)
+        unsuccessful_requests = wfuzz_function(url ,unsuccessful_requests,headers,body_postdata,proxies=[("127.0.0.1","8080","HTTP")])
 
     print("All requests were successful!")
 
@@ -7921,10 +7924,10 @@ def enter_marks_arbitrary_controlled_version(username , password , required_data
     
     url = ENTER_MARK_URL
     
-    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata)
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata , proxies = [("127.0.0.1","8080","HTTP")])
     
     while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,body_postdata)
+        unsuccessful_requests = wfuzz_function(url , unsuccessful_requests,headers,body_postdata , proxies = [("127.0.0.1","8080","HTTP")])
 
     print("All requests were successful!")
 

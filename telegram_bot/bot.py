@@ -236,6 +236,9 @@ def upload_marks_bot_version(update, context):
                         joined_item = f"{item['class_name'].replace('الصف ' , '')} -- {item['subject_name']} -- {item['term&assess']} -- {item['name']} -- {item['mark'] }" 
                         update.message.reply_text(joined_item) 
                     return ConversationHandler.END 
+                else:
+                    update.message.reply_text("لا توجد علامات تحتاج الى تعديل")
+                    return ConversationHandler.END 
             # TODO: handle empty editable_assessments list
             editable_assessments = get_editable_assessments(auth ,username ,session)
             data_to_enter_marks = get_required_data_to_enter_marks(auth ,username,session)
@@ -244,11 +247,12 @@ def upload_marks_bot_version(update, context):
             context.user_data['assessments'] = editable_assessments
             context.user_data['data_to_enter_marks'] = data_to_enter_marks
             
-            update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
+            # update.message.reply_text("سوف احاول ادخال العلامات بعد مسح اي علامة على المنظومة") 
+            update.message.reply_text("سوف احاول ادخال العلامات") 
 
-            # فرغ كل التقومات من العلامات
-            assess_data = [i for i in editable_assessments]
-            enter_marks_arbitrary_controlled_version(username , password , data_to_enter_marks , assess_period_data=assess_data)
+            # # فرغ كل التقومات من العلامات
+            # assess_data = [i for i in editable_assessments]
+            # enter_marks_arbitrary_controlled_version(username , password , data_to_enter_marks , assess_period_data=assess_data)
 
             # عبي التقويم من ملف سجل العلامات الجانبي
             if file_extension == 'xlsx':
