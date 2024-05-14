@@ -3410,10 +3410,10 @@ def upload_marks_optimized(username , password , classess_data , empty = False):
     
     url = ENTER_MARK_URL
     
-    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata , proxies = [("127.0.0.1","8080","HTTP")])
+    unsuccessful_requests = wfuzz_function(url , fuzz_postdata_list,headers,body_postdata )
 
     while len(unsuccessful_requests) != 0:
-        unsuccessful_requests = wfuzz_function(url ,unsuccessful_requests,headers,body_postdata,proxies=[("127.0.0.1","8080","HTTP")])
+        unsuccessful_requests = wfuzz_function(url ,unsuccessful_requests,headers,body_postdata)
 
     print("All requests were successful!")
 
