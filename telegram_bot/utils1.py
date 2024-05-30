@@ -200,7 +200,6 @@ def create_max_of_dictionaries(e_side_document_output , auth , session=None):
         max_marks_dictionary[institution_class_id] = {  subject_education_id : { 'max_marks_dictionary':maxes_dictionary } }
     return max_marks_dictionary
 
-
 def get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo):
     """تقوم هذه الداله بأرجاع ليست مكونه من اسماء الطلاب وعدد ايام غيابهم والرقم التعريفي الخاص بالطالب 
 
@@ -473,7 +472,7 @@ def divide_teacher_load(classes):
         else:
             pages += 2
             
-        if pages == 44:
+        if pages == 46:
             pages = 0
             divided_lists.append(current_list)
             if _class_size > 25:
@@ -481,7 +480,7 @@ def divide_teacher_load(classes):
             else:
                 pages += 2
             current_list = [_class]
-        elif pages > 44:
+        elif pages > 46:
             pages = 0
             divided_lists.append(current_list)
             if _class_size > 25:
@@ -497,10 +496,10 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , A3_templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False,session = None):
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None):
     
     if A3_context is None:
-        A3_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+        A3_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703' ,'sheet_47': 'الغلاف الداخلي' ,'sheet_47_plot': 'L37:L61'}
     else : 
         A3_context = A3_context
 
@@ -550,8 +549,17 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session , empty_marks=empty_marks)
     else: 
         students_data_lists = e_side_notebook_data
+        modeeriah = e_side_notebook_data['custom_shapes']['modeeriah']
+        hejri1 = e_side_notebook_data['custom_shapes']['hejri1']
+        hejri2 = e_side_notebook_data['custom_shapes']['hejri2']
+        melady1 = e_side_notebook_data['custom_shapes']['melady1']
+        melady2 = e_side_notebook_data['custom_shapes']['melady2']
+        baldah = e_side_notebook_data['custom_shapes']['baldah']
+        school_name = e_side_notebook_data['custom_shapes']['school']
+        teacher = e_side_notebook_data['custom_shapes']['teacher']
+        period_id = e_side_notebook_data['custom_shapes']['period_id']
         
-    devided_teacher_load_list = divide_teacher_load(students_data_lists)
+    devided_teacher_load_list = divide_teacher_load(students_data_lists['file_data'])
     print('hi')
 
     
@@ -591,7 +599,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
     if divded_dfter_to_primary_and_secnedry : 
         
         if len(primary_classes) > 0 :
-            A3_templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods'
+            templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods'
             for counter , section in enumerate(devided_teacher_load_list, start=1 ):
                 modified_classes = []
                 primary_classes = ['الصف الأول','الصف الثاني','الصف الثالث',]
@@ -619,7 +627,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['classes_20_1'] = modified_classes
                 custom_shapes['mawad_20_1'] = mawad
                 
-                copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
+                copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
@@ -673,8 +681,13 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
     else :
         for counter , section in enumerate(devided_teacher_load_list, start=1 ):
                 modified_classes = []
-                mawad = [i['subject_name'] for i in section]
-                classes = [i['class_name'] for i in section]
+                if (username is not None and password is not None ):
+                    mawad = [i['subject_name'] for i in section]
+                    classes = [i['class_name'] for i in section]
+                else:
+                    classes = [i['class_name'].split('=')[0] for i in section]
+                    mawad = [i['class_name'].split('=')[1] for i in section]
+                
                 all_class_names = classes
                 unique_class_names = set(all_class_names)
                 unique_class_names_list = list(unique_class_names)
@@ -695,20 +708,21 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['classes_20_1'] = modified_classes
                 custom_shapes['mawad_20_1'] = mawad
                 
-                copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
+                copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
                 os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
-        
-    delete_files_except(
-                        [
-                            i for i in os.listdir("./send_folder") 
-                                        if "دفتر _علامات" in i
-                        ]
-                        , outdir)
+    
+    if not do_not_delete_send_folder :    
+        delete_files_except(
+                            [
+                                i for i in os.listdir("./send_folder") 
+                                            if "دفتر _علامات" in i
+                            ]
+                            , outdir)
 
 def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ,empty_marks=False):
     """
@@ -774,7 +788,7 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         # assessment id 
         assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
         
-        print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
+        # print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
         
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
         
@@ -819,7 +833,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
     context = context 
     page = 4
     name_counter = 1
-    if username is not None and password is not Non0e:
+    if username is not None and password is not None:
         auth = get_auth(username , password)
         period_id = get_curr_period(auth , session=session)['data'][0]['id']
         inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
@@ -853,9 +867,9 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
         # ['الصف السابع', 'أ', 'اللغة الانجليزية', '786118']
         
         if username is None and password is None:        
-            class_data = students_data_list['title'].split('=')[0:2]
-        else: 
             class_data = students_data_list['class_name'].split('=')
+        else: 
+            class_data = students_data_list['title'].split('=')[0:2]
 
         class_name = class_data[0].replace('الصف ' , '').split('-')[0]
         class_char = class_data[0].split('-')[1]
@@ -872,8 +886,8 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
                 
                 sheet[f"D{int(context[str(page)].split(':')[0][1:])-5}"].set_value(f' الصف: {class_name}')
                 sheet[f"I{int(context[str(page)].split(':')[0][1:])-5}"].set_value(f'الشعبة (   {class_char}    )')
-                sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
-                #    المادة الدراسية     
+                # sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
+                #    المادة الدراسية
                 
                 # {'id': 3824166, 'name': 'نورالدين محمود راضي الدغيمات', 'term1': {'assessment1': 9, 'assessment2': 10, 'assessment3': 11, 'assessment4': 20}}
                 
@@ -887,28 +901,52 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
                         sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
                         sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
                     if 'term2' in student_info:
-                        row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
-                        sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
-                        sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
-                        sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
-                        sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                       
+                        try :
+                            if page == 46:
+                                sheet_47 = doc.sheets[context['sheet_47']]
+                                row_idx2 = counter + int(context['sheet_47_plot'].split(':')[0][1:]) - 1
+                                sheet_47[f"O{int(context['sheet_47_plot'].split(':')[0][1:])-5}"].set_value(sub_name)
+                                sheet_47[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                                sheet_47[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                                sheet_47[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                                sheet_47[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])
+                        except:
+                            sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
+                            row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                            sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1'])
+                            sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2'])
+                            sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                            sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])
                     counter += 1
                     name_counter += 1              
-                break                    
+                break
             row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
             sheet[f"A{row_idx}"].set_value(name_counter)
-            sheet[f"B{row_idx}"].set_value(student_info['name']) 
+            sheet[f"B{row_idx}"].set_value(student_info['name'])
             if 'term1' in student_info and 'assessment1' in student_info['term1'] and 'assessment2' in student_info['term1'] and 'assessment3' in student_info['term1'] and 'assessment4' in student_info['term1']:
                 sheet[f"D{row_idx}"].set_value(student_info['term1']['assessment1']) 
                 sheet[f"E{row_idx}"].set_value(student_info['term1']['assessment2']) 
                 sheet[f"F{row_idx}"].set_value(student_info['term1']['assessment3'])
                 sheet[f"G{row_idx}"].set_value(student_info['term1']['assessment4'])
             if 'term2' in student_info:
-                row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
-                sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
-                sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
-                sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
-                sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])                
+                try :
+                    if 46 == page:
+                        sheet_47 = doc.sheets[context['sheet_47']]
+                        row_idx2 = counter + int(context['sheet_47_plot'].split(':')[0][1:]) - 1
+                        sheet_47[f"O{int(context['sheet_47_plot'].split(':')[0][1:])-5}"].set_value(sub_name)
+                        sheet_47[f"L{row_idx2}"].set_value(student_info['term2']['assessment1']) 
+                        sheet_47[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
+                        sheet_47[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                        sheet_47[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])
+                    else:
+                        raise ValueError("page is not forty six")
+                except:
+                    sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
+                    row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
+                    sheet[f"L{row_idx2}"].set_value(student_info['term2']['assessment1'])
+                    sheet[f"M{row_idx2}"].set_value(student_info['term2']['assessment2'])
+                    sheet[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
+                    sheet[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])
             name_counter += 1 
         name_counter = 1
         page += 2
@@ -920,8 +958,12 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
     #     # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
 
     modified_classes = []
-    mawad = [i['subject_name'] for i in students_data_lists]
-    classes = [i['class_name'] for i in students_data_lists]
+    if (username is not None and password is not None ):
+        mawad = [i['subject_name'] for i in students_data_lists]
+        classes = [i['class_name'] for i in students_data_lists]
+    else:
+        classes = [i['class_name'].split('=')[0] for i in students_data_lists]
+        mawad = [i['class_name'].split('=')[1] for i in students_data_lists]
     for i in classes: 
         if '-' not in i:
             i = ' '.join(i.split(' ')[0:-1])+'-'+i.split(' ')[-1]
@@ -995,15 +1037,15 @@ def fill_official_marks_wrapper_v2(username , password , ods_name='send', outdir
     fill_custom_shape(doc= f'{outdir}/{ods_file}' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
     fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f'{outdir}/final_'+ods_file)
     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{ods_file} ')
-    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=50, left_rec=68, right_rec=120, color_name=color)
-    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=70, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/final_{ods_name}{ods_num}.pdf", f"{outdir}/output_file.pdf",top_rec=30, bottom_rec=80, left_rec=1, right_rec=120, color_name=color)
+    add_margins(f"{outdir}/output_file.pdf", f"{outdir}/{custom_shapes['teacher']}.pdf",page=1 , top_rec=60, bottom_rec=80, left_rec=1, right_rec=120, color_name=color)
     split_A3_pages(f"{outdir}/output_file.pdf" , outdir)
     reorder_official_marks_to_A4(f"{outdir}/output.pdf" , f"{outdir}/reordered.pdf")
 
-    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=68, right_rec=20, color_name=color)
+    add_margins(f"{outdir}/reordered.pdf", f"{outdir}/output_file.pdf",top_rec=60, bottom_rec=50, left_rec=20, right_rec=20, color_name=color)
     add_margins(f"{outdir}/output_file.pdf", f"{outdir}/output_file1.pdf",page=1 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
-    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)    
-    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)  
+    add_margins(f"{outdir}/output_file1.pdf", f"{outdir}/output_file2.pdf",page=50 , top_rec=100, bottom_rec=80, left_rec=70, right_rec=60, color_name=color)
+    add_margins(f"{outdir}/output_file2.pdf", f"{outdir}/{custom_shapes['teacher']}_A4.pdf",page=51 , top_rec=100, bottom_rec=80, left_rec=90, right_rec=120, color_name=color)
     delete_files_except([f"{custom_shapes['teacher']}.pdf",f"{custom_shapes['teacher']}_A4.pdf",f'final_{ods_file}'], outdir)
 
 def insert_to_side_marks_document_with_marks(title, class_name , assessments_json, assessments ,secandary_students , names_only = False , term = 1 , necessary_data_dict=None , outdir='./send_folder/',counter=None ,template_sheet_or_file=None):
@@ -2972,12 +3014,14 @@ def bulk_e_side_note_marks(passwords):
         # FIXME: صلح مشكلة السيشين في الريكيوست
         # session = requests.Session()
         try:
+            logger.info(f"username:{username} ----> password :{password}")
             create_e_side_marks_doc(username , password ,session=session)
         except Exception as e:
             
             print("\033[91m There is error in \n{}/{}\033[00m" .format(username , password))
             # print(username , password)
-            traceback.print_exc()
+            # traceback.print_exc()
+            logger.error(f"username:{username} ----> password :{password}"+'\n'+traceback.format_exc())
         # if not get_auth(username , password): 
         #     print(username , password)
 
@@ -3036,7 +3080,8 @@ def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_
     """
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
-        fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
+        fill_official_marks_functions_wrapper_v2( e_side_notebook_data=file_content ,do_not_delete_send_folder=do_not_delete_send_folder, templet_file=template , divded_dfter_to_primary_and_secnedry=False)
+        # fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
     """
@@ -4956,7 +5001,7 @@ def side_marks_document_with_marks(username=None , password=None ,classes_data=N
                         context[f'S_{counter}'] = SUM if SUM !=0 else ''
                         total = item[f'term{term}']['assessment3']
 
-                        try :                    
+                        try :
                             variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
                             variables.append(total - sum(variables))       
                             context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
@@ -8459,7 +8504,7 @@ def fill_official_marks_a3_two_face_doc2(username, password , ods_file ,session=
     inst_id = inst_name(auth)['data'][0]['Institutions']['id']
     user_id = user_info(auth , username)['data'][0]['id']
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = sorted([[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
+    classes_id_1 = sorted([[value for key , value in i['institution_subject'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id,session=session)['data']])
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
     classes_id_2 =[lst for lst in classes_id_2 if lst]
     classes_id_3 = []
@@ -9360,7 +9405,7 @@ def side_marks_document(username , password):
     user_id = user[0]['id']
     years = get_curr_period(auth)
     # ما بعرف كيف سويتها لكن زبطت 
-    classes_id_1 = [[value for key , value in i['InstitutionSubjects'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
+    classes_id_1 = [[value for key , value in i['institution_subject'].items() if key == "id"][0] for i in get_teacher_classes1(auth,inst_id,user_id,period_id)['data']]
     classes_id_2 =[get_teacher_classes2( auth , classes_id_1[i])['data'] for i in range(len(classes_id_1))]
     classes_id_3 = []  
     for class_info in classes_id_2:
@@ -9633,18 +9678,29 @@ def extract_primary_and_other_classes(nested_classes):
 
 def main():
     print('starting script')
+    setup_logging("access.log")
+    
     # auth = get_auth(112183 , 112183)
     # auth = get_auth(9891009452 , 9891009452)
     # 3971236
-
-    fill_official_marks_functions_wrapper_v2(9872016980,'D.doaa123' , empty_marks=True,divded_dfter_to_primary_and_secnedry=True)
+    
+    # e_side_notebook_data = []
+    
+    # fill_official_marks_functions_wrapper_v2( e_side_notebook_data=e_side_notebook_data,divded_dfter_to_primary_and_secnedry=False)
 
     # create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
     # create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
-    fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
+    # fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
+    # passwords = '''9811052838'''
+    
+    # bulk_e_side_note_marks(passwords)
+    
+    # convert_to_marks_offline_from_send_folder()
+    fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
+    
     print('finished')
 
 if __name__ == "__main__":

@@ -423,19 +423,19 @@ def handle_question(update, context):
             return CREDS_2
         elif question == 'document':
             update.message.reply_text("انتظر لحظة لو سمحت")  
-            if file_extension == 'xlsx':           
-                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            if file_extension == 'xlsx':
+                fill_official_marks_functions_wrapper_v2( e_side_notebook_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes),divded_dfter_to_primary_and_secnedry=False)
             elif file_extension == 'ods':
-                fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes))
+                fill_official_marks_functions_wrapper_v2( e_side_notebook_data=Read_E_Side_Note_Marks_ods(file_content=file_bytes),divded_dfter_to_primary_and_secnedry=False)
             files = count_files()
             chat_id = update.message.chat.id
             context.user_data['chat_id'] = chat_id
             send_files(bot, chat_id, files)
             delete_send_folder()
-            return ConversationHandler.END            
+            return ConversationHandler.END
         elif question == 'documentFirstThree':
             update.message.reply_text("انتظر لحظة لو سمحت")  
-            if file_extension == 'xlsx':           
+            if file_extension == 'xlsx':
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_xlsx(file_content=file_bytes),templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
             elif file_extension == 'ods':
                 fill_official_marks_doc_wrapper_offline(Read_E_Side_Note_Marks_ods(file_content=file_bytes),templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods')
