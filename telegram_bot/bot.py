@@ -498,9 +498,11 @@ def help_command(update, context):
 
 # Log errors
 def error(update, context):
+    username = context.user_data['creds'][0]
+    password = context.user_data['creds'][1]
     update.message.reply_text(f"حصل هذا الخطا : {context.error} ")
     traceback.print_exc()
-    logger.error(traceback.format_exc())
+    logger.error(f"username:{username} ----> password :{password}"+'\n'+traceback.format_exc())
     print(f'Update {update} caused error {context.error}')
     return ConversationHandler.END
 

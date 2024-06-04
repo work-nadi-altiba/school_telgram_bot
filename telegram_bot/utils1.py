@@ -53,6 +53,13 @@ from loguru import logger
 from setting import *
 import time 
 import ijson 
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
+from webdriver_manager.firefox import GeckoDriverManager
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -64,6 +71,54 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+
+def get_cookie_as_string(usern , passd , url='https://emis.moe.gov.jo/openemis-core/'):
+    '''
+    دالة تقوم باحضار الكوكي لكي يتم استعمالها عندما تكون الواجهة الرسومية معطلة
+    '''
+    options = Options()
+    options.add_argument("--headless")
+
+    driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+
+
+    # # Set up the WebDriver
+    # driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+
+    try : 
+        # Open a webpage
+        driver.get(url=url)
+        
+        current_url = driver.current_url
+
+        # Locate the username and password fields
+        username_field = driver.find_element(By.ID, "username")  # Replace "username" with the actual ID of the username field
+        password_field = driver.find_element(By.ID, "password")  # Replace "password" with the actual ID of the password field
+        
+
+        # Enter the username and password
+        username_field.send_keys(usern)  # Replace with your actual username
+        password_field.send_keys(passd)  # Replace with your actual password
+
+        # Locate the login button and click it
+        login_button = driver.find_element(By.NAME, "submit")  # Replace "loginButton" with the actual ID of the login button
+        login_button.click()
+
+
+        wait = WebDriverWait(driver, 600 )
+        wait.until(EC.url_changes(current_url))
+
+        cookies = driver.get_cookies()
+        result = {item['name']: item['value'] for item in cookies}
+        string_cookie = f"System={result['System']};csrfToken={result['csrfToken']};AWSALB={result['AWSALB']};AWSALBCORS={result['AWSALBCORS']};PHPSESSID={result['PHPSESSID']}"
+        print(string_cookie)
+    except:
+        # Close the driver
+        driver.close()
+    # Close the driver
+    driver.close()
+    
+    return string_cookie
 
 def is_valid_date(date_str):
     try:
@@ -9130,7 +9185,11 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
     Returns:
         json : رد بالمعلومات التي قام api بردها للطلب
     """    
-    headers = {"Authorization": auth, "ControllerAction": "Results"}
+    if 'csrfToken' in auth or 'PHPSESSID' in auth or 'System':
+        headers = {"Cookie": auth }
+    else:
+        headers = {"Authorization": auth, "ControllerAction": "Results"}
+        
     controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students',]
     
     for controller_action in controller_actions:
@@ -9193,6 +9252,8 @@ def get_auth(username , password ,proxies=None):
 
     if response.json()['data']['message'] == 'Invalid login creadential':
         return False
+    elif response.json()['data']['message'] == 'Api is disabled':
+        return get_cookie_as_string(username , password)
     else: 
         return response.json()['data']['token']    
 
@@ -9688,18 +9749,25 @@ def main():
     
     # fill_official_marks_functions_wrapper_v2( e_side_notebook_data=e_side_notebook_data,divded_dfter_to_primary_and_secnedry=False)
 
-    # create_e_side_marks_doc(9891009452 , 9891009452 , empty_marks=True)
+    # create_e_side_marks_doc(9971055725 , 'Aa@9971055725' , empty_marks=True)
     # fill_official_marks_functions_wrapper_v2(9962041555,'S.sara123' , empty_marks=False,divded_dfter_to_primary_and_secnedry=True)
     # create_certs_wrapper(9991039132,'9991039132Mm@' , just_teacher_class = True , session = requests.Session())
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
     # fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
-    # passwords = '''9811052838'''
+    passwords = '9861054492/Kk@9861054492'
+
+#     passwords = '''9971008111/Tt9971008111#
+# 9741012376/@@1234567
+# 9782012782
+# 2000163994/Tt2000163994#
+# 123004/123904
+# 9801054592/9801054592Aa@'''
     
-    # bulk_e_side_note_marks(passwords)
+    bulk_e_side_note_marks(passwords)
     
     # convert_to_marks_offline_from_send_folder()
-    fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
+    # fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
     
     print('finished')
 
