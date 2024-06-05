@@ -551,17 +551,24 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=None ,A4_context=None ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None):
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=True ,A4_context=True ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None, default=True):
     
-    if A3_context is None:
-        A3_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703' ,'sheet_47': 'الغلاف الداخلي' ,'sheet_47_plot': 'L37:L61'}
-    else : 
-        A3_context = A3_context
+    if A3_context :
+        if default : 
+            context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703' ,'sheet_47': 'الغلاف الداخلي' ,'sheet_47_plot': 'L37:L61'}
+        else:
+            context = context
+    elif A4_context :
+        if default:
+            context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+        else:
+            context = A4_context
+            
+    if A3_context :
+        paper_type = 'A3'
+    else: 
+        paper_type = 'A4'
 
-    if A4_context is None:
-        A4_context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
-    else : 
-        A4_context = A4_context
     # ods_file = f'{ods_name}{ods_num}.ods'
     
     
@@ -683,15 +690,13 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['mawad_20_1'] = mawad
                 
                 copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
+                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
-                os.rename(f"{outdir}/final_{counter}", f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائيA3.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائيA3.pdf")
+                os.rename(f"{outdir}/final_{counter}", f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.ods")
+                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.pdf")
             
-        
-        
         
         if len(other_classes) > 0 :
             
@@ -726,13 +731,13 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['classes_20_1'] = modified_classes
                 custom_shapes['mawad_20_1'] = mawad
                 
-                copy_ods_file(A3_templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
+                copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
-                os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
+                os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
+                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
     else :
         for counter , section in enumerate(devided_teacher_load_list, start=1 ):
                 modified_classes = []
@@ -764,12 +769,12 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['mawad_20_1'] = mawad
                 
                 copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
+                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
-                os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_A3.pdf")
+                os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
+                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
     
     if not do_not_delete_send_folder :    
         delete_files_except(
@@ -1614,6 +1619,11 @@ def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , me
     Returns:
         any : تعود بقائمة الطلبات غير الناجحة
     """    
+    if 'csrfToken' in headers or 'PHPSESSID' in headers or 'System':
+        value = headers['Authorization']
+        del headers['Authorization']
+        headers["Cookie"] = value
+        
     unsuccessful_requests=[]
     _data=[]
     with tqdm(total=len(_fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
@@ -3110,7 +3120,7 @@ def read_all_xlsx_in_folder(directory_path='./send_folder'):
                 dic_list.append(Read_E_Side_Note_Marks_xlsx(file_path=item_path))
     return dic_list
 
-def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6"):
+def convert_to_marks_offline_from_send_folder(A3_context , A4_context , directory_path='./send_folder',do_not_delete_send_folder=True , template='./templet_files/official_marks_doc_a3_two_face_white_cover.ods' , color ="#8cd6e6" , default_value = True  ):
     """
     Converts data from multiple Excel files in a specified folder to official marks documents.
 
@@ -3135,7 +3145,7 @@ def convert_to_marks_offline_from_send_folder(directory_path='./send_folder',do_
     """
     dic_list = read_all_xlsx_in_folder(directory_path)
     for file_content in dic_list:
-        fill_official_marks_functions_wrapper_v2( e_side_notebook_data=file_content ,do_not_delete_send_folder=do_not_delete_send_folder, templet_file=template , divded_dfter_to_primary_and_secnedry=False)
+        fill_official_marks_functions_wrapper_v2( e_side_notebook_data=file_content ,do_not_delete_send_folder=do_not_delete_send_folder, templet_file=template , divded_dfter_to_primary_and_secnedry=False, default = default_value , A3_context = A3_context , A4_context = A4_context)
         # fill_official_marks_doc_wrapper_offline(file_content , do_not_delete_send_folder=do_not_delete_send_folder , templet_file=template ,color=color)
 
 def fill_student_absent_doc_wrapper(username, password ,template='./templet_files/new_empty_absence_notebook_doc_white_cover.ods' , outdir='./send_folder/' ,teacher_full_name=False , context =None):
@@ -3395,6 +3405,10 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
     Returns:
         any : تعود بقائمة الطلبات غير الناجحة
     """    
+    
+    if 'csrfToken' in headers or 'PHPSESSID' in headers or 'System':
+        value = [i[1] for i in headers if i[0] == 'Authorization'][0]
+        headers.append(('Cookie' , value))
     unsuccessful_requests=[]
     with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
             postfix=["uploaded mark", {"value": 0}]) as t:
@@ -3407,7 +3421,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
                             postdata = body_postdata ,
                             proxies= proxies ,
                             method= method,
-                            # delay=timout_req_delay,
+                            delay=.5,
                             req_delay= timout_req_delay
                             ),start =1):
                     
@@ -9755,21 +9769,25 @@ def main():
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
     # fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
-    passwords = '9861054492/Kk@9861054492'
+    # passwords = '9861054492/Kk@9861054492'
+    passwords = '9981007211/Abd@1998'
+    
+    # passwords = '2000166132/Tch.200016632'
 
-#     passwords = '''9971008111/Tt9971008111#
+    # passwords = '''9971008111/Tt9971008111#
 # 9741012376/@@1234567
 # 9782012782
 # 2000163994/Tt2000163994#
 # 123004/123904
 # 9801054592/9801054592Aa@'''
     
-    bulk_e_side_note_marks(passwords)
+    # bulk_e_side_note_marks(passwords)
+    # fill_student_absent_doc_wrapper(9861054492,'Kk@9861054492')
     
-    # convert_to_marks_offline_from_send_folder()
+    convert_to_marks_offline_from_send_folder(A4_context=True , A3_context = False , template='./templet_files/plus_numbered_a4_official_marks_document.ods')
     # fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
     
-    print('finished')
+    # print('finished')
 
 if __name__ == "__main__":
     main()
