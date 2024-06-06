@@ -560,7 +560,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
             context = context
     elif A4_context :
         if default:
-            context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703'}
+            context = {'4': 'A39:A63','5': 'L39:L63','6': 'A71:A95','7': 'L71:L95','8': 'A103:A127','9': 'L103:L127','10': 'A135:A159','11': 'L135:L159','12': 'A167:A191','13': 'L167:L191','14': 'A199:A223','15': 'L199:L223','16': 'A231:A255','17': 'L231:L255','18': 'A263:A287','19': 'L263:L287','20': 'A295:A319','21': 'L295:L319','22': 'A327:A351','23': 'L327:L351','24': 'A359:A383','25': 'L359:L383','26': 'A391:A415','27': 'L391:L415','28': 'A423:A447','29': 'L423:L447','30': 'A455:A479','31': 'L455:L479','32':  'A487:A511','33':  'L487:L511','34':  'A519:A543','35':  'L519:L543','36':  'A551:A575','37':  'L551:L575','38':  'A583:A607','39':  'L583:L607','40':  'A615:A639','41':  'L615:L639','42':  'A647:A671','43':  'L647:L671','44':  'A679:A703','45':  'L679:L703' ,'46':  'A711:A735' ,'47':  'L711:L735'}
         else:
             context = A4_context
             
@@ -970,6 +970,8 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
                                 sheet_47[f"M{row_idx2}"].set_value(student_info['term2']['assessment2']) 
                                 sheet_47[f"N{row_idx2}"].set_value(student_info['term2']['assessment3'])
                                 sheet_47[f"O{row_idx2}"].set_value(student_info['term2']['assessment4'])
+                            else:
+                                raise ValueError("page is not forty six")                                
                         except:
                             sheet[f"O{int(context[str(page+1)].split(':')[0][1:])-5}"].set_value(sub_name)
                             row_idx2 = counter + int(context[str(page+1)].split(':')[0][1:]) - 1  # compute the row index based on the counter 
@@ -3408,6 +3410,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
     
     if 'csrfToken' in headers or 'PHPSESSID' in headers or 'System':
         value = [i[1] for i in headers if i[0] == 'Authorization'][0]
+        headers = [i for i in headers if i[0] != 'Authorization']
         headers.append(('Cookie' , value))
     unsuccessful_requests=[]
     with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
@@ -9770,7 +9773,8 @@ def main():
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
     # fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
     # passwords = '9861054492/Kk@9861054492'
-    passwords = '9981007211/Abd@1998'
+    
+    passwords = '9971008954/Mo*9971008954'
     
     # passwords = '2000166132/Tch.200016632'
 
@@ -9785,6 +9789,7 @@ def main():
     # fill_student_absent_doc_wrapper(9861054492,'Kk@9861054492')
     
     convert_to_marks_offline_from_send_folder(A4_context=True , A3_context = False , template='./templet_files/plus_numbered_a4_official_marks_document.ods')
+    # convert_to_marks_offline_from_send_folder(A4_context = False , A3_context = True )
     # fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
     
     # print('finished')
