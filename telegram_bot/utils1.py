@@ -71,6 +71,157 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def insert_to_two_terms_side_marks_doc(classes_data , template_sheet_or_file=None):
+    """
+    Insert marks data into the E-side marks document.
+
+    Parameters:
+        title (str): Title of the worksheet.
+        class_name (str): Name of the class.
+        assessments_json (dict): Assessments JSON data.
+        assessments (dict): Assessments data.
+        secondary_students (list): List of secondary students.
+        necessary_data_dict (dict): Necessary data dictionary.
+        counter (int): Counter value.
+        template_sheet_or_file: Template sheet or file.
+    """
+    for class_data in classes_data:
+        # copy the worksheet
+        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
+        marks_and_name = []
+
+        # rename the new worksheet
+        class_name = get_class_short(class_data['class_name'].split('=')[0])
+        subject_name = class_data['class_name'].split('=')[1]
+        sheet_title = subject_name +'-'+ class_name
+        
+        sheet_copy.title = sheet_title
+        sheet_copy.sheet_view.rightToLeft = True
+        sheet_copy.print_title_cols = 'A:R' # the first two cols
+        sheet_copy.print_title_rows = '1:6' # the first row
+        
+        
+        class_ ,section = class_data['class_name'].split('=')[0].split('-')
+        
+        sheet_copy.cell(row=2, column=2).value = class_
+        sheet_copy.cell(row=2, column=7).value = section
+        sheet_copy.cell(row=2, column=14).value = subject_name
+        
+        
+        # Write data to the worksheet and calculate the sum of some columns in each row
+        for row_number, dataFrame in enumerate(class_data['students_data'], start=7):
+            sheet_copy.cell(row=row_number, column=2).value = dataFrame['name']
+            sheet_copy.cell(row=row_number, column=4).value = dataFrame['term1']['assessment1']
+            sheet_copy.cell(row=row_number, column=5).value = dataFrame['term1']['assessment2']
+            sheet_copy.cell(row=row_number, column=6).value = dataFrame['term1']['assessment3']
+            sheet_copy.cell(row=row_number, column=7).value = dataFrame['term1']['assessment4']
+            sheet_copy.cell(row=row_number, column=12).value = dataFrame['term2']['assessment1']
+            sheet_copy.cell(row=row_number, column=13).value = dataFrame['term2']['assessment2']
+            sheet_copy.cell(row=row_number, column=14).value = dataFrame['term2']['assessment3']
+            sheet_copy.cell(row=row_number, column=15).value = dataFrame['term2']['assessment4']
+            # Set the font for the data rows
+            # for cell in sheet_copy[row_number]:
+            #     cell.font = data_font    
+
+def create_two_terms_side_marks_doc(username=None , password=None ,classes_data=None,template='./templet_files/Mark Book H.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None):
+    """
+    The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
+    template and saves it in a specified output directory.
+    
+    :param username: The username is the username of the user who wants to create the document. It is
+    used for authentication purposes
+    :param password: The password is a string that represents the password for the user's account
+    :param template: The template parameter is the path to the Excel file that will be used as a
+    template for creating the document. It should be in the format './templet_files/e_side_marks.xlsx',
+    defaults to ./templet_files/e_side_marks.xlsx (optional)
+    :param outdir: The `outdir` parameter specifies the directory where the generated document will be
+    saved, defaults to ./send_folder (optional)
+    :param session: The `session` parameter is an optional parameter that can be used to pass an
+    existing session object. This can be useful if you want to reuse an existing session for
+    authentication or other purposes. If no session object is provided, a new session will be created
+    """
+    
+    if username is not None and password is not None : 
+        auth = get_auth(username , password )
+        if period_id is None :
+            period_id = get_curr_period(auth,session=session)['data'][0]['id']
+        user = user_info(auth , username,session=session)
+        userInfo = user['data'][0]
+        user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['last_name']} - {str(username)}"  
+        # years = get_curr_period(auth)
+        school_data = inst_name(auth,session=session)['data'][0]
+        inst_id = school_data['Institutions']['id']
+        school_name = school_data['Institutions']['name']
+        school_name_id = f'{school_name}={inst_id}'
+        school_id=inst_id
+
+        baldah = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues',session=session)['data'][0]['address'].split('-')[0]
+        # grades = make_request(auth=auth , url='https://emis.moe.gov.jo/openemis-core/restful/Education.EducationGrades?_limit=0')
+        school_place_data= make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Institution-Institutions.json?_limit=1&id={inst_id}&_contain=InstitutionLands.CustomFieldValues', session=session)['data'][0]
+        indcator_of_private_techers_sector=school_place_data['institution_sector_id']
+        if indcator_of_private_techers_sector == 12 : 
+            area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+            area_chain_list = find_area_chain(school_place_data['area_administrative_id'], area_data).split(' - ')
+            modeeriah_v2=area_chain_list[1]
+            modeeriah=f'التعليم الخاص / {modeeriah_v2}'
+        else:
+            modeeriah = inst_area(auth , session=session)['data'][0]['Areas']['name']
+            modeeriah=f'{modeeriah}'
+        school_year = get_curr_period(auth,session=session)['data']
+        hejri1 = str(hijri_converter.convert.Gregorian(school_year[0]['start_year'], 1, 1).to_hijri().year)
+        hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
+        melady1 = str(school_year[0]['start_year'])
+        melady2 = str(school_year[0]['end_year'])
+        teacher = user['data'][0]['name'].split(' ')[0]+' '+user['data'][0]['name'].split(' ')[-1]
+        
+        assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
+        # ما بعرف كيف سويتها لكن زبطت 
+        classes_id_2 =[lst for lst in get_teacher_classes_v2(auth ,inst_id, user_id, period_id)['data'] if lst]
+        assessments_period_data = []
+        grades_info = get_grade_info(auth,period_id,session=session)
+        
+        teacher_load_marks_data = get_marks_v2(auth , inst_id, period_id, classes_id_2 , grades_info , assessment_periods,session,student_status_ids=student_status_ids, empty_marks=empty_marks)
+    else:
+        student_details = classes_data
+        school_name = student_details['custom_shapes']['school']
+        # modified_classes =student_details['custom_shapes']['classes']
+        teacher = student_details['custom_shapes']['teacher'] 
+        melady2 = student_details['custom_shapes']['melady1']
+        melady1 = student_details['custom_shapes']['melady2']
+        modeeriah = student_details['custom_shapes']['modeeriah']
+        teacher_load_marks_data = student_details['file_data']
+    
+    sofof , mawad = [] , []
+    for students_data_list in teacher_load_marks_data:
+        sofof.append(get_class_short(students_data_list['class_name'].split('=')[0]).replace(' ' , ''))
+        mawad.append(students_data_list['class_name'].split('=')[1])
+    sofof = ','.join(list(set(sofof)))
+    mawad = ','.join(list(set(mawad)))
+    
+    # load the existing workbook
+    existing_wb = load_workbook(template)
+    
+    insert_to_two_terms_side_marks_doc(teacher_load_marks_data , template_sheet_or_file=existing_wb)
+
+    existing_wb.remove(existing_wb['(1)'])
+    existing_wb.remove(existing_wb['(2)'])
+    existing_wb.remove(existing_wb['(3)'])
+    existing_wb.remove(existing_wb['(4)'])
+    existing_wb.remove(existing_wb['(5)'])
+    
+    # Access the new sheet by name
+    info_sheet = existing_wb["غلاف"]
+
+    # Write data to the new sheet
+    info_sheet["b1"] = f' مديرية التربية و التعليم في {modeeriah}'
+    info_sheet["b2"] = school_name
+    info_sheet["b5"] = sofof
+    info_sheet["b7"] = mawad
+    info_sheet["b10"] = teacher
+    info_sheet["b12"] = melady1 +'/'+melady2
+
+    # save the modified workbook
+    existing_wb.save(f'{outdir}/دفتر علامات جانبي -{teacher}.xlsx')
 
 def get_cookie_as_string(usern , passd , url='https://emis.moe.gov.jo/openemis-core/'):
     '''
@@ -853,24 +1004,27 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
         
         title = f'{class_name}={subject_name}={institution_class_id}={subject_id}'.replace('/', '~')
-        if 'عشر' in class_name :
-            id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
-        else:
-            id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json ,empty_marks=empty_marks)
-        
-        classes_data_and_marks.append(
-                                        {
-                                            'title':title ,
-                                            'students_data' :id_name_marks,
-                                            'institution_class_id' :institution_class_id,
-                                            'subject_name' :subject_name,
-                                            'class_name' :class_name,
-                                            'subject_id' :subject_id,
-                                            'institution_subject_id' :institution_subject_id,
-                                            'education_grade_id' :education_grade_id,
-                                            'assessment_id':assessment_id
-                                        }
-                                    )
+        try:
+            if 'عشر' in class_name :
+                id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
+            else:
+                id_name_marks = get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json ,empty_marks=empty_marks)
+            classes_data_and_marks.append(
+                                            {
+                                                'title':title ,
+                                                'students_data' :id_name_marks,
+                                                'institution_class_id' :institution_class_id,
+                                                'subject_name' :subject_name,
+                                                'class_name' :class_name,
+                                                'subject_id' :subject_id,
+                                                'institution_subject_id' :institution_subject_id,
+                                                'education_grade_id' :education_grade_id,
+                                                'assessment_id':assessment_id
+                                            }
+                                        )
+        except:
+            print(title)
+            pass
     return classes_data_and_marks
 
 def fill_official_marks_v2(username=None, password=None , ods_file=None ,students_data_lists=None, context={} ,session=None ):
@@ -1137,14 +1291,14 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
     school_name  = necessary_data_dict['school_name'] 
     
     if 'عشر' in class_name :
-        counter = 0
+        counter2 = 0
         for item in marks_and_name :
-            context[f'name{counter}'] = item['name']
-            counter+=1 
+            context[f'name{counter2}'] = item['name']
+            counter2+=1 
     else:
-        counter = 0
+        counter2 = 0
         for item in marks_and_name :
-            context[f'name{counter}'] = item['name']
+            context[f'name{counter2}'] = item['name']
             if not names_only :
                 assessments = [
                             item[f'term{term}']['assessment1'],
@@ -1152,21 +1306,21 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
                             item[f'term{term}']['assessment3'],
                             item[f'term{term}']['assessment4']
                             ]
-                context[f'A1_{counter}'] = item[f'term{term}']['assessment1']
-                context[f'A2_{counter}'] = item[f'term{term}']['assessment2']
-                context[f'A3_{counter}'] = item[f'term{term}']['assessment3']
-                context[f'A4_{counter}'] = item[f'term{term}']['assessment4']
+                context[f'A1_{counter2}'] = item[f'term{term}']['assessment1']
+                context[f'A2_{counter2}'] = item[f'term{term}']['assessment2']
+                context[f'A3_{counter2}'] = item[f'term{term}']['assessment3']
+                context[f'A4_{counter2}'] = item[f'term{term}']['assessment4']
                 SUM = sum(int(assessment) if assessment != '' else 0 for assessment in assessments)                    
-                context[f'S_{counter}'] = SUM if SUM !=0 else ''
+                context[f'S_{counter2}'] = SUM if SUM !=0 else ''
                 total = item[f'term{term}']['assessment3']
 
                 try :                    
                     variables = [random.randint(3, min(total, 5)) for _ in range(3) if total > 0]
                     variables.append(total - sum(variables))
-                    context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] = variables
+                    context[f'M1_{counter2}'] ,context[f'M2_{counter2}'] ,context[f'M3_{counter2}'] ,context[f'M4_{counter2}'] = variables
                 except : 
-                    context[f'M1_{counter}'] ,context[f'M2_{counter}'] ,context[f'M3_{counter}'] ,context[f'M4_{counter}'] =['']*4
-            counter+=1 
+                    context[f'M1_{counter2}'] ,context[f'M2_{counter2}'] ,context[f'M3_{counter2}'] ,context[f'M4_{counter2}'] =['']*4
+            counter2+=1 
     context['teacher'] = userInfo['first_name']+' '+ userInfo['middle_name'] +' '+ userInfo['last_name']
     context[f'class_name'] = class_name
     context[f'term'] = 'الأول' if term == 1 else 'الثاني'
@@ -1175,11 +1329,11 @@ def insert_to_side_marks_document_with_marks(title, class_name , assessments_jso
     context['y1'] = melady1
     context['y2'] = melady2
     context['sub'] = title.split('=')[1]
-    fill_doc(template_sheet_or_file , context , outdir+f'send{counter}.docx' )
+    fill_doc(template_sheet_or_file , context , outdir+f'send{counter2}.docx' )
     context.clear()
-    generate_pdf(outdir+f'send{counter}.docx' , outdir ,counter)
-    delete_pdf_page(outdir+f'send{counter}.pdf', outdir+f'SEND{counter}.pdf', 1)
-    delete_file(outdir+f'send{counter}.pdf')
+    generate_pdf(outdir+f'send{counter2}.docx' , outdir ,counter2)
+    delete_pdf_page(outdir+f'send{counter2}.pdf', outdir+f'SEND{counter2}.pdf', 1)
+    delete_file(outdir+f'send{counter2}.pdf')
 
 def get_marks_and_names_dictionary_list(class_name , assessment_periods ,assessments_json,empty_marks=False):
     """
@@ -8797,7 +8951,7 @@ def get_class_short(string):
     the school grade or level based on the provided mappings in the dictionary 'y'. The modified string
     is in the format 'grade - class_num'.
     """
-    y = {'روضة - 1': 'ر1', 'روضة - 2': 'ر2', 'الصف الأول': '1', 'الصف الثاني': '2', 'الصف الثالث': '3', 'الصف السابع': '7', 'الصف الثامن': '8', 'الصف التاسع': '9', 'الصف الرابع': '4', 'الصف الخامس': '5', 'الصف السادس': '6', 'الصف العاشر': '10', 'الصف الحادي عشر العلمي': '11', 'الصف الثاني عشر العلمي': '12 علمي', 'الصف الحادي عشر الأدبي': '11 ادبي', 'الصف الثاني عشر الأدبي': '12 ادبي', 'الصف الحادي عشر الشرعي': '11 شرغي', 'الصف الثاني عشر الشرعي': '12 شرعي', 'الصف الحادي عشر الصحي': '11 صحي', 'الصف الثاني عشر الصحي': '12 صحي', 'الصف الحادي عشر - إدارة معلوماتية': '11 ادارة', 'الصف الثاني عشر - إدارة معلوماتية': '12 ادارة', 'الصف الحادي عشر - اقتصاد منزلي': '11 اقتصاد', 'الصف الثاني عشر - اقتصاد منزلي': '12 اقتصاد', 'الصف الحادي عشر- فندقي': '11 فندقي', 'الصف الثاني عشر - فندقي': '12 فندقي', 'الصف الحادي عشر - صناعي': '11 صناعي', 'الصف الثاني عشر - صناعي': '12 صناعي', 'الصف الحادي عشر - زراعي': '11 زراعي', 'الصف الثاني عشر - زراعي': '12 زراعي'}
+    y = {'روضة - 1': 'ر1', 'روضة - 2': 'ر2', 'الصف الأول': '1', 'الصف الثاني': '2', 'الصف الثالث': '3', 'الصف السابع': '7', 'الصف الثامن': '8', 'الصف التاسع': '9', 'الصف الرابع': '4', 'الصف الخامس': '5', 'الصف السادس': '6', 'الصف العاشر': '10', 'الصف الحادي عشر العلمي': '11', 'الصف الثاني عشر العلمي': '12 علمي', 'الصف الحادي عشر الأدبي': '11 ادبي', 'الصف الثاني عشر الأدبي': '12 ادبي', 'الصف الحادي عشر الشرعي': '11 شرغي', 'الصف الثاني عشر الشرعي': '12 شرعي', 'الصف الحادي عشر الصحي': '11 صحي', 'الصف الثاني عشر الصحي': '12 صحي', 'الصف الحادي عشر - إدارة معلوماتية': '11 ادارة', 'الصف الثاني عشر - إدارة معلوماتية': '12 ادارة', 'الصف الحادي عشر - اقتصاد منزلي': '11 اقتصاد', 'الصف الثاني عشر - اقتصاد منزلي': '12 اقتصاد', 'الصف الحادي عشر- فندقي': '11 فندقي', 'الصف الثاني عشر - فندقي': '12 فندقي', 'الصف الحادي عشر - صناعي': '11 صناعي', 'الصف الثاني عشر - صناعي': '12 صناعي', 'الصف الحادي عشر - زراعي': '11 زراعي', 'الصف الثاني عشر - زراعي': '12 زراعي', 'الصف العاشر الأكايمي': '10 اكاديمي'}
 
     search_str ,class_num = string.split('-')[0] ,string.split('-')[1]
 
@@ -9772,9 +9926,21 @@ def main():
     # teachers_marks_upload_percentage_wrapper_version_2( auth ,curr_year=13 , inst_id =2600 , student_status_list=[1,2,3,4,5,6,7] , both_terms = True)
     # create_tables_wrapper( username = 9891009452 , password = 9891009452 ,term2= True , curr_year = 13 ,student_status_ids = [6,7,8])
     # fill_student_absent_A4_doc_wrapper(9961005431, 'Aa@9961005431')
+    # passwords = '9961021811/Amj7326830@'
+    
+#     passwords = '''9771043253/Tch.9771043253
+# 9951015628/Tch.9951015628
+# 9871024304/Tch.9871024304
+# 9821040004/Tch.9821040004
+# 201349/Tch.201349
+# 9731036674/Tch.9731036674
+# 9861041210/Tch.9861041210
+# 9781020884/Tch.9781020884'''
+    # passwords = '9991039132/9991039132Mm@'
+    
     # passwords = '9861054492/Kk@9861054492'
     
-    passwords = '9971008954/Mo*9971008954'
+    # passwords = '9971008954/Mo*9971008954'
     
     # passwords = '2000166132/Tch.200016632'
 
@@ -9784,14 +9950,29 @@ def main():
 # 2000163994/Tt2000163994#
 # 123004/123904
 # 9801054592/9801054592Aa@'''
+
+#     passwords = '''9861041210/Ov"33922
+# 9991042462/Aa@102030
+# 9841060508/123456
+# 9851042746/khaled@1985
+# 9811052838
+# 123904/123904'''
+    passwords = '''9862038764/17166'''
+    bulk_e_side_note_marks(passwords)
     
-    # bulk_e_side_note_marks(passwords)
+    # path = './send_folder/انس الجعافرة مدقق نهائي.xlsx'
+    # username , password = '''9971055725/Aa@9971055725'''.split('/') 
+    # upload_marks_optimized(username,password,Read_E_Side_Note_Marks_xlsx(file_path=path))
+    
+    
+    # create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_xlsx(file_path=path))
+    
     # fill_student_absent_doc_wrapper(9861054492,'Kk@9861054492')
     
-    convert_to_marks_offline_from_send_folder(A4_context=True , A3_context = False , template='./templet_files/plus_numbered_a4_official_marks_document.ods')
+    # convert_to_marks_offline_from_send_folder(A4_context=True , A3_context = False , template='./templet_files/plus_numbered_a4_official_marks_document.ods')
     # convert_to_marks_offline_from_send_folder(A4_context = False , A3_context = True )
     # fill_official_marks_wrapper_v2(username=9811052838, password=9811052838)
-    
+    # side_marks_document_with_marks(username= 9971055725 , password='Aa@9971055725')
     # print('finished')
 
 if __name__ == "__main__":
