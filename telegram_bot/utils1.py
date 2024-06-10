@@ -87,7 +87,7 @@ def insert_to_two_terms_side_marks_doc(classes_data , template_sheet_or_file=Non
     """
     for class_data in classes_data:
         # copy the worksheet
-        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file.active)
+        sheet_copy = template_sheet_or_file.copy_worksheet(template_sheet_or_file['(1)'])
         marks_and_name = []
 
         # rename the new worksheet
