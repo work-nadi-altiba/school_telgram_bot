@@ -268,7 +268,7 @@ def upload_marks_bot_version(update, context):
             #     context.user_data['chat_id'] = chat_id
             #     send_files(bot, chat_id, files)
             #     delete_send_folder()
-            
+        
         update.message.reply_text("تمام انتهينا")
         return ConversationHandler.END
 
@@ -387,6 +387,7 @@ def receive_file(update, context ):
 /documentFirstThree طباعة سجل العلامات الرسمي من الملف فقط
 /side_notes_first_term طباعة الكشف الجانبي الفصل الاول
 /side_notes_second_term طباعة الكشف الجانبي الفصل الثاني 
+/two_terms_side_note طباعة كشف علامات فصلين 
 /check_upload التأكد من صحة العلامات و رفعها اذا لم توجد مشكلة
 /marks ادخال العلامات من الملف فقط
 '''
@@ -468,7 +469,19 @@ def handle_question(update, context):
             context.user_data['chat_id'] = chat_id
             send_files(bot, chat_id, files)
             delete_send_folder()
-            return ConversationHandler.END                 
+            return ConversationHandler.END
+        elif question == 'two_terms_side_note':
+            update.message.reply_text("انتظر لحظة لو سمحت")
+            if file_extension == 'xlsx':           
+                create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            elif file_extension == 'ods':
+                create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+            files = count_files()
+            chat_id = update.message.chat.id
+            context.user_data['chat_id'] = chat_id
+            send_files(bot, chat_id, files)
+            delete_send_folder()
+            return ConversationHandler.END
         elif question == 'check_upload':
             update.message.reply_text("اعطيني اسم المستخدم و كلمة السر من فضلك ؟ \n مثلا 9981058924/123456") 
             return CREDS_2
