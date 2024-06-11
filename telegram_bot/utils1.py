@@ -996,15 +996,16 @@ def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,
         # education grade id
         education_grade_id = classes_id_3[v][0]['education_grade_id']
         
-        # assessment id 
-        assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
-        
-        # print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
-        
-        assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
-        
         title = f'{class_name}={subject_name}={institution_class_id}={subject_id}'.replace('/', '~')
+        
         try:
+            # assessment id 
+            assessment_id = offline_get_assessment_id_from_grade_id(education_grade_id ,grades_info)
+            
+            # print( institution_class_id ,subject_name,class_name,subject_id , institution_subject_id ,sep='\n')
+            
+            assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionSubjectStudents.json?_finder=StudentResults[institution_id:{inst_id};institution_class_id:{institution_class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{institution_subject_id};education_grade_id:{education_grade_id}]&_limit=0&_contain=EducationSubjects',session=session)
+        
             if 'عشر' in class_name :
                 id_name_marks = get_secondery_students(auth,institution_class_id,inst_id=inst_id , curr_year=period_id ,student_status_ids=student_status_ids,session=session)
             else:
@@ -9356,7 +9357,7 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
     Returns:
         json : رد بالمعلومات التي قام api بردها للطلب
     """    
-    if 'csrfToken' in auth or 'PHPSESSID' in auth or 'System':
+    if 'csrfToken' in auth or 'PHPSESSID' in auth or 'System' in auth:
         headers = {"Cookie": auth }
     else:
         headers = {"Authorization": auth, "ControllerAction": "Results"}
@@ -9956,12 +9957,18 @@ def main():
 # 9841060508/123456
 # 9851042746/khaled@1985
 # 9811052838
-# 123904/123904'''
-    passwords = '''9862038764/17166'''
+# 123904/123904
+# 9841060508/123456'''
+    # passwords = '''9862038764/17166'''
+    
+#     passwords = '''9971055725/Aa@9971055725
+# 9771038731/Mm@9771038731'''
+    passwords = '''2000295750/Abd20002*'''
     bulk_e_side_note_marks(passwords)
     
     # path = './send_folder/انس الجعافرة مدقق نهائي.xlsx'
-    # username , password = '''9971055725/Aa@9971055725'''.split('/') 
+    path ='./send_folder/محمد اسماعيل الطراونة - 9771038731.xlsx'
+    # username , password = '''9971055725/Aa@9971055725'''.split('/')
     # upload_marks_optimized(username,password,Read_E_Side_Note_Marks_xlsx(file_path=path))
     
     
