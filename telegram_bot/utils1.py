@@ -3563,7 +3563,7 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
         any : تعود بقائمة الطلبات غير الناجحة
     """    
     
-    if 'csrfToken' in headers or 'PHPSESSID' in headers or 'System':
+    if 'csrfToken' in headers or 'PHPSESSID' in headers or 'System' in headers:
         value = [i[1] for i in headers if i[0] == 'Authorization'][0]
         headers = [i for i in headers if i[0] != 'Authorization']
         headers.append(('Cookie' , value))
