@@ -71,6 +71,615 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+class TeacherForms:
+    def __init__(self, 
+                Name:list[str]='',
+                MinistaryNumber:int='' ,
+                InterrogateBody:str='' ,
+                TeacherType:str='' ,
+                TeacherRole:str='' ,
+                SchoolName:str='' ,
+                SchoolNationalNumber:str='' ,
+                Directorate:str='' ,
+                Principle:str='' ,
+                NationalNumber:str='' ,
+                Title:str='' , 
+                Date='' ,
+                DateHijry='' ,
+                DateMelady='' ,
+                Hospital:str='',
+                Age:int='',
+                BookNumber:int='',
+                BookDate='',
+                MobasharaDate="",
+                MobasharaCause:str='',
+                MobasharaJob:str='',     
+                TemplatePath:str='' ,
+                Date1:str='',
+                Date2:str='',
+                Reason:str='',
+                EmploymentDate:str='',
+                Period:str='' ,
+                TeacherPhone:str='' ,
+                Years:str='' ,
+                Qualification:str='' ,
+                Specialization:str='' ,
+                Level:str='',
+                Address:str='',
+                Gender:int=1,
+                Subject:str='' ,
+                Body:str='' ,
+                PrincipleGender:int=1,
+                Day1:str='',
+                Day2:str='',
+                Date3:str='',
+                BankBill:int='',
+                LawParagraph:str='',
+                Relevance:str='',
+                Days:str='',
+                Penalty:str='',
+                output:str='./send_folder/'
+                ):
+        self.Name = ' '.join(Name)
+        self.MinistaryNumber = MinistaryNumber
+        self.interogate_body = InterrogateBody
+        self.TeacherType = TeacherType 
+        self.TeacherRole = TeacherRole 
+        self.SchoolName = SchoolName 
+        self.SchoolNationalNumber = SchoolNationalNumber
+        self.Directorate = Directorate 
+        self.Principle = Principle
+        self.Hospital = Hospital
+        self.age = Age
+        self.BookNumber = BookNumber
+        self.BookDate = BookDate
+        self.MobasharaDate = MobasharaDate
+        self.MobasharaCause = MobasharaCause
+        self.MobasharaJob = MobasharaJob
+        self.Date1 = Date1
+        self.Date2 = Date2
+        self.Reason = Reason
+        self.Period = Period
+        self.TeacherPhone = TeacherPhone
+        self.Years = Years
+        self.Qualification = Qualification
+        self.Specialization = Specialization
+        self.EmploymentDate = EmploymentDate
+        self.Level = Level
+        self.Address = Address
+        self.Gender = Gender
+        self.Subject = Subject
+        self.Body = Body
+        self.PrincipleGender = PrincipleGender
+        self.Day1=Day1
+        self.Day2=Day2
+        self.Date3=Date3
+        self.BankBill=BankBill
+        self.LawParagraph=LawParagraph
+        self.Relevance=Relevance
+        self.Days = Days
+        self.Penalty = Penalty
+        if not len(Date):
+            current_date = date.today().strftime('%Y/%m/%d')
+            self.Date ,self.DateMelady =  current_date , current_date
+            self.DateHijry= Hijri.today().dmyformat()
+        else:
+            self.Date = Date
+            self.DateHijry= DateHijry ,
+            self.DateMelady= DateMelady ,
+        self.NationalNumber = NationalNumber
+        self.Title = Title
+        self.output = output
+        self.TemplatePath = TemplatePath
+
+    def fill_word_document(self,FileName):
+        if self.Gender==1:
+            clearance = 'بريء'
+        else:
+            clearance = 'بريئة'
+        
+        if self.PrincipleGender==1:
+            PrincipleGender = ''
+        else:
+            PrincipleGender = 'ة'            
+        context = {
+            'الاسم':self.Name,
+            'اسم':self.Name,
+            'رقم_وزاري':self.MinistaryNumber ,
+            'وزاري':self.MinistaryNumber ,
+            'الاستفسار':self.interogate_body ,
+            'الفئه':self.TeacherType ,
+            'وظيفة':self.TeacherRole ,
+            'مدرسة':self.SchoolName ,
+            'رقم_وطني' : self.SchoolNationalNumber,
+            'مديرية':self.Directorate ,
+            'مدير':self.Principle ,
+            'تاريخ':self.Date ,
+            'رقم_وطني_للمعلم':self.NationalNumber ,
+            'وطني':self.NationalNumber ,
+            'هجري':self.DateHijry,
+            'ميلادي':self.DateMelady,
+            'nat1' : self.NationalNumber[0],
+            'nat2' : self.NationalNumber[1],
+            'nat3' : self.NationalNumber[2],
+            'nat4' : self.NationalNumber[3],
+            'nat5' : self.NationalNumber[4],
+            'nat6' : self.NationalNumber[5],
+            'nat7' : self.NationalNumber[6],
+            'nat8' : self.NationalNumber[7],
+            'nat9' : self.NationalNumber[8],
+            'nat10' : self.NationalNumber[9],
+            'مركز': self.Hospital ,
+            'رقم_الكتاب':self.BookNumber,
+            'تاريخ1':self.BookDate,
+            'تاريخ2':self.MobasharaDate,
+            'مدة':self.Period ,
+            'تعيين':self.EmploymentDate,
+            'هاتف':self.TeacherPhone ,
+            'سنوات':self.Years ,
+            'مؤهل1':self.Qualification ,
+            'تخصص1':self.Specialization ,
+            'تاريخ1':self.Date1,
+            'تاريخ2':self.Date2,
+            'سبب':self.Reason,
+            'مسمى':self.Title ,
+            'درجة':self.Level,
+            'عنوان':self.Address,
+            'بريء':clearance,
+            'موضوع':self.Subject,
+            'نص':self.Body,
+            
+            'ة':PrincipleGender,
+            'مة':PrincipleGender,
+            'مؤهل':self.Qualification ,
+            'تخصص':self.Specialization ,
+            'يوم1':self.Day1,
+            'يوم2':self.Day2,
+            
+            'تاريخ2':self.Date2,
+            'إيصال_البنك':self.BankBill,
+            'فئة':self.TeacherType ,
+            
+            'فقرة':self.LawParagraph,
+            'قرابة':self.Relevance,
+            'ايام':self.Days,
+            
+            'عقوبة':self.Penalty,
+        }
+        fill_doc(self.TemplatePath , context , self.output+FileName+'.docx')
+    
+    def Interrogation(self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Estegwab.docx'
+        self.fill_word_document( 'استجواب')
+    def MedicalForm80 (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/form80.docx'
+        self.fill_word_document( 'نموذج طبي-معلم')
+    def WorkResumption (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/mobashrat amal.docx.docx'
+        self.fill_word_document( 'مباشرة عمل')
+    def WorkClearance (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Enfekak.docx'
+        self.fill_word_document( 'انفكاك')
+    def UnpaidLeaveRequest (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/talab ejazah bedoon rateb.docx'
+        self.fill_word_document( 'اجازة بدون راتب')
+    def ClearanceCertificate (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/braat demah.docx'
+        self.fill_word_document( 'براءة ذمة')
+    def CoverLetterTemplate (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/cover book.docx'
+        self.fill_word_document( 'كتاب تغطية')
+    def SubTeachingClaim (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/motalabat edafi.docx'
+        self.fill_word_document( 'مطالبة اضافي')
+    def TeacherVerification (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/teacher ethbat.docx'
+        self.fill_word_document( 'اثبات معلم')        
+    def CasualLeave (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Ejazah aradeiah.docx'
+        self.fill_word_document('اجازة عرضية')
+    def UnpaidLeave (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Ejazah bedoon rateb.docx'
+        self.fill_word_document('اجازة بدون راتب')
+    def Casual_BereavementLeave (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Ejazah wafah.docx'
+        self.fill_word_document('اجازة وفاة')
+    def BreastfeedingHour (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/saat redaah.docx'
+        self.fill_word_document('ساعة رضاعة')
+    def AnnualLeaveRequest (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/talab ejazah sanawiah.docx'
+        self.fill_word_document('اجازة سنوية')
+    def PaternityLeave (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Ejazet Ebowah.docx'
+        self.fill_word_document('اجازة ابوه')
+    def SickLeave (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/Ejazah maradiah.docx'
+        self.fill_word_document('اجازة مرضية')
+    def LeaveRequest (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/moqadarah.docx'
+        self.fill_word_document('نموذج مغادرة')
+    def Warning_Penalty (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/endar tanbeeh.docx'
+        self.fill_word_document('انذار او تنبيه')
+    def Non_paymentNotice (self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/adam saref.docx'
+        self.fill_word_document('عدم صرف')
+
+class StudentForms:
+    def __init__(self, 
+                Name:list[str]='',
+                NationalNumber:str='' ,
+                SchoolNat3='' ,
+                SchoolNat2='' ,
+                SchoolNat1='' ,
+                Directory1='' ,
+                Directory2='' ,
+                School1:str='' ,
+                School2:str='' ,
+                Nationality:str='' ,
+                BirthPlace:str='' ,
+                relegion:str='' ,
+                StudentGender:int='',
+                BirthDate='' ,
+                Work:str='' ,
+                Address:str='' ,
+                PhoneNumber='' ,
+                Grade:str='' ,
+                ClassName:str='' ,
+                Year='' ,
+                Absent='' ,
+                ValidAbsence ='' ,
+                NotValidAbsence='' ,
+                Principle='' ,
+                Date='' ,
+                DateHijry='' ,
+                DateMelady='' ,
+                Behave:str='',
+                Semester:str='',
+                Hospital:str='',
+                Age:str='',
+                TemplatePath:str='' ,
+                output:str='./send_folder/'
+                ):
+        self.Name = ' '.join(Name)
+        self.NameList = Name
+        self.SchoolNat3 = SchoolNat3
+        self.SchoolNat2 = SchoolNat2
+        self.SchoolNat1 = SchoolNat1
+        self.Directory1 = Directory1
+        self.Directory2 = Directory2
+        self.School1 = School1
+        self.School2 = School2
+        self.StudentGender = StudentGender
+        self.Nationality = Nationality
+        self.BirthPlace = BirthPlace
+        self.BirthDate = BirthDate
+        self.relegion = relegion
+        self.Work = Work
+        self.Address = Address
+        self.PhoneNumber = PhoneNumber
+        self.Grade = Grade
+        self.ClassName = ClassName
+        self.Year = Year
+        self.Absent = Absent
+        self.ValidAbsence  = ValidAbsence 
+        self.NotValidAbsence = NotValidAbsence
+        self.Principle = Principle
+        self.Hospital=Hospital
+        self.Age = Age
+        if not len(Date):
+            current_date = date.today().strftime('%Y/%m/%d')
+            self.Date ,self.DateMelady =  current_date , current_date
+            self.DateHijry= Hijri.today().dmyformat()
+        else:
+            self.Date = Date
+            self.DateHijry= DateHijry ,
+            self.DateMelady= DateMelady ,
+        if len(str(NationalNumber)) == 0:
+            self.NationalNumber = ['']*10
+        else:
+            self.NationalNumber = str(NationalNumber)
+        self.Behave = Behave
+        self.Semester=Semester
+        self.output = output
+        self.TemplatePath = TemplatePath
+
+    def fill_word_document(self,FileName):
+        if self.StudentGender==1:
+            gender1 , gender2 ,gender3,gender4,gender5 ,gender6= '' , '', '', '' ,'ين' , 'طلبة'
+        else:
+            gender1 , gender2 ,gender3 ,gender4 ,gender5 , gender6= 'ة' , 'ت' , 'ا', "ى","ات" ,'طالبات'
+        
+        context = {
+            'الاسم':self.Name,
+            "و3": self.SchoolNat3,
+            "و2": self.SchoolNat2,
+            "و1": self.SchoolNat1,
+            "هجري": self.DateHijry,
+            "ميلادي": self.DateMelady,
+            "مديرية": self.Directory1,
+            "مديرية2": self.Directory2,
+            "مدرسة": self.School1,
+            "مدرسة2": self.School2,
+            "ة": gender1,
+            "اسم": self.NameList[0],
+            "اب": self.NameList[1],
+            "جد": self.NameList[2],
+            "عائلة": self.NameList[3],
+            "جنسية": self.Nationality,
+            "مكان_الولادة": self.BirthPlace,
+            "تاريخ_الولادة": self.BirthDate,
+            "ديانة": self.relegion,
+            "عمل": self.Work,
+            "عنوان": self.Address,
+            "هاتف": self.PhoneNumber,
+            "صف": self.Grade,
+            "شعبة": self.ClassName,
+            "سنة": self.Year,
+            "ت": gender2,
+            "ا": gender3,
+            'ى' :gender4,
+            'ين' :gender5,
+            'طلبة':gender6,
+            "غياب":self.Absent,
+            "م": self.ValidAbsence ,
+            "غم": self.NotValidAbsence,
+            "مدير": self.Principle,
+            "فصل":self.Semester,
+            "سلوك": self.Behave,
+            "مركز": self.Hospital,
+            "تاريخ": self.Date,
+            "عمر": self.Age,
+            "وزاري": '',
+            "وظيفة": 'طالب',
+            "nat1": self.NationalNumber[9],
+            "nat2": self.NationalNumber[8],
+            "nat3": self.NationalNumber[7],
+            "nat4": self.NationalNumber[6],
+            "nat5": self.NationalNumber[5],
+            "nat6": self.NationalNumber[4],
+            "nat7": self.NationalNumber[3],
+            "nat8": self.NationalNumber[2],
+            "nat9": self.NationalNumber[1],
+            "nat10": self.NationalNumber[0],
+        }
+        fill_doc(self.TemplatePath , context , self.output+FileName+'.docx')
+        
+    def StudentTransferCertificate(self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/trans lic.docx'
+        self.fill_word_document( 'شهادة انتقال طالب')
+    def OpenTransferredStudentsRecord(self):
+        pass
+    def ClassTransferCertificates(self):
+        pass
+    def AdmissionForm(self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/st receve.docx'
+        self.fill_word_document('نموذج اثبات طالب')
+    def CurrentStudentVerification(self):
+        if not len(self.TemplatePath)  :
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/current st ethbat.docx'
+        self.fill_word_document('اثبات طالب حالي')
+    def BehaviorCertificate(self):
+        if not len(self.TemplatePath)  :
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/solooc lic.docx'
+        self.fill_word_document('شهادة سلوك')
+    def SecondarySchoolYearCertificate(self):
+        if not len(self.TemplatePath)  :
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/thanawi y2.docx'
+        self.Semester = 2
+        self.fill_word_document('شهادة ثانوي سنة')
+    def FormerStudentVerification(self):
+        pass
+    def FirstYearSecondarySchoolCertificate(self):
+        if not len(self.TemplatePath)  :
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Sforms/thanawi y1.docx'
+        self.Semester = 1
+        self.fill_word_document('شهادة ثانوي سنة اولى')
+    def PrimarySchoolCertificate(self):
+        pass
+    def MedicalForm(self):
+        if not len(self.TemplatePath)  : 
+            self.TemplatePath = './templet_files/plusForms23-24 updated_version/Tforms/form80-2.docx'
+        self.fill_word_document( 'نموذج طبي-طالب')        
+
+class PrivateSchoolForms:
+    def MonthlyDammanList (self):
+        pass
+    def SchoolFormations (self):
+        pass
+    def AppointmentofJordanianTeachers (self):
+        pass
+    def AppointmentofJordanianKindergartenTeachers (self):
+        pass
+    def FirstGradeStudentLists (self):
+        pass
+    def AnnualGuaranteeList (self):
+        pass
+    def KindergartenFormations (self):
+        pass
+    def AppointmentofNon_JordanianTeachers (self):
+        pass
+    def AppointmentofNon_JordanianKindergartenTeachers (self):
+        pass
+
+def process_staff_info(staff_info_data, identity_types, nationality_data , area_data):
+        """
+        The function "process_students_info" takes in four parameters and does some processing on student
+        information data.
+        
+        :param students_info_data: This parameter is a list of dictionaries containing information about
+        students. Each dictionary represents a student and contains keys such as "name", "age",
+        "identity_type", "identity_number", "nationality", and "area"
+        :param identity_types: A list of different types of identities that a student can have, such as
+        "student ID", "passport number", etc
+        :param nationality_data: The nationality_data parameter is a data structure that contains
+        information about different nationalities. It could be a dictionary, list, or any other data
+        structure that allows you to store and retrieve information about nationalities
+        :param area_data: The area_data parameter is a dictionary that contains information about different
+        areas or regions. It could include details such as the area name, population, location, and any
+        other relevant information about each area
+        """
+        dic_list=[]
+        gender = {1:'ذكر' , 2:'انثى'}
+        options_values_dic ={1: 'خاصة',2: 'اخرى',0: 'لا',31: 'أعزب',32: 'متزوج',33: 'مطلق',34: 'أرمل',3: 'الدرجة الأولى',
+                                4: 'الدرجة التاسعة',5: 'الدرجة الثالثة',6: 'الدرجة الثامنة',7: 'الدرجة الثانية',8: 'الدرجة الخامسة',9: 'الدرجة الرابعة',
+                                10: 'الدرجة السابعة',11: 'الدرجة السادسة',16: '',17: 'غير متفرغ',18: 'متفرغ',19: 'اجازة مرضية',20: 'إجازة أمومة',22: 'اجازة دون راتب و علاوات',
+                                23: 'تقاعد',24: 'تكليف',25: 'على رأس عمله',26: 'متفرغ',27: 'مجاز',28: 'الاسلام',29: 'المسيحية',30: 'اخرى',35: 'معلم مساعد',36: 'اداري تربوي مساعد',
+                                37: 'معلم',38: 'مساند تربوي',39: 'معلم اول',50: 'اداري تربوي اول',51: 'معلم خبير',52: 'اداري تربوي خبير',53: 'معلم قائد',54: 'اداري تربوي قائد'}
+        variables = {'الحالة الاجتماعية' : 14,'اسم الأم' : 2,'عدد الاولاد' : 4,'الرقم الوزاري' : 16,'رقم التأمين الصحي' : 15,
+                        'الدرجة الوظيفية' : 5,'الوضع الوظيفي' : 6,'الوضع الحالي' : 7,'عدد سنوات الانقطاع' : 8,'عدد سنوات الخبرة الكلية' : 9,
+                        'عدد سنوات الخبرة في التعليم' : 10,'الراتب' : 11,'الديانة' : 13,'رتبة الموظف (خاص بموظفي وزارة التربية والتعليم)' : 18 }
+        for data_item in staff_info_data:
+                custom_field_values = data_item['custom_field_values'] 
+                custom_field_values_dict = {item['staff_custom_field_id']: str(item[key]) for item in custom_field_values 
+                                                                                                for key in [ 'text_value', 
+                                                                                                        'number_value', 
+                                                                                                        'decimal_value', 
+                                                                                                        'textarea_value', 
+                                                                                                        'date_value', 
+                                                                                                        'time_value'] 
+                                                                                                        if item.get(key) is not None and item.get(key) != '' }
+                result = {var_name: custom_field_values_dict.get(var_id, '') for var_name, var_id in variables.items()}
+                result = {
+                        key: options_values_dic[int(val)] if val.isdigit() 
+                        and int(val) in options_values_dic  
+                                and key not in [
+                                                'عدد الاولاد',
+                                                'الراتب',
+                                                'رقم التأمين الصحي',
+                                                'عدد سنوات الانقطاع',
+                                                'عدد سنوات الخبرة في التعليم',
+                                                'عدد سنوات الخبرة الكلية',
+                                                'الرقم الوزاري'
+                                                ]
+                        else val
+                        for key, val in result.items()
+                }
+                
+                area_chain = find_area_chain(data_item['address_area_id'], area_data).split(' - ')
+                result['student_id'] = data_item['id']
+                result['birthPlace_area'] = '' if data_item['birthplace_area'] is None else data_item['birthplace_area']['name'] 
+                result['identity_type'] =  '' if data_item['identity_type_id'] != 825 else identity_types[data_item['identity_type_id']]
+                result['identity_number'] = '' if len(data_item['identities']) ==0 else [i for i in data_item['identities'] if i['identity_type_id']==825][0]['number']
+                result['full_name'] = '' if data_item['name'] is None else data_item['name'] 
+                result['first_name'] = '' if data_item['first_name'] is None else data_item['first_name'] 
+                result['second_name'] = '' if data_item['middle_name'] is None else data_item['middle_name'] 
+                result['third_name'] = '' if data_item['third_name'] is None else data_item['third_name'] 
+                result['last_name'] = '' if data_item['last_name'] is None else data_item['last_name'] 
+                result['birth_date'] = '' if data_item['date_of_birth'] is None else data_item['date_of_birth'] 
+                result['nationality'] = '' if data_item['nationality_id']  is None else nationality_data[data_item['nationality_id']]  
+                result['sex'] = '' if data_item['gender_id']  is None else gender[data_item['gender_id']]  
+                result['resident_governorate'] = area_chain[0] if len(area_chain) == 1 else ''
+                result['resident_district'] = area_chain[1] if len(area_chain) == 2 else ''
+                result['resident_quarter'] = area_chain[2] if len(area_chain) == 3 else ''    
+                result['address'] = '' if data_item['address'] is None else data_item['address'] 
+                dic_list.append(result)
+        return dic_list
+
+def staff_statistic_info_wrapper(auth,session=None):
+        school_data = inst_name(auth,)['data'][0]
+        inst_id = school_data['Institutions']['id']
+        staff = get_school_teachers(auth,id=inst_id)['staff'] 
+        working_teachers = [teacher for teacher in staff if teacher['staff_status'] == 1]
+        teachers_ids = ','.join([f"id:{i['staffId']}" for i in working_teachers])
+        url ='https://emis.moe.gov.jo/openemis-core/restful/Institution-StaffUser.json?_limit=0&_contain=Contacts,BirthplaceAreas,CustomFieldValues,Identities'
+        teachers_info = make_request(url=f'{url}&_orWhere={teachers_ids}',auth=auth)['data']
+        
+        identity_types = get_IdentityTypes(auth, session=session)
+        area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
+        nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
+        
+        processed_data = process_staff_info(teachers_info , identity_types,nationality_data ,area_data)
+        return processed_data
+
+def cookies_factory(url = 'https://emis.moe.gov.jo/openemis-core/', username = "9971055725", password = "Aa@9971055725", max_cookies=10):
+    options = Options()
+    # options.add_argument("--headless")
+
+    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
+
+    try:
+        # Open a webpage
+        driver.get(url)
+
+        current_url = driver.current_url
+
+        # Locate the username and password fields
+        username_field = driver.find_element(By.ID, "username")  # Replace "username" with the actual ID of the username field
+        password_field = driver.find_element(By.ID, "password")  # Replace "password" with the actual ID of the password field
+
+        # Enter the username and password
+        username_field.send_keys(username)
+        password_field.send_keys(password)
+
+        # Locate the login button and click it
+        login_button = driver.find_element(By.NAME, "submit")  # Replace "submit" with the actual name of the login button
+        login_button.click()
+
+        wait = WebDriverWait(driver, 600)
+        wait.until(EC.url_changes(current_url))
+
+        # List to store all cookies
+        all_cookies = []
+
+        # Wait for a condition (e.g., the presence of a specific element)
+        wait = WebDriverWait(driver, 10)  # You can adjust the timeout as needed
+        previous_cookies = driver.get_cookies()
+        result = {item['name']: item['value'] for item in previous_cookies}
+
+        string_cookie = f"csrfToken={result['csrfToken']}; System={result['System']}; _ga={result['_ga']}; _gid={result['_gid']}; PHPSESSID={result['PHPSESSID']}; AWSALB={result['AWSALB']}; AWSALBCORS={result['AWSALBCORS']}"
+        all_cookies.append(string_cookie)
+        counter = 1
+
+        pbar = tqdm(total=max_cookies, desc="Collecting Cookies")
+
+        while counter < max_cookies:
+            # Get the current cookies
+            current_cookies = driver.get_cookies()
+
+            # Check if the current cookies are different from the previous ones
+            if current_cookies != previous_cookies:
+                result = {item['name']: item['value'] for item in current_cookies}
+                string_cookie = f"csrfToken={result['csrfToken']}; System={result['System']}; _ga={result['_ga']}; _gid={result['_gid']}; PHPSESSID={result['PHPSESSID']}; AWSALB={result['AWSALB']}; AWSALBCORS={result['AWSALBCORS']}"
+                
+                counter += 1
+                all_cookies.append(string_cookie)
+                previous_cookies = current_cookies
+                pbar.update(1)
+
+            time.sleep(0.5)
+
+        pbar.close()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        driver.quit()
+
+    return all_cookies
+
 def remove_and_pass_to_function(password , certs=False , main_marks=False , side_marks=False , term2 = True):
     password = password.replace('  ش','').replace('  ج','').replace('  ر','')
     try : 
@@ -3948,9 +4557,8 @@ def get_year_days_dates(start_date=None , end_date=None , skip_start_date=None ,
 
     return present_days
 
-def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = None , timout_req_delay = 1000000, threshhold=True):
+def wfuzz_function(url, fuzz_list=None,headers=None,body_postdata=None,method='POST',proxies = None , timout_req_delay = 1000000, threshhold=True,iterator=None):
     """دالة استخدمها لارسال طلب بوست بشكل سريع
-
     Args:
         fuzz_list (list): قائمة في بيانات الطلاب المراد ادخالها
         headers (tuple-list): راسيات الطلب او الركويست
@@ -3961,15 +4569,26 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
     Returns:
         any : تعود بقائمة الطلبات غير الناجحة
     """    
+    refresh_cookie= False
     auth_header = [i[1] for i in headers if i[0] == 'Authorization'][0]
-    if 'csrfToken' in auth_header or 'PHPSESSID' in auth_header or 'System' in auth_header:
+    if 'csrfToken' in auth_header or 'PHPSESSID' in auth_header or 'System' in auth_header  or 'FUZ2Z' in auth_header:
         value = [i[1] for i in headers if i[0] == 'Authorization'][0]
         headers = [i for i in headers if i[0] != 'Authorization']
-        headers.append(('Cookie' , value))
+        if "Institution-StudentAttendances" in url or "Institution-StudentAbsencesPeriodDetails" in url:
+            refresh_cookie= True
+            headers.append(('Cookie' , 'FUZ2Z'))
+            iterator='zip'
+            cookies = cookies_factory(max_cookies=len(fuzz_list))
+        else:
+            headers.append(('Cookie' , value))
     unsuccessful_requests=[]
+
     with tqdm(total=len(fuzz_list), bar_format='{postfix[0]} {n_fmt}/{total_fmt}',
             postfix=["uploaded mark", {"value": 0}]) as t:
-            s = wfuzz.get_payloads([fuzz_list])
+            if refresh_cookie:
+                s = wfuzz.get_payloads([fuzz_list , cookies])
+            else:
+                s = wfuzz.get_payloads([fuzz_list])
             for idx , r in enumerate(s.fuzz(
                             url=url ,
                             # hc=[404] , 
@@ -3979,7 +4598,8 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
                             proxies= proxies ,
                             method= method,
                             delay=.5,
-                            req_delay= timout_req_delay
+                            req_delay= timout_req_delay,
+                            iterator=iterator
                             ),start =1):
                     
                 t.postfix[1]["value"] = idx
@@ -3991,7 +4611,11 @@ def wfuzz_function(url, fuzz_list,headers,body_postdata,method='POST',proxies = 
                     # if threshhold and r.history.code in [i for i in range(300 , 600)]:
                         # print(r.history.code ,r.content)                    
                         # time.sleep(30)
-                    unsuccessful_requests.append(r.description)
+                    if refresh_cookie:
+                        unsuccessful_requests.append(r.description.split(' - ')[0])
+                    else:
+                        unsuccessful_requests.append(r.description)
+                    
     return unsuccessful_requests
 
 def upload_marks_optimized(username , password , classess_data , empty = False):
@@ -10396,13 +11020,25 @@ Emad1989/eE@123456
 9842048442/123456'''
 
     passwords = '''9771043526/9771043526#Hh  ج  ر'''
-    passwords = '2000220556/Aa@2000220556'
+    # passwords = '2000220556/Aa@2000220556'
+    passwords =    '9911028865/9911028865@Saqer  ش'
+    
+    passwords ='''9941064556/9941064556  ج  ر
+    9811041885/9811041885  ر'''
+    passwords = '''9811041885/9811041885  ر'''
+    passwords = '99310068300/99310068300@Mm  ر'
+    
+    # create_certs_wrapper('9991014194','Zzaid#079079','2003649469' , term2=True)
+    # create_certs_wrapper('9991014194','Zzaid#079079','8001446318' , term2=True)
+    # create_certs_wrapper('9991014194','Zzaid#079079','8001446321' , term2=True)
+    
     # diverse_bulk_work(passwords)
-    bulk_e_side_note_marks(passwords)
+    # bulk_e_side_note_marks(passwords)
 
     # create_e_side_marks_doc(username , password)
     
-    # convert_to_marks_offline_from_send_folder(A4_context = False , A3_context = True )
+    # create_e_side_marks_doc(9961076839,'Moh@9961076839', empty_marks=True)
+    convert_to_marks_offline_from_send_folder(A4_context = False , A3_context = True )
     playsound()
     print('finished')
 
