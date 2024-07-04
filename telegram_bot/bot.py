@@ -475,7 +475,7 @@ def handle_question(update, context):
             if file_extension == 'xlsx':           
                 create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
             elif file_extension == 'ods':
-                create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_xlsx(file_content=file_bytes))
+                create_two_terms_side_marks_doc(classes_data=Read_E_Side_Note_Marks_ods(file_content=file_bytes))
             files = count_files()
             chat_id = update.message.chat.id
             context.user_data['chat_id'] = chat_id
