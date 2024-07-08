@@ -4941,6 +4941,7 @@ def wfuzz_function(url, fuzz_list=None,headers=None,body_postdata=None,method='P
     Returns:
         any : تعود بقائمة الطلبات غير الناجحة
     """    
+
     refresh_cookie= False
     auth_header = [i[1] for i in headers if i[0] == 'Authorization'][0]
     if 'csrfToken' in auth_header or 'PHPSESSID' in auth_header or 'System' in auth_header  or 'FUZ2Z' in auth_header:
