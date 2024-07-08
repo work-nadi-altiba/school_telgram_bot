@@ -71,6 +71,378 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+
+def is_valid_date(date_str):
+    try:
+        # Attempt to parse the date string
+        datetime.strptime(date_str, '%Y-%m-%d')
+        return True
+    except ValueError:
+        # ValueError will be raised for invalid dates
+        return False
+
+def get_year_weeks(auth , current_period=None , row=True , session=None):
+    if current_period is None :
+        current_period = get_curr_period(auth,session=session)['data'][0]['id']
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/AcademicPeriod-AcademicPeriods.json?_finder=weeksForPeriod[academic_period_id:{current_period}]&_limit=0'
+        
+    if row:
+        return make_request(auth=auth , url=url)
+    else:
+        return make_request(auth=auth , url=url)['data'][0]['weeks']
+
+def get_students_attendance_data(auth , institution_id , class_id ,education_grade_id ,period_id , weeks_data , proxies=None ):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-StudentAttendances.json?_finder=classStudentsWithAbsence[institution_id:{institution_id};institution_class_id:{class_id};education_grade_id:{education_grade_id};academic_period_id:{period_id};attendance_period_id:1;day_id:-1;FUZZ;subject_id:0]&_limit=0'
+    
+    fuzz_list = [f"week_id:{week['id']};week_start_day:{week['start_day']};week_end_day:{week['end_day']}" for week in weeks_data]
+    
+    
+    attendance_data = []
+    headers = [("User-Agent" , "python-requests/2.28.1"),("Accept-Encoding" , "gzip, deflate"),("Accept" , "*/*"),("Connection" , "close"),("Authorization" , f"{auth}"),("ControllerAction" , "StudentAttendances"),("Content-Type" , "application/json")]
+    
+    unsuccessful_requests , _data_list = wfuzz_function_can_return_data(url ,fuzz_list,headers,body_postdata=None,method='GET')
+
+    while len(unsuccessful_requests) != 0:
+        requests  = wfuzz_function_can_return_data(url ,unsuccessful_requests,headers,body_postdata=None,method='GET')
+        unsuccessful_requests = requests[0]
+        _data_list.extend(requests[1])
+    print("All requests were successful!")
+    
+    for i in _data_list:
+        if len(i):
+            try :
+                if len(i['data']):
+                    attendance_data.extend(i['data'])
+            except:
+                pass
+            
+    return attendance_data
+
+def get_date_ranges_from_string(date_range):
+    splitted_date_range = date_range.split(' - ')
+    
+    # Set the locale to Arabic (Egypt)
+    locale.setlocale(locale.LC_ALL, 'en_US.utf8')
+    
+    # Define the start and end dates
+    start_date = datetime.strptime(splitted_date_range[0], '%d/%m/%Y')
+    end_date = datetime.strptime(splitted_date_range[1], '%d/%m/%Y')
+    
+    # Generate the list of dates using a list comprehension
+    date_list = [(start_date + timedelta(days=i)).strftime('%d/%m/%Y = %A') for i in range((end_date - start_date).days + 1)]
+    
+    return date_list
+
+def students_data_to_list(auth , institution_id , class_id , education_grade_id ,period_id , session=None):
+    weeks = get_year_weeks(auth,row=False,session=session)
+    students_attendence_data = get_students_attendance_data(auth , institution_id , class_id , education_grade_id ,period_id , weeks)
+    students_attendence_list = []
+    for date in students_attendence_data:
+        date_range = date['current']
+        attendance_data = date['week_attendance']
+        date_list_with_day_name = get_date_ranges_from_string(date_range)
+        student_attendance_week_data = [
+                                            [
+                                                date['student_id'] ,
+                                                i.split(' = ')[0],
+                                                list(attendance_data[i.split(' = ')[1]].values())[0] 
+                                            ]
+                                                    for i in
+                                                            date_list_with_day_name[:len(attendance_data)]
+                                        ]
+        students_attendence_list.extend(student_attendance_week_data)
+
+    return students_attendence_list
+
+def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdir ,context = None ,absent_data_list = None):
+    """
+    Fill an OpenDocument Spreadsheet (ODS) file with student information and generate corresponding documents.
+
+    Parameters:
+    - student_details (dict): A dictionary containing information about students.
+    - ods_file (str): The path to the input ODS file.
+    - outdir (str): The directory where the generated documents will be saved.
+
+    Returns:
+    None
+
+    This function opens an ODS file, fills it with student details, and then saves the modified file.
+    It generates additional documents with custom shapes based on the provided information.
+    The generated documents include student details, attendance data, and cover information.
+
+    The 'student_details' dictionary should have the following keys:
+    - 'students_info': A list of dictionaries containing individual student information.
+    - 'class_name': The class name.
+    - 'year_code': The academic year code.
+    - 'start_date': The start date of the academic year.
+    - 'school_bridge': The school bridge information.
+    - 'school_name_code': The school name and code.
+    - 'teacher_incharge_name': The name of the teacher in charge.
+
+    The 'ods_file' parameter is the path to the input ODS file that will be modified.
+
+    The 'outdir' parameter specifies the directory where the generated documents will be saved.
+    The generated documents include ODS files and corresponding PDF files.
+
+    Example Usage:
+    fill_student_absent_doc_name_days_cover(student_details, 'input.ods', 'output_directory')
+    """    
+    doc = ezodf.opendoc(ods_file)
+        
+    sheet_name = 'Sheet1'
+    sheet = doc.sheets[sheet_name]
+
+    students_data_lists = student_details['students_info']
+    class_name = student_details['class_name']
+    if context is None :
+        context = {27 : 'Y69=AP123', 2 : 'A69=V123' ,3 : 'Y128=AP182', 26 : 'A128=V182' ,25 : 'Y186=AP240', 4 : 'A186=V240' ,5 : 'Y244=AP298', 24 : 'A244=V298' ,
+                        23 : 'Y302=AP356', 6 : 'A302=V356' ,7 : 'Y360=AP414', 22 : 'A360=V414' ,21 : 'Y418=AP472', 8 : 'A418=V472' ,9 : 'Y476=AP530', 20 : 'A476=V530' ,
+                        19 : 'Y534=AP588', 10 : 'A534=V588' ,11 : 'Y592=AP646', 18 : 'A592=V646' ,17 : 'Y650=AP704', 12 : 'A650=V704' ,13 : 'Y708=AP762', 16 : 'A708=V762' ,
+                        15 : 'Y766=AP820', 14 : 'A766=V820' }
+
+    year1 , year2 = student_details['year_code'].split('-')
+    for i in range(183,820,58):
+        sheet[f"E{i}"].set_value(f'{class_name.replace("الصف" ,"")}')
+        sheet[f"AN{i}"].set_value(f'{year2} / {year1}')
+
+    for counter,student_info in enumerate(students_data_lists, start=0):
+        
+        # row_idx = counter + int(context[str(page)].split(':')[0][1:]) - 1  # compute the row index based on the counter
+        if not context :
+            row_idx = counter + 69
+            row_idx2 = counter + 128
+        else:
+            row_idx = counter + int(context[1].split('=')[0][1:])
+            row_idx2 = counter + int(context[2].split('=')[0][1:])
+            
+        birth_data = student_info['birth_date'].split('-')
+        years, months, days = calculate_age(student_info['birth_date'],student_details['start_date'] )
+        
+        sheet[f"G{row_idx}"].set_value(student_info['first_name'])
+        sheet[f"I{row_idx}"].set_value(student_info['second_name'])
+        sheet[f"K{row_idx}"].set_value(student_info['third_name'])
+        sheet[f"M{row_idx}"].set_value(student_info['last_name'])
+        sheet[f"O{row_idx}"].set_value(int(birth_data[2]))
+        sheet[f"P{row_idx}"].set_value(int(birth_data[1]))
+        sheet[f"Q{row_idx}"].set_value(birth_data[0])
+        sheet[f"S{row_idx}"].set_value(student_info['birthPlace_area'])
+        sheet[f"U{row_idx}"].set_value(student_info['nationality'])
+        sheet[f"Y{row_idx2}"].set_value(student_info['religion'])
+        
+        sheet[f"AA{row_idx2}"].set_value(days)
+        sheet[f"AB{row_idx2}"].set_value(months)
+        sheet[f"AC{row_idx2}"].set_value(years)
+        
+        sheet[f"AH{row_idx2}"].set_value(student_info['guardian_name'])
+        sheet[f"AJ{row_idx2}"].set_value(student_info['guardian_student_relationship'])
+        sheet[f"AL{row_idx2}"].set_value(student_info['guardian_employment'])
+        sheet[f"AN{row_idx2}"].set_value(student_info['guardian_phone_number'])
+        sheet[f"AO{row_idx2}"].set_value(student_info['address'])
+        sheet[f"AP{row_idx2}"].set_value(student_info['student_id'])
+    
+    # this is for months keys on the dictionary , i put the list here as helper
+    if context is None :
+        months_range_pages = ['14-15',  # شهر 1     كانون الثاني
+                            '16-17',    # شهر 2             شباط
+                            '18-19',    # شهر 3             اذار
+                            '20-21',    # شهر 4            نيسان
+                            '22-23',    # شهر 5             ايار
+                            '24-25',    # شهر 6           حزيران
+                            '4-5',     # شهر 8               اب
+                            '6-7',      # شهر 9            ايلول 
+                            '8-9',      # شهر 10       تشرين الاول
+                            '10-11',    # شهر 11     تشرين الثاني
+                            '12-13']    # شهر 12       كانون الاول 
+    else:
+        months_range_pages = ['13-14',  # شهر 1     كانون الثاني
+                            '15-14',    # شهر 2             شباط
+                            '17-16',    # شهر 3             اذار
+                            '19-18',    # شهر 4            نيسان
+                            '21-20',    # شهر 5             ايار
+                            '23-22',    # شهر 6           حزيران
+                            '3-4',      # شهر 8               اب
+                            '5-6',      # شهر 9            ايلول 
+                            '7-8',      # شهر 10       تشرين الاول
+                            '9-10',     # شهر 11     تشرين الثاني
+                            '11-12']    # شهر 12       كانون الاول 
+        
+        
+    # write to a the dictionary 
+    id_with_name_dic = {}
+    for item in student_details['students_info']:
+        id_with_name_dic[item['student_id']] = item['full_name']
+    ides = list(id_with_name_dic.keys())
+    indexed_students_names_dict = {ides.index(i):i for i  in id_with_name_dic }
+    
+    for counter, month_string in enumerate(months_range_pages , start =1):
+        months = month_string.split('-')
+        section_one_row_start , section_one_row_end = int(re.findall(r'\d+',context[int(months[0])].split('=')[0])[0])-2 , int(re.findall(r'\d+',context[int(months[0])].split('=')[1])[0]) 
+        section_two_row_start , section_two_row_end = int(re.findall(r'\d+',context[int(months[1])].split('=')[0])[0])-2 , int(re.findall(r'\d+',context[int(months[1])].split('=')[1])[0])
+        
+        # if month in [26]:
+        #     print('')
+        
+        if counter < 7 :
+            year = int(year2) 
+        elif counter == 7:
+            year = int(year1)
+            counter+=1        
+        else:
+            year = int(year1)
+            counter+=1
+        
+        # first half of the page 
+        for column in range(8,24):
+            day = column-7
+            search_date = f'{year:04d}-{counter:02d}-{day:02d}'
+            search_attendance_date = f'{day:02d}/{counter:02d}/{year:04d}'
+            if is_valid_date(search_date):
+                try :
+                    sheet[section_one_row_start, column-2].set_value( get_day_name_from_date(year , counter , day ) )
+                    
+                    if not (day ==1 and counter ==1) :
+                        if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) : 
+                            
+                            if absent_data_list is not None : 
+                                if 'PRESENT' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]):
+                                    for counter_ , row in enumerate(range(section_one_row_start+1 , section_one_row_end )):
+                                        if counter_ < len(ides) :
+                                            search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
+                                            if len(search_data):
+                                                attendance_value = search_data[0][2]
+                                                if 'PRESENT' in attendance_value:
+                                                    sheet[row, column-2].set_value('/')
+                                                elif 'UNEXCUSED'  in attendance_value:
+                                                    sheet[row, column-2].set_value('غ')
+                                else:
+                                    for row in range(section_one_row_start+1 , section_one_row_end ):
+                                        # FIXME: sheet[row, column].fill = PatternFill(start_color="c0c0c0", fill_type="solid")
+                                        sheet[row, column-2].set_value('▒▒▒')
+                        
+                        else:
+                            if absent_data_list is not None : 
+                                # get the date from the for loop 
+
+                                # get all students with this absent date 
+                                # absent_students_indices
+                                
+                                for counter_ , row in enumerate(range(section_one_row_start+1 , section_one_row_end )):
+                                    if counter_ < len(ides) :
+                                        search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
+                                        if len(search_data):
+                                            attendance_value = search_data[0][2]
+                                            if 'PRESENT' in attendance_value:
+                                                sheet[row, column-2].set_value('/')
+                                            elif 'UNEXCUSED'  in attendance_value:
+                                                sheet[row, column-2].set_value('غ')
+                                # print('')
+                            
+                                
+                except ValueError:
+                    pass
+            # except AttributeError:
+            #     print(section_one_row_start)
+
+        # second half of the page 
+        for column in range(24,40):
+                day = column-23+16
+                search_date = f'{year:04d}-{counter:02d}-{day:02d}'
+                search_attendance_date = f'{day:02d}/{counter:02d}/{year:04d}'
+                if is_valid_date(search_date):
+                    try:
+                        sheet[section_two_row_start, column].set_value( get_day_name_from_date(year , counter , column-7) )
+                        
+                        if not (day ==25 and counter ==2) :
+                            if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) :
+                                
+                                if absent_data_list is not None : 
+                                    if 'PRESENT' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]):
+                                        for counter_2 , row in enumerate(range(section_two_row_start+1 , section_two_row_end )):
+                                            if counter_2 < len(ides) :
+                                                search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
+                                                if len(search_data):
+                                                    attendance_value = search_data[0][2]
+                                                    if 'PRESENT' in attendance_value:
+                                                        sheet[row, column].set_value('/')
+                                                    elif 'UNEXCUSED'  in attendance_value:
+                                                        sheet[row, column].set_value('غ')
+                                    else:
+                                        for row in range(section_two_row_start+1 , section_two_row_end ):
+                                            # FIXME: sheet[row, column].fill = PatternFill(start_color="c0c0c0", fill_type="solid")
+                                            sheet[row, column].set_value('▒▒▒')
+                            else:
+                                if absent_data_list is not None : 
+                                    # get the date from the for loop 
+
+                                    # get all students with this absent date 
+                                    # absent_students_indices
+                                    
+                                    for counter_2 , row in enumerate(range(section_two_row_start+1 , section_two_row_end )):
+                                        # skip the what the counter which is bigger than the ides of the students 
+                                        if counter_2 < len(ides) :
+                                            search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
+                                            if len(search_data):
+                                                attendance_value = search_data[0][2]
+                                                if 'PRESENT' in attendance_value:
+                                                    sheet[row, column].set_value('/')
+                                                elif 'UNEXCUSED'  in attendance_value:
+                                                    sheet[row, column].set_value('غ')
+
+                                    # print('')                    
+                    
+                    except ValueError:
+                        pass
+                # except AttributeError:
+                #     print(section_two_row_start)         
+
+    doc.saveas(outdir+'one_step_more.ods' )
+    
+    modeeriah = student_details['school_bridge'].replace('لواء ' , '')
+    school_name = student_details['school_name_code'].split(' - ')[1].replace('مدرسة ', '')
+    class_name = student_details['class_name'].split('-')[0].replace('الصف' , '')
+    sec = student_details['class_name'].split('-')[1]
+    teacher = student_details['teacher_incharge_name']
+    year1 , year2 = student_details['year_code'].split('-')
+    custom_shapes = {
+        'modeeriah': f'لواء {modeeriah}',
+        'school': school_name,
+        'class': class_name,
+        'sec': sec,
+        'murabee' : teacher,
+        'year' : f'{year1}  /  {year2}'
+    }
+
+    fill_custom_shape(doc= outdir+'one_step_more.ods', sheet_name='الغلاف', custom_shape_values=custom_shapes, outfile= outdir+f'/{class_name}-{sec}.ods')
+    
+    # delete_file(outdir+'one_step_more.ods')
+
+    # # outdir = './send_folder'
+    # filename = f'{class_name}-{sec}.ods'
+    # command = f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} "{outdir}/{filename}"'
+    # os.system(command)
+
+def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , ods_file='./templet_files/plus_st_abs_A4.ods' , context=None , outdir='./send_folder/' ):
+    if context is None :
+        context  = {1: 'A69=V123', 26: 'Y69=AP123',
+                    25: 'A128=V182', 2: 'Y128=AP182', 
+                    3: 'A186=V240', 24: 'Y186=AP240', 
+                    23: 'A244=V298', 4: 'Y244=AP298', 
+                    5: 'A302=V356', 22: 'Y302=AP356', 
+                    21: 'A360=V414', 6: 'Y360=AP414', 
+                    7: 'A418=V472', 20: 'Y418=AP472', 
+                    19: 'A476=V530', 8: 'Y476=AP530', 
+                    9: 'A534=V588', 18: 'Y534=AP588', 
+                    17: 'A592=V646', 10: 'Y592=AP646', 
+                    11: 'A650=V704', 16: 'Y650=AP704', 
+                    15: 'A708=V762', 12: 'Y708=AP762', 
+                    13: 'A766=V820', 14: 'Y766=AP820'}
+    
+    student_details = get_student_statistic_info(username,'password',teacher_full_name=teacher_full_name , auth=auth)
+
+    required_data = get_required_data_to_enter_absent(auth)
+    students_attendence_list = students_data_to_list(auth , institution_id=required_data['institution_id'], class_id=required_data['institution_class_id'] , education_grade_id=required_data['education_grade_id'] , period_id=required_data['academic_period_id'])
+    fill_student_absent_doc_name_days_cover_v2(student_details , ods_file , outdir , context = context ,absent_data_list=students_attendence_list)
+
 class TeacherForms:
     def __init__(self, 
                 Name:list[str]='',
