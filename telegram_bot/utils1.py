@@ -53,6 +53,10 @@ from loguru import logger
 from setting import *
 import time 
 import ijson 
+from docx import Document
+from odf import teletype
+from odsparsator import odsparsator
+from deepdiff import DeepDiff
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -71,6 +75,59 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def sort_values(value):
+    return ' ، '.join(sorted([i.strip() for i in value.split('،')]))
+
+def read_docx(file_path):
+    doc = Document(file_path)
+    return [paragraph.text for paragraph in doc.paragraphs]
+
+def read_xlsx(file_path):
+    workbook = load_workbook(file_path)
+    content = []
+    for sheet in workbook:
+        for row in sheet.iter_rows(values_only=True):
+            row_data = [str(cell) if cell is not None else '' for cell in row]
+            content.append('\t'.join(row_data))
+    return content
+
+def read_ods(file_path):
+    content = odsparsator.ods_to_python(file_path , export_minimal=True)
+    sheet_names = [i['name'] for  i in content['body']]
+    shapes_list = [get_sheet_custom_shapes(file_path, sheet , in_dictionary=True) for sheet in sheet_names]
+    content['custom_shapes'] = [        {
+                                            key: sort_values(value) if 'class' in key or 'mawad' in key else value
+                                            for key, value in dic.items()
+                                        }
+                                        for dic in shapes_list
+                                ]
+    return content
+    # return json.dumps(content, ensure_ascii=False,indent=4)
+
+def compare_files(file1_path, file2_path):
+    file1_ext = os.path.splitext(file1_path)[1]
+    file2_ext = os.path.splitext(file2_path)[1]
+
+    if file1_ext != file2_ext:
+        raise ValueError("Files must be of the same type")
+
+    if file1_ext == '.docx':
+        file1_contents = read_docx(file1_path)
+        file2_contents = read_docx(file2_path)
+    elif file1_ext == '.xlsx':
+        file1_contents = read_xlsx(file1_path)
+        file2_contents = read_xlsx(file2_path)
+    elif file1_ext == '.ods':
+        file1_contents = read_ods(file1_path)
+        file2_contents = read_ods(file2_path)
+        
+    else:
+        raise ValueError("Unsupported file type")
+
+    diff = DeepDiff(file1_contents, file2_contents)
+    return diff
+    # diff = difflib.unified_diff(file1_contents, file2_contents, fromfile='file1', tofile='file2')
+    # return '\n'.join(diff)
 
 def is_valid_date(date_str):
     try:
@@ -2075,8 +2132,7 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=True ,A4_context=True ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None, default=True):
-    
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=True ,A4_context=True ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None, default=True , period_id=None,convert_to_pdf=True):
     if A3_context :
         if default : 
             context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703' ,'sheet_47': 'الغلاف الداخلي' ,'sheet_47_plot': 'L37:L61'}
@@ -2098,7 +2154,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
     
     if (username is not None and password is not None ):
         auth = get_auth(username , password)
-        period_id = get_curr_period(auth , session=session)['data'][0]['id']
+        if period_id is None:
+            period_id = get_curr_period(auth , session=session)['data'][0]['id']
         inst_id = inst_name(auth, session=session)['data'][0]['Institutions']['id']
         user_id = user_info(auth , username, session=session)['data'][0]['id']
         
@@ -2126,13 +2183,14 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         hejri2 =  str(hijri_converter.convert.Gregorian(school_year[0]['end_year'], 1, 1).to_hijri().year)
         melady1 = str(school_year[0]['start_year'])
         melady2 = str(school_year[0]['end_year'])
-        teacher = f"{user['data'][0]['first_name']}  {user['data'][0]['last_name']}"
+        teacher = f"{user['data'][0]['first_name']} {user['data'][0]['last_name']}"
         
         
         classes_id_2 =[lst for lst in get_teacher_classes_v2(auth, inst_id , user_id ,period_id ,session=session)['data'] if lst]
         assessment_periods = make_request(auth =auth,url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentPeriods.json?_limit=0' , session=session)
         grades_info = get_grade_info(auth)
         students_data_lists = get_marks_v2(auth ,inst_id , period_id , classes_id_2 , grades_info ,assessment_periods , session=session , empty_marks=empty_marks)
+        devided_teacher_load_list = divide_teacher_load(students_data_lists)
     else: 
         students_data_lists = e_side_notebook_data
         modeeriah = e_side_notebook_data['custom_shapes']['modeeriah']
@@ -2144,9 +2202,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
         school_name = e_side_notebook_data['custom_shapes']['school']
         teacher = e_side_notebook_data['custom_shapes']['teacher']
         period_id = e_side_notebook_data['custom_shapes']['period_id']
-        
-    devided_teacher_load_list = divide_teacher_load(students_data_lists['file_data'])
-    print('hi')
+        devided_teacher_load_list = divide_teacher_load(students_data_lists['file_data'])
 
     
     custom_shapes = {
@@ -2181,9 +2237,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'period_id': period_id
                     }
     
-    primary_classes,other_classes=extract_primary_and_other_classes(devided_teacher_load_list)
+    primary_classes,other_classes=extract_primary_and_other_classes(devided_teacher_load_list)        
     if divded_dfter_to_primary_and_secnedry : 
-        
         if len(primary_classes) > 0 :
             templet_file='./templet_files/official_marks_document_from_grade_1-3_white_cover.ods'
             for counter , section in enumerate(devided_teacher_load_list, start=1 ):
@@ -2217,9 +2272,10 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
-                os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                if convert_to_pdf:
+                    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                    os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.pdf")
             
         
         if len(other_classes) > 0 :
@@ -2259,9 +2315,10 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
-                os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                if convert_to_pdf:
+                    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                    os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
     else :
         for counter , section in enumerate(devided_teacher_load_list, start=1 ):
                 modified_classes = []
@@ -2296,14 +2353,15 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
-                os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                if convert_to_pdf:
+                    os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
+                    os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
-                os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
     
-    if not do_not_delete_send_folder :    
+    if not do_not_delete_send_folder :
         delete_files_except(
                             [
-                                i for i in os.listdir("./send_folder") 
+                                i for i in os.listdir(outdir) 
                                             if "دفتر _علامات" in i
                             ]
                             , outdir)
@@ -2455,9 +2513,9 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
         # ['الصف السابع', 'أ', 'اللغة الانجليزية', '786118']
         
         if username is None and password is None:        
-            class_data = students_data_list['class_name'].split('=')
-        else: 
             class_data = students_data_list['title'].split('=')[0:2]
+        else: 
+            class_data = students_data_list['class_name'].split('=')
 
         class_name = class_data[0].replace('الصف ' , '').split('-')[0]
         class_char = class_data[0].split('-')[1]
@@ -2553,7 +2611,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
     #     # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
 
     modified_classes = []
-    if (username is not None and password is not None ):
+    if (username is None and password is None ):
         mawad = [i['subject_name'] for i in students_data_lists]
         classes = [i['class_name'] for i in students_data_lists]
     else:
@@ -9919,7 +9977,7 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
         period_id = get_curr_period(auth,session=session)['data'][0]['id']
     user = user_info(auth , username,session=session)
     userInfo = user['data'][0]
-    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['last_name']} - {str(username)}"  
+    user_id , user_name = userInfo['id'] ,f"{userInfo['first_name']} {userInfo['middle_name']} {userInfo['last_name']} - {str(username)}"
     # years = get_curr_period(auth)
     school_data = inst_name(auth,session=session)['data'][0]
     inst_id = school_data['Institutions']['id']
@@ -10668,7 +10726,7 @@ def clear_text_custom_shape(shape):
     while len(shape.childNodes) > 0:
         shape.removeChild(shape.childNodes[0])
 
-def get_sheet_custom_shapes(document , sheet_name):
+def get_sheet_custom_shapes(document , sheet_name , in_dictionary =False):
     """دالة لاحضار اشكال صفحة ملف او دي اس
 
     Args:
@@ -10686,7 +10744,10 @@ def get_sheet_custom_shapes(document , sheet_name):
         if sheet.getAttribute('name') == str(sheet_name) :        
             # Get the text boxes on the sheet
             custom_shapes = sheet.getElementsByType(CustomShape)
-            return [custom_shape.getAttribute("name") for custom_shape in custom_shapes]
+            if in_dictionary:
+                return {custom_shape.getAttribute("name") : teletype.extractText(custom_shape) for custom_shape in custom_shapes}
+            else:
+                return [custom_shape.getAttribute("name") for custom_shape in custom_shapes]
 
 def get_ods_sheets (doc='official_marks_doc_a3_two_face.ods'):
     """دالة مختصرة لكي احضر معلومات الصفحات في ملفات ods =>
@@ -11294,19 +11355,19 @@ def create_excel_sheets_marks(username, password ):
         assessments_json = make_request(auth=auth , url=f'https://emis.moe.gov.jo/openemis-core/restful/Assessment.AssessmentItemResults?academic_period_id={period_id}&education_subject_id=4&institution_classes_id='+ str(classes_id_3[v][0]['institution_class_id'])+ f'&institution_id={inst_id}&_limit=0&_fields=AssessmentGradingOptions.name,AssessmentGradingOptions.min,AssessmentGradingOptions.max,EducationSubjects.name,EducationSubjects.code,AssessmentPeriods.code,AssessmentPeriods.name,AssessmentPeriods.academic_term,marks,assessment_grading_option_id,student_id,assessment_id,education_subject_id,education_grade_id,assessment_period_id,institution_classes_id&_contain=AssessmentPeriods,AssessmentGradingOptions,EducationSubjects')
         insert_students_names_and_marks(assessments_json , students_id_and_names , './templet_files/excel_marks.xlsx' , './send_folder/' + classes_id_3[v][0]['class_name'] + '.xlsx')
 
-def count_files():
+def count_files(path='./send_folder/*'):
     """عد الملفات في مجلد الارسال
 
     Returns:
         list: قائمة بالملفات الموجودة في مجلد الارسال
     """    
-    files = glob.glob('./send_folder/*')
+    files = glob.glob(path)
     return files
 
-def delete_send_folder():
+def delete_send_folder(path = './send_folder/*'):
     """دالة بسيطة لحذف مجلد الارسال في البوت
     """    
-    files = glob.glob('./send_folder/*')
+    files = glob.glob(path)
     for f in files:
         os.remove(f)
 
@@ -11362,12 +11423,15 @@ def extract_primary_and_other_classes(nested_classes):
     """    
     primary_keywords = ['الصف الأول', 'الصف الثاني', 'الصف الثالث']
 
-    primary_classes = [
-        cls for class_list in nested_classes
-        for cls in class_list
-        if any(keyword in cls['class_name'] for keyword in primary_keywords)
-    ]
-
+    try:
+        primary_classes = [
+            cls for class_list in nested_classes
+            for cls in class_list
+            if any(keyword in cls['class_name'] for keyword in primary_keywords)
+        ]
+    except TypeError:
+        primary_classes = [class_list for class_list in nested_classes if any(keyword in class_list['class_name'] for keyword in primary_keywords)]
+        
     other_classes = [
         cls for class_list in nested_classes
         for cls in class_list
