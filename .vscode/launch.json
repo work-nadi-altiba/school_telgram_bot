@@ -31,6 +31,15 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": true,
+    },
+    {
+      "name": "Python: debug module",
+      "type": "python",
+      "request": "launch",
+      "cwd": "${fileDirname}",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
     }
   ]
 }
