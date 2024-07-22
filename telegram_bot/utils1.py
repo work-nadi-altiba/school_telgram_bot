@@ -75,6 +75,119 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def get_grade_name_from_assessment_id(auth , assessment_id):
+    """
+    The function `get_grade_name_from_grade_id` takes in an authentication token and a grade ID and
+    returns the name of the grade.
+    
+    :param auth: An authentication token or object that is used to authenticate the user making the
+    request
+    :param grade_id: The grade_id parameter is the unique identifier for a specific grade
+    """
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
+    my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}')['data']
+    return [d['name'] for d in my_list if d.get('id') == assessment_id][0].replace('الفترات التقويمية ل','ا').strip()
+
+def social_studies_grades_equations():
+    return {
+                "أول": 1,
+                "اول": 1,
+                "ثاني": 1,
+                "ثالث": 1,
+                "رابع": 1,
+                "خامس": 1,
+                "سادس": 1/3,
+                "سابع": 1,
+                "ثامن": 2/3,
+                "تاسع": 2/3,
+                "عاشر": 2/3 , 
+            }
+
+def get_subjects_data(auth , class_id, assessment_id, academic_period_id, institution_id):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
+    return make_request(url=url , auth=auth)['data']
+
+def get_subject_ids_with_names ( subjects_data, skip_subjects=None):
+    if skip_subjects is None:
+        skip_subjects = [
+                    413,    # اللغة الفرنسية
+                    332     # الدين المسيحي
+                    ]
+    
+    subject_ids_with_names = {
+                                int(i['InstitutionSubjects']['education_subject_id']) :i['InstitutionSubjects']['name'] if not len(i['classification']) else  i['classification']  for i in subjects_data
+                                    if not i['weight'] ==0 
+                                    and 
+                                    int(i['InstitutionSubjects']['education_subject_id']) not in skip_subjects
+                            }
+    return subject_ids_with_names
+
+def get_subjects_classifications(subjects_data):
+    classifications_dict = {
+                            int(i['InstitutionSubjects']['education_subject_id']) : i['classification'] for i in subjects_data
+                            if i['classification']
+                        }
+    return classifications_dict
+
+def get_grade_max_assessments_data(auth,assessment_id):
+    url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItemsGradingTypes.json?assessment_id={assessment_id}&_limit=0&_contain=EducationSubjects,AssessmentGradingTypes.GradingOptions'
+    return make_request(url=url , auth=auth)['data']
+
+def get_class_subjects_max_scores(subject_ids_with_names , subjects_assessments , classifications_dict):
+    subjects_max_scores_dict = {}
+    subjects_ids = [int(i) for i in subject_ids_with_names]
+    for id in subjects_ids:
+        subject_max_sum = sum(
+                                [
+                                    i['assessment_grading_type']['max'] for i in subjects_assessments 
+                                        if i['education_subject_id'] == id
+                                        
+                                ]
+                            )
+        subject_name = list(
+                            set(
+                                    [
+                                        i['education_subject']['name'] for i in subjects_assessments 
+                                            if i['education_subject_id'] == id
+                                    ]
+                                )
+                            )[0]
+        try:
+            subject_classify = classifications_dict[id]
+        except:
+            subject_classify = ''
+        subjects_max_scores_dict[id] = {
+                                        'name' : subject_ids_with_names[id],
+                                        'classification' : subject_classify,
+                                        'max_score': subject_max_sum//2
+                                        }
+    return subjects_max_scores_dict
+
+def sum_max_score (auth , class_id, assessment_id, academic_period_id, institution_id ):
+    #FIXME: علي ان اضيف وحدة اختبار للسنوات السابقة و للسنة الحالية بسبب اهمية هذه الدالة
+    social_studies_max = 0
+    average_sum_max = 0
+    subjects_data =get_subjects_data(auth , class_id, assessment_id, academic_period_id, institution_id)
+    subject_ids_with_names = get_subject_ids_with_names ( subjects_data, skip_subjects=None)
+    classifications_dict =get_subjects_classifications(subjects_data)
+    subjects_assessments = get_grade_max_assessments_data(auth,assessment_id)
+    subjects_max_scores_dict =get_class_subjects_max_scores(subject_ids_with_names , subjects_assessments , classifications_dict)
+    grade_name = get_grade_name_from_assessment_id(auth , assessment_id)
+    social_studies_equations = social_studies_grades_equations()
+    social_study_equation = social_studies_equations[[x for x in [i for i in social_studies_equations] if x in grade_name][0]]
+
+    for id in subjects_max_scores_dict:
+        if "جتماعية" in subjects_max_scores_dict[id]['classification']:
+            social_studies_max += subjects_max_scores_dict[id]['max_score']
+        else:
+            average_sum_max += subjects_max_scores_dict[id]['max_score']
+
+    return int((social_studies_max *social_study_equation) +average_sum_max)
+
+def get_academic_periods(auth,id,session=None):
+    url =  f"https://emis.moe.gov.jo/openemis-core/restful/AcademicPeriod-AcademicPeriods?& _fields=id,code,start_date,end_date,start_year,end_year,school_days&id={id}"
+    make_request(auth=auth,url=url,session=session)
+
 def sort_values(value):
     return ' ، '.join(sorted([i.strip() for i in value.split('،')]))
 
@@ -182,11 +295,11 @@ def get_date_ranges_from_string(date_range):
     locale.setlocale(locale.LC_ALL, 'en_US.utf8')
     
     # Define the start and end dates
-    start_date = datetime.strptime(splitted_date_range[0], '%d/%m/%Y')
-    end_date = datetime.strptime(splitted_date_range[1], '%d/%m/%Y')
+    start_date = datetime.datetime.strptime(splitted_date_range[0], '%d/%m/%Y')
+    end_date = datetime.datetime.strptime(splitted_date_range[1], '%d/%m/%Y')
     
     # Generate the list of dates using a list comprehension
-    date_list = [(start_date + timedelta(days=i)).strftime('%d/%m/%Y = %A') for i in range((end_date - start_date).days + 1)]
+    date_list = [(start_date + datetime.timedelta(days=i)).strftime('%d/%m/%Y = %A') for i in range((end_date - start_date).days + 1)]
     
     return date_list
 
@@ -195,20 +308,22 @@ def students_data_to_list(auth , institution_id , class_id , education_grade_id 
     students_attendence_data = get_students_attendance_data(auth , institution_id , class_id , education_grade_id ,period_id , weeks)
     students_attendence_list = []
     for date in students_attendence_data:
-        date_range = date['current']
-        attendance_data = date['week_attendance']
-        date_list_with_day_name = get_date_ranges_from_string(date_range)
-        student_attendance_week_data = [
-                                            [
-                                                date['student_id'] ,
-                                                i.split(' = ')[0],
-                                                list(attendance_data[i.split(' = ')[1]].values())[0] 
+        try:
+            date_range = date['current']
+            attendance_data = date['week_attendance']
+            date_list_with_day_name = get_date_ranges_from_string(date_range)
+            student_attendance_week_data = [
+                                                [
+                                                    date['student_id'] ,
+                                                    i.split(' = ')[0],
+                                                    list(attendance_data[i.split(' = ')[1]].values())[0] 
+                                                ]
+                                                        for i in
+                                                                date_list_with_day_name[:len(attendance_data)]
                                             ]
-                                                    for i in
-                                                            date_list_with_day_name[:len(attendance_data)]
-                                        ]
-        students_attendence_list.extend(student_attendance_week_data)
-
+            students_attendence_list.extend(student_attendance_week_data)
+        except KeyError:
+            pass
     return students_attendence_list
 
 def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdir ,context = None ,absent_data_list = None):
@@ -361,10 +476,10 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
                         if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) : 
                             
                             if absent_data_list is not None : 
-                                if 'PRESENT' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]):
+                                if 'PRESENT' in set([i[2] for i in absent_data_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in absent_data_list if i[1]== search_attendance_date]):
                                     for counter_ , row in enumerate(range(section_one_row_start+1 , section_one_row_end )):
                                         if counter_ < len(ides) :
-                                            search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
+                                            search_data = [i for i in absent_data_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
                                             if len(search_data):
                                                 attendance_value = search_data[0][2]
                                                 if 'PRESENT' in attendance_value:
@@ -385,7 +500,7 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
                                 
                                 for counter_ , row in enumerate(range(section_one_row_start+1 , section_one_row_end )):
                                     if counter_ < len(ides) :
-                                        search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
+                                        search_data = [i for i in absent_data_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_]]
                                         if len(search_data):
                                             attendance_value = search_data[0][2]
                                             if 'PRESENT' in attendance_value:
@@ -413,10 +528,10 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
                             if ("سبت" in get_day_name_from_date(year , counter , day )) or ("جمعة" in get_day_name_from_date(year , counter , day )) :
                                 
                                 if absent_data_list is not None : 
-                                    if 'PRESENT' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in students_attendence_list if i[1]== search_attendance_date]):
+                                    if 'PRESENT' in set([i[2] for i in absent_data_list if i[1]== search_attendance_date]) or 'UNEXCUSED' in set([i[2] for i in absent_data_list if i[1]== search_attendance_date]):
                                         for counter_2 , row in enumerate(range(section_two_row_start+1 , section_two_row_end )):
                                             if counter_2 < len(ides) :
-                                                search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
+                                                search_data = [i for i in absent_data_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
                                                 if len(search_data):
                                                     attendance_value = search_data[0][2]
                                                     if 'PRESENT' in attendance_value:
@@ -437,7 +552,7 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
                                     for counter_2 , row in enumerate(range(section_two_row_start+1 , section_two_row_end )):
                                         # skip the what the counter which is bigger than the ides of the students 
                                         if counter_2 < len(ides) :
-                                            search_data = [i for i in students_attendence_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
+                                            search_data = [i for i in absent_data_list if i[1]== search_attendance_date and i[0]==indexed_students_names_dict[counter_2] ]
                                             if len(search_data):
                                                 attendance_value = search_data[0][2]
                                                 if 'PRESENT' in attendance_value:
@@ -478,7 +593,7 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
     # command = f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} "{outdir}/{filename}"'
     # os.system(command)
 
-def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , ods_file='./templet_files/plus_st_abs_A4.ods' , context=None , outdir='./send_folder/' ):
+def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , ods_file='./templet_files/plus_st_abs_A4.ods' , context=None , outdir='./send_folder/' ,get_student_absent=True , curr_period_data=None):
     if context is None :
         context  = {1: 'A69=V123', 26: 'Y69=AP123',
                     25: 'A128=V182', 2: 'Y128=AP182', 
@@ -494,10 +609,18 @@ def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , od
                     15: 'A708=V762', 12: 'Y708=AP762', 
                     13: 'A766=V820', 14: 'Y766=AP820'}
     
-    student_details = get_student_statistic_info(username,'password',teacher_full_name=teacher_full_name , auth=auth)
-
-    required_data = get_required_data_to_enter_absent(auth)
-    students_attendence_list = students_data_to_list(auth , institution_id=required_data['institution_id'], class_id=required_data['institution_class_id'] , education_grade_id=required_data['education_grade_id'] , period_id=required_data['academic_period_id'])
+    student_details = get_student_statistic_info(username,'password',teacher_full_name=teacher_full_name , auth=auth , curr_period_data=curr_period_data)
+    if get_student_absent:
+        required_data = get_required_data_to_enter_absent(auth)
+        # institution_id: Any,
+        # class_id: Any,
+        # education_grade_id: Any,
+        # period_id: Any,
+        if curr_period_data is None:
+            period_id= required_data['academic_period_id']
+        students_attendence_list = students_data_to_list(auth , institution_id=required_data['institution_id'], class_id=required_data['institution_class_id'] , education_grade_id=required_data['education_grade_id'] , period_id=period_id)
+    else:
+        students_attendence_list=None
     fill_student_absent_doc_name_days_cover_v2(student_details , ods_file , outdir , context = context ,absent_data_list=students_attendence_list)
 
 class TeacherForms:
@@ -1704,7 +1827,7 @@ def get_cookie_as_string(usern , passd , url='https://emis.moe.gov.jo/openemis-c
 def is_valid_date(date_str):
     try:
         # Attempt to parse the date string
-        datetime.strptime(date_str, '%Y-%m-%d')
+        datetime.datetime.strptime(date_str, '%Y-%m-%d')
         return True
     except ValueError:
         # ValueError will be raised for invalid dates
@@ -3199,7 +3322,7 @@ def create_fuzz_list(inst_id, period_id ,class_data_dic):
                 _fuzz_list.append(f'institution_id:{inst_id};institution_class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{period_id};institution_subject_id:{subject["id"]};education_grade_id:{education_grade_id}')
     return _fuzz_list
 
-def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , method='POST' , proxies = None):
+def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , method='POST' , proxies = None , row = False):
     """ 
     دالة استخدمها لارسال طلب بوست بشكل سريع ، و بإمكانها العودة ببيانات معينة المطور يحددها
 
@@ -3240,7 +3363,10 @@ def wfuzz_function_can_return_data(url,_fuzz_list , headers , body_postdata , me
                 t.update()
                 try:
                     if r.history.code == 200 :
-                        dict_content = json.loads(r.content)
+                        if row:
+                            dict_content = r.content
+                        else:
+                            dict_content = json.loads(r.content)
                         _data.append(dict_content)
                 except:
                     # if len(dict_content['data']):
@@ -5758,7 +5884,7 @@ def fill_Template_With_basic_Student_info(student_details,template='./templet_fi
     # Save the workbook
     workbook.save(outdir+'/your_file.xlsx')
 
-def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False ,auth=None):
+def get_student_statistic_info(username,password, identity_nos=None, students_openemis_nos=None, student_ids=None, session=None , teacher_full_name=False ,auth=None , curr_period_data=None):
     """
     The function `get_student_statistic_info` retrieves statistical information about students based on
     various parameters.
@@ -5782,7 +5908,8 @@ def get_student_statistic_info(username,password, identity_nos=None, students_op
     identity_types = get_IdentityTypes(auth, session=session)
     area_data = get_AreaAdministrativeLevels(auth, session=session)['data']
     nationality_data = {i['id']: i['name'] for i in make_request(auth=auth, url='https://emis.moe.gov.jo/openemis-core/restful/v2/User-NationalityNames')['data']}
-    curr_period_data = get_curr_period(auth,session=session)
+    if curr_period_data is None:
+        curr_period_data = get_curr_period(auth,session=session)
     curr_period = curr_period_data['data'][0]['id']
     inst_id = inst_name(auth,session=session)['data'][0]['Institutions']['id']
     class_data_url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClasses?_contain=Institutions&_fields=id,name,institution_id,academic_period_id,Institutions.code,Institutions.name,Institutions.area_administrative_id&_finder=classesByInstitutionAndAcademicPeriod[institution_id:{inst_id};academic_period_id:{curr_period}]'
@@ -10738,16 +10865,22 @@ def get_sheet_custom_shapes(document , sheet_name , in_dictionary =False):
     """    
     # Load the document
     doc = load(str(document))
-    # Loop through all sheets in the document
-    for sheet in doc.spreadsheet.childNodes[1:-1]:      
-        # Check if the sheet is the one we want (replace 'Sheet2' with the name of your sheet)
-        if sheet.getAttribute('name') == str(sheet_name) :        
-            # Get the text boxes on the sheet
-            custom_shapes = sheet.getElementsByType(CustomShape)
-            if in_dictionary:
-                return {custom_shape.getAttribute("name") : teletype.extractText(custom_shape) for custom_shape in custom_shapes}
-            else:
-                return [custom_shape.getAttribute("name") for custom_shape in custom_shapes]
+    try:
+        # Loop through all sheets in the document
+        for sheet in doc.spreadsheet.childNodes[1:-1]:      
+            try:
+                # Check if the sheet is the one we want (replace 'Sheet2' with the name of your sheet)
+                if sheet.getAttribute('name') == str(sheet_name) :        
+                    # Get the text boxes on the sheet
+                    custom_shapes = sheet.getElementsByType(CustomShape)
+                    if in_dictionary:
+                        return {custom_shape.getAttribute("name") : teletype.extractText(custom_shape) for custom_shape in custom_shapes}
+                    else:
+                        return [custom_shape.getAttribute("name") for custom_shape in custom_shapes]
+            except:
+                pass
+    except:
+        pass
 
 def get_ods_sheets (doc='official_marks_doc_a3_two_face.ods'):
     """دالة مختصرة لكي احضر معلومات الصفحات في ملفات ods =>
@@ -10886,7 +11019,7 @@ def make_request(url, auth ,session=None,timeout_seconds=500):
     else:
         headers = {"Authorization": auth, "ControllerAction": "Results"}
         
-    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students',]
+    controller_actions = ["Results", "SubjectStudents", "Dashboard", "Staff",'StudentAttendances','SgTree','Students','OpenEMIS_Classroom','Assessments']
     
     for controller_action in controller_actions:
         headers["ControllerAction"] = controller_action
@@ -11443,39 +11576,10 @@ def extract_primary_and_other_classes(nested_classes):
 def main():
     print('starting script')
     setup_logging("access.log")
-    # create_coloured_certs_wrapper('9991014194','Zzaid#079079' ,term2=True)
-    # create_certs_wrapper('9991014194','Zzaid#079079','2002186139' , term2=True)
-
-    passwords= '''9831046736
-Emad1989/eE@123456
-9961021489
-113859/9841050562
-9842053654/654321
-9882048821/123456
-9842001456
-9911018064
-9842048442/123456'''
-
-    passwords = '''9771043526/9771043526#Hh  ج  ر'''
-    # passwords = '2000220556/Aa@2000220556'
-    passwords =    '9911028865/9911028865@Saqer  ش'
     
-    passwords ='''9941064556/9941064556  ج  ر
-    9811041885/9811041885  ر'''
-    passwords = '''9811041885/9811041885  ر'''
-    passwords = '99310068300/99310068300@Mm  ر'
-    
-    # create_certs_wrapper('9991014194','Zzaid#079079','2003649469' , term2=True)
-    # create_certs_wrapper('9991014194','Zzaid#079079','8001446318' , term2=True)
-    # create_certs_wrapper('9991014194','Zzaid#079079','8001446321' , term2=True)
-    
-    # diverse_bulk_work(passwords)
-    # bulk_e_side_note_marks(passwords)
-
-    # create_e_side_marks_doc(username , password)
-    
-    # create_e_side_marks_doc(9961076839,'Moh@9961076839', empty_marks=True)
-    convert_to_marks_offline_from_send_folder(A4_context = False , A3_context = True )
+    username , password = 99310068300 , '99310068300@Mm'
+    auth  = get_auth(username,password)
+    fill_absent_document_wrapper_v2(auth , username , ods_file='./templet_files/emishub_st_abs_A3.ods')
     playsound()
     print('finished')
 
