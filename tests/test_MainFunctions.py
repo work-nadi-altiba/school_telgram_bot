@@ -7,7 +7,7 @@ try:
 except ModuleNotFoundError:
     sys.path.append('/home/kali/programming/school_programms1/telegram_bot')
     
-from utils1 import create_e_side_marks_doc , compare_files , fill_official_marks_functions_wrapper_v2 , get_auth , fill_absent_document_wrapper_v2 , get_academic_periods
+from utils1 import create_e_side_marks_doc , compare_files , fill_official_marks_functions_wrapper_v2 , get_auth , fill_absent_document_wrapper_v2 , get_academic_periods , create_tables_wrapper , create_from_certs_template_wrapper
 from bot import count_files , delete_send_folder
 
 outdir='./tests/outdir' 
@@ -83,5 +83,59 @@ def test_absent_document(file):
     assert len(diff) == 0
     delete_send_folder(outdir+'/*')
 
+@pytest.mark.parametrize('file',[
+    ('9991014194=Zzaid#079079=15=1=table.xlsx'),
+    ]
+)
+def test_table_document(file):
+    name= file.replace('.xlsx','').split('=')
+    username = name[0]
+    password = name[1]
+    period_id = name[2]
+    get_student_absent=bool(int(name[3])) 
+    term= bool(int(name[4]))
+    auth  = get_auth(username,password)
+    curr_period_data = get_academic_periods(auth , period_id)
+    create_tables_wrapper(username , password ,term2=term , just_teacher_class=True , curr_year = curr_period_data , template='/home/kali/programming/school_programms1/telegram_bot/templet_files/tamplete_table.xlsx',outdir=outdir+'/')
+    files = count_files(outdir+'/*')
+
+    diff = compare_files(f'./tests/sample_files/{file}' ,files[0] )
+    assert len(diff) == 0
+    delete_send_folder(outdir+'/*')
+
+@pytest.mark.parametrize('file',[
+    ('9991014194=Zzaid#079079=15=1=1=certs_word'),
+    ]
+)
+def test_certs_word(file):
+    name= file.split('=')
+    username = name[0]
+    password = name[1]
+    period_id = name[2]
+    get_student_absent=bool(int(name[3])) 
+    term= bool(int(name[4]))
+    auth  = get_auth(username,password)
+    curr_period_data = get_academic_periods(auth , period_id)
+    
+    create_from_certs_template_wrapper(
+                                        username ,
+                                        password ,
+                                        term2=term ,
+                                        just_teacher_class=True ,
+                                        curr_year = curr_period_data ,
+                                        skip_art_sport=True ,
+                                        template='/home/kali/programming/school_programms1/telegram_bot/templet_files/cartoon 1-10 FC_modified_windows.docx' ,
+                                        outdir=outdir+'/',
+                                    )
+    
+    files = count_files(outdir+'/*')
+
+    diff = compare_files(f'./tests/sample_files/{file}' ,files[0] )
+    for value in list(diff.values()):
+        assert len(value) == 0
+    delete_send_folder(outdir+'/*')
+
 # test_official_marks('9971055725=Aa@9971055725=15=0=p1.ods')
 # test_absent_document('99310068300=99310068300@Mm=15=1=absent_file.ods')
+test_table_document('9991014194=Zzaid#079079=15=1=1=table.xlsx')
+# test_certs_word('9991014194=Zzaid#079079=15=1=1=certs_word')
