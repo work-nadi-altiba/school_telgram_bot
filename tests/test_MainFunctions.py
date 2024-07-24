@@ -137,5 +137,5 @@ def test_certs_word(file):
 
 # test_official_marks('9971055725=Aa@9971055725=15=0=p1.ods')
 # test_absent_document('99310068300=99310068300@Mm=15=1=absent_file.ods')
-test_table_document('9991014194=Zzaid#079079=15=1=1=table.xlsx')
+# test_table_document('9991014194=Zzaid#079079=15=1=1=table.xlsx')
 # test_certs_word('9991014194=Zzaid#079079=15=1=1=certs_word')

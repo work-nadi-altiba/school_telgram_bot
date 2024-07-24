@@ -2455,7 +2455,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['mawad_20_1'] = mawad
                 
                 copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
+                fill_official_marks_v2(username=username , password=password ,students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 if convert_to_pdf:
@@ -2498,7 +2498,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['mawad_20_1'] = mawad
                 
                 copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
+                fill_official_marks_v2(username=username , password=password ,students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=A3_context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 if convert_to_pdf:
@@ -2536,7 +2536,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                 custom_shapes['mawad_20_1'] = mawad
                 
                 copy_ods_file(templet_file , f'{outdir}/{teacher}_ج_{counter}.ods')
-                fill_official_marks_v2(students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
+                fill_official_marks_v2(username=username , password=password ,students_data_lists=section , ods_file=f'{outdir}/{teacher}_ج_{counter}.ods' ,context=context, session=session)
                 fill_custom_shape(doc= f'{outdir}/{teacher}_ج_{counter}.ods' ,sheet_name= 'الغلاف الداخلي' , custom_shape_values= custom_shapes , outfile=f'{outdir}/modified.ods')
                 fill_custom_shape(doc=f'{outdir}/modified.ods', sheet_name='الغلاف الازرق', custom_shape_values=custom_shapes, outfile=f"{outdir}/final_{counter}")
                 if convert_to_pdf:
@@ -2699,9 +2699,9 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
         # ['الصف السابع', 'أ', 'اللغة الانجليزية', '786118']
         
         if username is None and password is None:        
-            class_data = students_data_list['title'].split('=')[0:2]
-        else: 
             class_data = students_data_list['class_name'].split('=')
+        else: 
+            class_data = students_data_list['title'].split('=')[0:2]
 
         class_name = class_data[0].replace('الصف ' , '').split('-')[0]
         class_char = class_data[0].split('-')[1]
@@ -2797,7 +2797,7 @@ def fill_official_marks_v2(username=None, password=None , ods_file=None ,student
     #     # FIXME: make the customshapes crop _20_ to the rest of the key in the custom_shapes
 
     modified_classes = []
-    if (username is None and password is None ):
+    if (username is not None and password is not None ):
         mawad = [i['subject_name'] for i in students_data_lists]
         classes = [i['class_name'] for i in students_data_lists]
     else:
@@ -11571,8 +11571,8 @@ def main():
     username , password = 9991014194 , 'Zzaid#079079'
     # auth  = get_auth(username,password)
     # fill_absent_document_wrapper_v2(auth , username , ods_file='./templet_files/emishub_st_abs_A3.ods')
-    # create_from_certs_template_wrapper(username,password,term2=True , just_teacher_class=True )
-    create_tables_wrapper(username,password,term2=True , just_teacher_class=True )
+    create_from_certs_template_wrapper(username,password,term2=True , just_teacher_class=True )
+    # create_tables_wrapper(username,password,term2=True , just_teacher_class=True )
     # playsound()
     print('finished')
 

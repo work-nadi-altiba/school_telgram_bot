@@ -13,3 +13,4 @@ ezodf
 PyMuPDF
 loguru
 python-decouple
+odsparsator

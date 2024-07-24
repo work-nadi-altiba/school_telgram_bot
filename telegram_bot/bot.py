@@ -714,7 +714,7 @@ def send_official_marks_doc(update, context):
         else:
             logger.info(f"username:{username} ----> password :{password}")
             update.message.reply_text("انتظر لحظة لو سمحت") 
-            fill_official_marks_doc_wrapper(username, password)
+            fill_official_marks_functions_wrapper_v2(username, password)
             files = count_files()
             chat_id = update.message.chat.id
             send_files(bot, chat_id, files)
