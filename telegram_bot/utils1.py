@@ -64,6 +64,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
 from webdriver_manager.firefox import GeckoDriverManager
+import math
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -75,6 +76,44 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def round_half_up(n):
+    return int(math.floor(n + 0.5))
+
+def get_grades_data(auth,period_id=None ,session=None):
+    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
+    """
+    This function retrieves the assessment ID associated with a given grade ID.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or a
+    username/password combination, depending on the authentication method being used
+    :param grade_id: The grade ID is a unique identifier for a specific grade in a system. It is used to
+    track and manage grades for assessments or assignments
+    :param session: The session parameter is an optional parameter that represents the current session
+    or connection to the database. It is used to execute the SQL query to retrieve the assessment ID
+    from the grade ID. If a session is not provided, a new session will be created
+    """
+    if period_id is None :
+        period_id = get_curr_period(auth)['data'][0]['id']
+    my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}&academic_period_id={period_id}',session=session)['data']
+    
+    return my_list
+
+def get_assessment_id_from_grade_id_offline( grade_id , grades_assessments ):
+    """
+    This function retrieves the assessment ID associated with a given grade ID.
+    
+    :param auth: The auth parameter is used for authentication purposes. It could be a token or a
+    username/password combination, depending on the authentication method being used
+    :param grade_id: The grade ID is a unique identifier for a specific grade in a system. It is used to
+    track and manage grades for assessments or assignments
+    :param session: The session parameter is an optional parameter that represents the current session
+    or connection to the database. It is used to execute the SQL query to retrieve the assessment ID
+    from the grade ID. If a session is not provided, a new session will be created
+    """
+    my_list = grades_assessments
+    
+    return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
+
 def get_grade_name_from_assessment_id(auth , assessment_id):
     """
     The function `get_grade_name_from_grade_id` takes in an authentication token and a grade ID and
@@ -107,12 +146,17 @@ def get_subjects_data(auth , class_id, assessment_id, academic_period_id, instit
     url = f'https://emis.moe.gov.jo/openemis-core/restful/v2/Assessment-AssessmentItems.json?_finder=subjectNewTab[class_id:{class_id};assessment_id:{assessment_id};academic_period_id:{academic_period_id};institution_id:{institution_id}]&_limit=0'
     return make_request(url=url , auth=auth)['data']
 
-def get_subject_ids_with_names ( subjects_data, skip_subjects=None):
+def get_subject_ids_with_names ( subjects_data, skip_subjects=None , exception_keywords=None):
     if skip_subjects is None:
         skip_subjects = [
                     413,    # اللغة الفرنسية
                     332     # الدين المسيحي
                     ]
+    if exception_keywords is None:
+        exception_keywords = ['فرنسي', 'مسيحي']
+
+    # Filter subjects_data based on the exception keywords
+    subjects_data = [i for i in subjects_data if not any(keyword in i['InstitutionSubjects']['name'] for keyword in exception_keywords)]
     
     subject_ids_with_names = {
                                 int(i['InstitutionSubjects']['education_subject_id']) :i['InstitutionSubjects']['name'] if not len(i['classification']) else  i['classification']  for i in subjects_data
@@ -153,7 +197,8 @@ def get_class_subjects_max_scores(subject_ids_with_names , subjects_assessments 
                                 )
                             )[0]
         try:
-            subject_classify = classifications_dict[id]
+            subject_classify = classifications_dict
+            
         except:
             subject_classify = ''
         subjects_max_scores_dict[id] = {
@@ -218,6 +263,24 @@ def read_ods(file_path):
     # return json.dumps(content, ensure_ascii=False,indent=4)
 
 def compare_files(file1_path, file2_path):
+    def compare_docx_files(file1, file2):
+        file1_contents = read_docx(file1)
+        file2_contents = read_docx(file2)
+        return DeepDiff(file1_contents, file2_contents)
+    
+    if os.path.isdir(file1_path) and os.path.isdir(file2_path):
+        file1_files = {f for f in os.listdir(file1_path) if f.endswith('.docx')}
+        file2_files = {f for f in os.listdir(file2_path) if f.endswith('.docx')}
+        
+        common_files = file1_files.intersection(file2_files)
+        
+        results = {}
+        for file in common_files:
+            file1_full_path = os.path.join(file1_path, file)
+            file2_full_path = os.path.join(file2_path, file)
+            results[file] = compare_docx_files(file1_full_path, file2_full_path)
+        return results
+    
     file1_ext = os.path.splitext(file1_path)[1]
     file2_ext = os.path.splitext(file2_path)[1]
 
@@ -1539,9 +1602,9 @@ def create_certs_from_docx_template(students_statistics_assesment_data ,absent_l
                     #المعدل المئوي بالرقام 
                     context['av']=  group_item['t1+t2+year_avarage'][term]
                     if result == 2 : # اذا كان مكمل في صفه الفصل الاول خليها اله بس راسب لانه بجوز الفصل الثاني يتحسن 
-                        context[1] =  '🗹'
+                        context[result_symbol[1]] =  '🗹'
                     else:    
-                        context[result] = '🗹'
+                        context[result_symbol[result]] = '🗹'
 
                 absent_as_string = absent_count[0][1] if len(absent_count) else 0 
                 
@@ -1556,7 +1619,7 @@ def create_certs_from_docx_template(students_statistics_assesment_data ,absent_l
                 fill_doc(template , context , outdir+f"{group_item['student__full_name']}.docx" )
                 context.clear()
 
-def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True):
+def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True , outdir='./send_folder/',template='./templet_files/cartoon 1-10 FC_modified_windows.docx'):
     """
     Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
 
@@ -1602,10 +1665,10 @@ def create_from_certs_template_wrapper(username , password ,term2=False , just_t
     
     add_subject_sum_dictionary(grouped_list)
 
-    add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport,auth=auth)
     students_statistics_assesment_data['assessments_data'] = grouped_list
     
-    create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2)
+    create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2,outdir=outdir , template=template)
 
 def is_json_response(response):
     try:
@@ -3434,7 +3497,15 @@ def get_school_classes_and_students_with_classes(auth ,inst_id , period_id , ses
     grades_info = get_grade_info(auth , period_id)
     student_classess = make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?institution_id={inst_id}&academic_period_id={period_id}&_contain=Users&_limit=0', session=session)['data']
     class_names_dic = {i['institution_class_id'] :{'education_grade_id': i['education_grade_id']} for i in student_classess}
-    students_with_data_dic = {i['student_id']:{'full_name':i['user']['name'] ,'status_id':i['student_status_id'] ,'class_id':i['institution_class_id']} for i in student_classess }
+    students_with_data_dic = {
+                                i['student_id']:
+                                    {
+                                        'full_name':i['user']['name'] ,
+                                        'status_id':i['student_status_id'] ,
+                                        'class_id':i['institution_class_id']
+                                    }
+                                for i in student_classess 
+                            }
     classes = [i for i in class_names_dic]
     classes_str = ','.join([f'institution_class_id:{i}' for i in classes])
     url = f"https://emis.moe.gov.jo/openemis-core/restful/Institution.InstitutionClassSubjects?status=1&_contain=InstitutionSubjects,InstitutionClasses&_limit=0&_orWhere={classes_str}"
@@ -5352,7 +5423,7 @@ def create_coloured_certs_wrapper(username , password ,term2=False , just_teache
     
     add_subject_sum_dictionary(grouped_list)
 
-    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=True,auth=auth)
     students_statistics_assesment_data['assessments_data'] = grouped_list
     
     save_dictionary_to_json_file(dictionary=students_statistics_assesment_data)
@@ -7436,7 +7507,7 @@ def count_teacher_load(classes):
                 arabic_class_sum+=7
     return {'english_class_sum' : english_class_sum , 'arabic_class_sum' : arabic_class_sum , 'math_class_sum' :  math_class_sum , 'classes' :  classes}
 
-def create_tables_wrapper(username , password ,term2=False , just_teacher_class=True , curr_year = None,student_status_ids=[1]): 
+def create_tables_wrapper(username , password ,term2=False , just_teacher_class=True , curr_year = None,student_status_ids=[1], template='./templet_files/tamplete_table.xlsx' ,get_students_absent=1 , outdir='./send_folder/'): 
     """
     The function creates tables in using the provided username and password. It is wrapper and that 
     make my code more consise 
@@ -7451,16 +7522,15 @@ def create_tables_wrapper(username , password ,term2=False , just_teacher_class=
     auth = get_auth(username, password)
     student_info_marks = get_students_info_subjectsMarks( username , password ,session = session ,just_teacher_class=just_teacher_class,curr_year=curr_year,student_status_ids=student_status_ids)
     dic_list4 = student_info_marks
-    #TODO: احذف هذا المتغير العالمي و الذي تم وضعه لغايات التحقق من الاخطاء 
-    global grouped_list
-    grouped_list = group_students(dic_list4 )
-    
-    
+    if get_students_absent:
+        grouped_list = group_students( dic_list4 )
+        listo = get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className(auth)
+        absent_list_with_names = get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo)
     add_subject_sum_dictionary(grouped_list)
-    add_averages_to_group_list(grouped_list ,skip_art_sport=False)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=True,auth=auth)
     
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
-    create_tables(auth , grouped_list ,term2=term2 )
+    create_tables(auth , grouped_list ,term2=term2 ,absent_list_with_names =absent_list_with_names , template=template , outdir=outdir)
 
 def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,just_teacher_class=True,session=None , curr_year = None):
     """
@@ -7476,18 +7546,19 @@ def create_certs_wrapper(username , password , student_identity_number = None ,t
     session object. This can be useful if you want to reuse an existing session for making multiple
     requests
     """
-    student_info_marks = get_students_info_subjectsMarks( username , password ,student_identity_number = student_identity_number , just_teacher_class=just_teacher_class,session=session, curr_year = curr_year)
+    auth = get_auth(username, password)
+    student_info_marks = get_students_info_subjectsMarks( auth=auth,student_identity_number = student_identity_number , just_teacher_class=just_teacher_class,session=session, curr_year = curr_year)
     dic_list4 = student_info_marks
-    listo=get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className(get_auth(username,password))
+    listo=get_school_absent_days_with_studentID_and_countOfAbsentDays_and_classID_and_className(auth=auth)
     absent_list_with_names=get_absens_studentName_and_countOfDays_and_studentID(dic_list4,listo)
     grouped_list = group_students(dic_list4 )
     
     add_subject_sum_dictionary(grouped_list)
-    add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport)
+    add_averages_to_group_list(grouped_list ,skip_art_sport=True,auth=auth)
     
     create_certs(grouped_list,absent_list_with_names , term2=term2)
 
-def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx'  , outdir='./send_folder/'):
+def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/tamplete_table.xlsx'  , outdir='./send_folder/',absent_list_with_names=None):
     """
     The function `create_tables` creates tables(جداول) based on a grouped list and saves them as Excel files in
     a specified output directory.
@@ -7583,9 +7654,12 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
                 marks_sheet.cell(row=row_number, column=47).value = christian_subject[0][0] if christian_subject and len(christian_subject[0]) > 0 else ''
                 marks_sheet.cell(row=row_number, column=48).value = christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
                 marks_sheet.cell(row=row_number, column=49).value = christian_subject[0][0]+christian_subject[0][1] if term2 and christian_subject and len(christian_subject[0]) > 0 else ''
-
+                
+                if absent_list_with_names is not None:
+                    student_absent_count = [i for i in absent_list_with_names if i[0] == dataFrame['student_id'] ]
+                    marks_sheet.cell(row=row_number, column=59).value = student_absent_count[0][1] if len(student_absent_count) else 0
+            marks_sheet['a1'] = group[0]['max_score']
             if 'الثامن' in group[0]['student_grade_name']:
-                marks_sheet['a1'] = 1800
                 marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف الثامن الأساسي للعام الدراسي ( {curr_year_code} )'
                 # اسلامية
                 # h/i/j
@@ -7606,7 +7680,6 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
                 # w/x/y
                 marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [200]*3
             elif 'التاسع' in group[0]['student_grade_name']:
-                marks_sheet['a1'] = 2000
                 marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف التاسع  الأساسي للعام الدراسي ( {curr_year_code} )'
                 # اسلامية
                 # h/i/j
@@ -7627,7 +7700,6 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
                 # w/x/y
                 marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [400]*3
             elif 'العاشر' in group[0]['student_grade_name']:
-                marks_sheet['a1'] = 2000
                 marks_sheet['a3'] =f'جدول العلامات المدرسيه للصف العاشر الأساسي للعام الدراسي ( {curr_year_code} )'
                 # اسلامية
                 # h/i/j
@@ -7665,12 +7737,6 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
                 # علوم
                 # w/x/y
                 marks_sheet['w3'],marks_sheet['x3'],marks_sheet['y3'] = [100]*3    
-                if 'سابع' in group[0]['student_grade_name']:
-                    marks_sheet['a1'] = 1100
-                elif 'سادس' in group[0]['student_grade_name']:
-                    marks_sheet['a1'] = 900
-                else:
-                    marks_sheet['a1'] = 800
                 
             marks_sheet['b3'] = institution_area_data['data'][0]['Areas']['name']
             marks_sheet['c3'] = ''
@@ -9096,7 +9162,7 @@ def score_in_words(digit, max_mark=100):
     else:
         return 'مقصر'
 
-def add_averages_to_group_list(grouped_list , skip_art_sport=True):
+def add_averages_to_group_list(grouped_list , skip_art_sport=True,auth=None):
     """
     The function adds the average values to a grouped list, with an option to skip certain subjects.
     
@@ -9106,128 +9172,36 @@ def add_averages_to_group_list(grouped_list , skip_art_sport=True):
     the subjects art and sport , defaults to True (optional)
     """
     for group in grouped_list:
+        max_score = sum_max_score(auth=auth,class_id=group[0]['student_class_id'],assessment_id=group[0]['student_assessment_id'],academic_period_id=group[0]['academic_period_id'],institution_id=group[0]['institution_id'])
         for item in group:
             term_1_avarage ,term_2_avarage , year_avarage = [0]*3
             try :
-                if 'خامس' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        # if 'ربية الاجتماعية و الوطنية' in key or 'جتماعي' in key  or 'وطني' in key :
-                        #     # print(key ,round(value[0]*2/3),1)
-                        #     term_1_avarage +=round(value[0]/3,1)
-                        #     term_2_avarage +=round(value[1]/3,1)
-                        #     # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        if ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-                
-                elif 'سادس' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key or 'جتماعي' in key  or 'وطني' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]/3,1)
-                            term_2_avarage +=round(value[1]/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 900)* 100,1) , round((term_2_avarage / 900)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 900)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'سابع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        # if 'ربية الاجتماعية و الوطنية' in key or 'جتماعي' in key  or 'وطني' in key :
-                        #     # print(key ,round(value[0]*2/3),1)
-                        #     term_1_avarage +=round(value[0]/3,1)
-                        #     term_2_avarage +=round(value[1]/3,1)
-                        #     # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        if ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1100)* 100,1) , round((term_2_avarage / 1100)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1100)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'ثامن' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key or 'جتماعي' in key  or 'وطني' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage += round(value[0]*2/3,1)
-                            term_2_avarage += round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 1800)* 100,1) , round((term_2_avarage / 1800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 1800)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'تاسع' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_2_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass                        
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                elif 'عاشر' in  item['student_grade_name']:
-                    for key, value in item['subject_sums'].items():
-                        if 'ربية الاجتماعية و الوطنية' in key :
-                            # print(key ,round(value[0]*2/3),1)
-                            term_1_avarage +=round(value[0]*2/3,1)
-                            term_2_avarage +=round(value[1]*2/3,1)
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                            pass
-                        else:
-                            # print(key , value[0])
-                            term_1_avarage += value[0]
-                            term_2_avarage += value[1]
-                            # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                    term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 2000)* 100,1) , round((term_2_avarage / 2000)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 2000)* 100,1)
-                    item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
-
-                else:
-                    if 'عشر' not in item['student_grade_name']:
-                        for key, value in item['subject_sums'].items():
-                            if 'ربية الاجتماعية و الوطنية' in key :
-                                # print(key ,round(value[0]*2/3),1)
-                                term_1_avarage +=round(value[0]*2/3,1)
-                                term_2_avarage +=round(value[1]*2/3,1)
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                            elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
-                                pass                        
-                            else:
-                                # print(key , value[0])
-                                term_1_avarage += value[0]
-                                term_2_avarage += value[1]
-                                # year_avarage += round((term_1_avarage + term_2_avarage)/2,1)
-                        term_1_avarage ,term_2_avarage ,year_avarage =round((term_1_avarage / 800)* 100,1) , round((term_2_avarage / 800)* 100,1) , round((((term_1_avarage+term_2_avarage)/2) / 800)* 100,1)
-                        item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+                for key, value in item['subject_sums'].items():
+                    social_studies_equations = social_studies_grades_equations()
+                    social_study_equation = social_studies_equations[
+                                                                        [
+                                                                            x for x in [i for i in social_studies_equations]
+                                                                                if x in item['student_grade_name']
+                                                                        ][0]
+                                                                    ]
+                    
+                    if 'ربية الاجتماعية و الوطنية' in key or 'جتماعي' in key  or 'وطني' in key :
+                        # print(key ,round(value[0]*2/3),1)
+                        term_1_avarage +=round(value[0]/social_study_equation,1)
+                        term_2_avarage +=round(value[1]/social_study_equation,1)
+                        year_avarage += round_half_up((value[0] + value[1])/2)
+                    elif ('التربية الفنية والموسيقية' in key or 'التربية الرياضية' in key) and skip_art_sport :
+                        pass
+                    else:
+                        # print(key , value[0])
+                        term_1_avarage += value[0]
+                        term_2_avarage += value[1]
+                        year_avarage += round_half_up((value[0] + value[1])/2)
+                term_1_avarage = round((term_1_avarage / max_score)* 100,1) 
+                term_2_avarage = round((term_2_avarage / max_score)* 100,1) 
+                year_avarage = round(( year_avarage / max_score)* 100,1)
+                item['t1+t2+year_avarage'] = [term_1_avarage ,term_2_avarage ,year_avarage ]
+                item['max_score'] = max_score
             except:
                 pass
 
@@ -9328,6 +9302,8 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
     # class_subject_teacher_mapping = get_class_subject_teacher_mapping_dictionary( class_data_with_subjects_dictionary , subject_mapping_for_teachers , teacher_with_subject_mapping)
     subjects_list = get_subjects_dictionary_list_from_the_site(auth ,session)
     
+    grades_data = get_grades_data(auth,period_id=curr_year)
+    
     subjects_assessments_info=[]
 
     if not student_identity_number : 
@@ -9341,6 +9317,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
             students = get_school_students_ids(session=session,auth=auth,curr_year=curr_year,student_status_ids =student_status_ids)
         
         for i in students:
+            assessment_id = get_assessment_id_from_grade_id_offline( i['education_grade_id'] ,  grades_data)
             dic_list.append(
                         {
                             'student_id':i['student_id'],
@@ -9351,7 +9328,11 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
                             'student_nat_id': '' if i['user']['identity_number'] is None else i['user']['identity_number'],
                             'student_grade_id':i['education_grade_id'],
                             'student_grade_name' : i['education_grade_id'] ,
+                            'student_assessment_id': assessment_id ,
+                            'academic_period_id': curr_year,
+                            'institution_id':i['institution_id'],
                             'student_class_name_letter': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
+                            'student_class_id': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
                             'student_edu_place' : edu_directory ,
                             'student_directory':edu_directory,
                             'student_school_name':school_name,
@@ -9410,6 +9391,7 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
 
     else:
         for i in make_request(auth=auth, url=f'https://emis.moe.gov.jo/openemis-core/restful/v2/Institution-InstitutionClassStudents.json?_limit=5&_finder=Users.address_area_id,Users.birthplace_area_id,Users.gender_id,Users.date_of_birth,Users.date_of_death,Users.nationality_id,Users.identity_number,Users.external_reference,Users.status&identity_number={student_identity_number}&academic_period_id={curr_year}&_contain=Users',session=session)['data']:
+            assessment_id = get_assessment_id_from_grade_id_offline( i['education_grade_id'] ,  grades_data)
             dic_list.append(
                             {
                                 'student_id':i['student_id'],
@@ -9420,7 +9402,11 @@ def get_students_info_subjectsMarks(username , password , student_identity_numbe
                                 'student_nat_id': '' if i['user']['identity_number'] is None else i['user']['identity_number'],
                                 'student_grade_id':i['education_grade_id'],
                                 'student_grade_name' : i['education_grade_id'] ,
+                                'student_assessment_id': assessment_id ,
+                                'academic_period_id': curr_year,
+                                'institution_id':i['institution_id'],
                                 'student_class_name_letter': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
+                                'student_class_id': '' if not isinstance(i['institution_class_id'], int) else i['institution_class_id'],
                                 'student_edu_place' : edu_directory ,
                                 'student_directory':edu_directory,
                                 'student_school_name':school_name,
@@ -11502,7 +11488,12 @@ def delete_send_folder(path = './send_folder/*'):
     """    
     files = glob.glob(path)
     for f in files:
-        os.remove(f)
+        if os.path.isfile(f):
+            os.remove(f)
+        elif os.path.isdir(f):
+            shutil.rmtree(f)
+        else:
+            print(f"Unknown file type: {f}")
 
 def get_students_marks(auth,period_id,sub_id,instit_class_id,instit_id):
     """    دالة لاستدعاء علامات الطلاب و اسمائهم 
@@ -11577,10 +11568,12 @@ def main():
     print('starting script')
     setup_logging("access.log")
     
-    username , password = 99310068300 , '99310068300@Mm'
-    auth  = get_auth(username,password)
-    fill_absent_document_wrapper_v2(auth , username , ods_file='./templet_files/emishub_st_abs_A3.ods')
-    playsound()
+    username , password = 9991014194 , 'Zzaid#079079'
+    # auth  = get_auth(username,password)
+    # fill_absent_document_wrapper_v2(auth , username , ods_file='./templet_files/emishub_st_abs_A3.ods')
+    # create_from_certs_template_wrapper(username,password,term2=True , just_teacher_class=True )
+    create_tables_wrapper(username,password,term2=True , just_teacher_class=True )
+    # playsound()
     print('finished')
 
 if __name__ == "__main__":
