@@ -65,6 +65,7 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
 from webdriver_manager.firefox import GeckoDriverManager
 import math
+import io
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -76,6 +77,46 @@ open_emis_core_marks = []
 grouped_list = []
 
 # New code should be under here please
+def return_compress_files_content(file_contents):
+    """
+    Compresses the given file contents into a ZIP file and returns the compressed content.
+
+    Parameters:
+    file_contents (dict): A dictionary where keys are filenames and values are file contents as bytes.
+
+    Returns:
+    bytes: The compressed file content as bytes.
+    """
+    # Create a BytesIO object to hold the compressed data in memory
+    compressed_buffer = io.BytesIO()
+
+    # Create a ZipFile object with the BytesIO buffer
+    with zipfile.ZipFile(compressed_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Add each file content to the ZIP file
+        for filename, content in file_contents.items():
+            zip_file.writestr(filename, content)
+    
+    # Get the compressed content
+    compressed_content = compressed_buffer.getvalue()
+
+    return compressed_content
+
+def return_file_content(file_path):
+    """
+    Reads the content of a file and returns it as a string.
+
+    :param file_path: The path to the file.
+    :return: The content of the file as a string.
+    """
+    try:
+        with open(file_path, 'rb') as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        return "The file was not found."
+    except IOError:
+        return "An error occurred while reading the file."
+
 def round_half_up(n):
     return int(math.floor(n + 0.5))
 
@@ -1342,11 +1383,12 @@ def convert_if_whole(value):
     else:
         return value
 
-def create_certs_from_docx_template(students_statistics_assesment_data ,absent_list_with_names, term2=False ,template='./templet_files/cartoon 1-10 FC_modified_windows.docx' , outdir='./send_folder/'):
+def create_certs_from_docx_template(students_statistics_assesment_data ,absent_list_with_names, term2=False ,template='./templet_files/cartoon 1-10 FC_modified_windows.docx' , outdir='./send_folder/' , return_content=False , compressed=False):
     term = 1 if term2 else 0
     context = {}
     statistic_data = students_statistics_assesment_data['students_info']
     assessments_data_groups = students_statistics_assesment_data['assessments_data']
+    content_dict = {}
     
     for group in assessments_data_groups:
         if not any("عشر" in i['student_grade_name'] for i in group) :
@@ -1618,8 +1660,18 @@ def create_certs_from_docx_template(students_statistics_assesment_data ,absent_l
                 context =  {key: convert_if_whole(value) for  key , value in context.items()}
                 fill_doc(template , context , outdir+f"{group_item['student__full_name']}.docx" )
                 context.clear()
+                if return_content:
+                    content_dict[f"{group_item['student__full_name']}.docx"] = return_file_content(outdir+f"{group_item['student__full_name']}.docx" )
+    
+    if return_content:
+        if compressed:
+            return_compress_files_content(content_dict)
+        else:
+            content_dict
+    else: 
+        return None
 
-def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True , outdir='./send_folder/',template='./templet_files/cartoon 1-10 FC_modified_windows.docx'):
+def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True , outdir='./send_folder/',template='./templet_files/cartoon 1-10 FC_modified_windows.docx' ,return_content= False):
     """
     Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
 
@@ -1668,7 +1720,8 @@ def create_from_certs_template_wrapper(username , password ,term2=False , just_t
     add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport,auth=auth)
     students_statistics_assesment_data['assessments_data'] = grouped_list
     
-    create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2,outdir=outdir , template=template)
+    return create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2,outdir=outdir , template=template , return_content=return_content)
+    
 
 def is_json_response(response):
     try:
@@ -2318,7 +2371,7 @@ def divide_teacher_load(classes):
         
     return divided_lists
 
-def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=True ,A4_context=True ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None, default=True , period_id=None,convert_to_pdf=True):
+def fill_official_marks_functions_wrapper_v2(username=None , password=None , outdir='./send_folder' , templet_file = './templet_files/official_marks_doc_a3_two_face_white_cover.ods',A3_context=True ,A4_context=True ,e_side_notebook_data=None ,empty_marks=False,divded_dfter_to_primary_and_secnedry=False, do_not_delete_send_folder=False,session = None, default=True , period_id=None,convert_to_pdf=True , return_content = False):
     if A3_context :
         if default : 
             context = {'46': 'A6:A30', '4': 'A39:A63', '3': 'L6:L30', '45': 'L39:L63', '44': 'A71:A95', '6': 'A103:A127', '5': 'L71:L95', '43': 'L103:L127', '42': 'A135:A159', '8': 'A167:A191', '7': 'L135:L159', '41': 'L167:L191', '40': 'A199:A223', '10': 'A231:A255', '9': 'L199:L223', '39': 'L231:L255', '38': 'A263:A287', '12': 'A295:A319', '11': 'L263:L287', '37': 'L295:L319', '36': 'A327:A351', '14': 'A359:A383', '13': 'L327:L351', '35': 'L359:L383', '34': 'A391:A415', '16': 'A423:A447', '15': 'L391:L415', '33': 'L423:L447', '32': 'A455:A479', '18': 'A487:A511', '17': 'L455:L479', '31': 'L487:L511', '30': 'A519:A543', '20': 'A551:A575', '19': 'L519:L543', '29': 'L551:L575', '28': 'A583:A607', '22': 'A615:A639', '21': 'L583:L607', '27': 'L615:L639', '26': 'A647:A671', '24': 'A679:A703', '23': 'L647:L671', '25': 'L679:L703' ,'sheet_47': 'الغلاف الداخلي' ,'sheet_47_plot': 'L37:L61'}
@@ -2422,6 +2475,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'teacher_20_1': teacher,
                     'period_id': period_id
                     }
+    content_dict = []
     
     primary_classes,other_classes=extract_primary_and_other_classes(devided_teacher_load_list)        
     if divded_dfter_to_primary_and_secnedry : 
@@ -2462,6 +2516,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
                     os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.ods")
+                if return_content :
+                    content_dict[f'دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.ods']=return_file_content(f"{outdir}/ دفتر _علامات_{teacher}_جزء_{counter}_الصفوف الابتدائي{paper_type}.ods")
             
         
         if len(other_classes) > 0 :
@@ -2505,6 +2561,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
                     os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
+                if return_content :
+                    content_dict[f'دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods'] =(return_file_content(f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods"))
     else :
         for counter , section in enumerate(devided_teacher_load_list, start=1 ):
                 modified_classes = []
@@ -2543,6 +2601,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     os.system(f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} {outdir}/final_{counter}')
                     os.rename(f"{outdir}/final_{counter}.pdf", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.pdf")
                 os.rename(f"{outdir}/final_{counter}", f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods")
+                if return_content :
+                    content_dict[f'دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods'] =(return_file_content(f"{outdir}/دفتر _علامات_{teacher}_جزء_{counter}_{paper_type}.ods"))
     
     if not do_not_delete_send_folder :
         delete_files_except(
@@ -2551,6 +2611,8 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                                             if "دفتر _علامات" in i
                             ]
                             , outdir)
+    
+    return content_dict
 
 def get_marks_v2(auth=None , inst_id=None , period_id=None , classes_id_2=None ,grades_info=None , assessment_periods=None , session=None,student_status_ids=[1] ,empty_marks=False):
     """
@@ -7530,7 +7592,7 @@ def create_tables_wrapper(username , password ,term2=False , just_teacher_class=
     add_averages_to_group_list(grouped_list ,skip_art_sport=True,auth=auth)
     
     # save_dictionary_to_json_file(dictionary={'grouped_list':grouped_list})
-    create_tables(auth , grouped_list ,term2=term2 ,absent_list_with_names =absent_list_with_names , template=template , outdir=outdir)
+    return create_tables(auth , grouped_list ,term2=term2 ,absent_list_with_names =absent_list_with_names , template=template , outdir=outdir)
 
 def create_certs_wrapper(username , password , student_identity_number = None ,term2=False,skip_art_sport=True,just_teacher_class=True,session=None , curr_year = None):
     """
@@ -7583,6 +7645,7 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
     curr_year_code = get_curr_period(auth)['data'][0]['code']
+    content_list=[]
 
     for group in grouped_list:
         
@@ -7746,6 +7809,8 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
             marks_sheet['g3'] = group[0]['student_class_name_letter']
             
             template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
+            content_list.append(return_file_content(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx'))
+    return content_list
 
 def create_certs(grouped_list ,absent_list_with_names, term2=False ,template='./templet_files/a4_gray_cert.xlsx' ,image='./templet_files/Pasted image.png' , outdir='./send_folder/'):
     """
@@ -10068,7 +10133,7 @@ def get_assessment_id_from_grade_id(auth , grade_id,period_id=None,session=None)
 
     return [d['id'] for d in my_list if d.get('education_grade_id') == grade_id][0]
 
-def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None):
+def create_e_side_marks_doc(username , password ,template='./templet_files/e_side_marks.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None , return_content=False):
     """
     The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
     template and saves it in a specified output directory.
@@ -10163,6 +10228,8 @@ def create_e_side_marks_doc(username , password ,template='./templet_files/e_sid
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/{user_name}.xlsx')
+    if return_content:
+        return {f'{user_name}.xlsx' : return_file_content(f'{outdir}/{user_name}.xlsx')}
 
 def split_A3_pages(input_file, outdir):
     """
@@ -11571,7 +11638,8 @@ def main():
     username , password = 9991014194 , 'Zzaid#079079'
     # auth  = get_auth(username,password)
     # fill_absent_document_wrapper_v2(auth , username , ods_file='./templet_files/emishub_st_abs_A3.ods')
-    create_from_certs_template_wrapper(username,password,term2=True , just_teacher_class=True )
+    content_dict = create_e_side_marks_doc(username , password , return_content=True)
+    # create_from_certs_template_wrapper(username,password,term2=True , just_teacher_class=True )
     # create_tables_wrapper(username,password,term2=True , just_teacher_class=True )
     # playsound()
     print('finished')
