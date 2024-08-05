@@ -428,7 +428,7 @@ def students_data_to_list(auth , institution_id , class_id , education_grade_id 
             pass
     return students_attendence_list
 
-def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdir ,context = None ,absent_data_list = None):
+def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdir ,context = None ,absent_data_list = None , return_content = False):
     """
     Fill an OpenDocument Spreadsheet (ODS) file with student information and generate corresponding documents.
 
@@ -462,7 +462,8 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
     fill_student_absent_doc_name_days_cover(student_details, 'input.ods', 'output_directory')
     """    
     doc = ezodf.opendoc(ods_file)
-        
+    
+    content_dict = {}
     sheet_name = 'Sheet1'
     sheet = doc.sheets[sheet_name]
 
@@ -687,7 +688,11 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
     }
 
     fill_custom_shape(doc= outdir+'one_step_more.ods', sheet_name='الغلاف', custom_shape_values=custom_shapes, outfile= outdir+f'/{class_name}-{sec}.ods')
-    
+    if return_content : 
+        content_dict[f'{class_name}-{sec}.ods'] = return_file_content(outdir+f'/{class_name}-{sec}.ods')
+        delete_file(outdir+'one_step_more.ods')
+        delete_file(outdir+f'/{class_name}-{sec}.ods')
+        return content_dict
     # delete_file(outdir+'one_step_more.ods')
 
     # # outdir = './send_folder'
@@ -695,7 +700,7 @@ def fill_student_absent_doc_name_days_cover_v2(student_details , ods_file, outdi
     # command = f'soffice --headless --convert-to pdf:writer_pdf_Export --outdir {outdir} "{outdir}/{filename}"'
     # os.system(command)
 
-def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , ods_file='./templet_files/plus_st_abs_A4.ods' , context=None , outdir='./send_folder/' ,get_student_absent=True , curr_period_data=None):
+def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , ods_file='./templet_files/plus_st_abs_A4.ods' , context=None , outdir='./send_folder/' ,get_student_absent=True , curr_period_data=None , return_content=False):
     if context is None :
         context  = {1: 'A69=V123', 26: 'Y69=AP123',
                     25: 'A128=V182', 2: 'Y128=AP182', 
@@ -723,7 +728,7 @@ def fill_absent_document_wrapper_v2(auth ,username, teacher_full_name=False , od
         students_attendence_list = students_data_to_list(auth , institution_id=required_data['institution_id'], class_id=required_data['institution_class_id'] , education_grade_id=required_data['education_grade_id'] , period_id=period_id)
     else:
         students_attendence_list=None
-    fill_student_absent_doc_name_days_cover_v2(student_details , ods_file , outdir , context = context ,absent_data_list=students_attendence_list)
+    return fill_student_absent_doc_name_days_cover_v2(student_details , ods_file , outdir , context = context ,absent_data_list=students_attendence_list ,  return_content= return_content)
 
 class TeacherForms:
     def __init__(self, 
@@ -1663,13 +1668,13 @@ def create_certs_from_docx_template(students_statistics_assesment_data ,absent_l
     
     if return_content:
         if compressed:
-            return_compress_files_content(content_dict)
+            return return_compress_files_content(content_dict)
         else:
-            content_dict
+            return content_dict
     else: 
         return None
 
-def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True , outdir='./send_folder/',template='./templet_files/cartoon 1-10 FC_modified_windows.docx' ,return_content= False):
+def create_from_certs_template_wrapper(username , password ,term2=False , just_teacher_class=True ,curr_year = None , skip_art_sport=True , outdir='./send_folder/',template='./templet_files/cartoon 1-10 FC_modified_windows.docx' ,return_content= False , compressed=False):
     """
     Retrieves student information, statistics, and marks, then generates colored certificates in OpenDocument Spreadsheet (ODS) format.
 
@@ -1718,8 +1723,7 @@ def create_from_certs_template_wrapper(username , password ,term2=False , just_t
     add_averages_to_group_list(grouped_list ,skip_art_sport=skip_art_sport,auth=auth)
     students_statistics_assesment_data['assessments_data'] = grouped_list
     
-    return create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2,outdir=outdir , template=template , return_content=return_content)
-    
+    return create_certs_from_docx_template(students_statistics_assesment_data,absent_list_with_names , term2=term2,outdir=outdir , template=template , return_content=return_content , compressed=compressed)
 
 def is_json_response(response):
     try:
@@ -1786,7 +1790,7 @@ def insert_to_two_terms_side_marks_doc(classes_data , template_sheet_or_file=Non
             # for cell in sheet_copy[row_number]:
             #     cell.font = data_font    
 
-def create_two_terms_side_marks_doc(username=None , password=None ,classes_data=None,template='./templet_files/Mark Book H.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None):
+def create_two_terms_side_marks_doc(username=None , password=None ,classes_data=None,template='./templet_files/Mark Book H.xlsx' ,outdir='./send_folder' ,student_status_ids = [1], period_id = None , empty_marks = False , session=None , return_content=True):
     """
     The function `create_e_side_marks_doc` creates a document with e-side marks using a specified
     template and saves it in a specified output directory.
@@ -1855,6 +1859,7 @@ def create_two_terms_side_marks_doc(username=None , password=None ,classes_data=
         teacher_load_marks_data = student_details['file_data']
     
     sofof , mawad = [] , []
+    content_dict = {}
     for students_data_list in teacher_load_marks_data:
         sofof.append(get_class_short(students_data_list['class_name'].split('=')[0]).replace(' ' , ''))
         # FIXME: يجب ان اجد طريقة غير طريقة تراي لكي احضر اسم المادة
@@ -1889,6 +1894,10 @@ def create_two_terms_side_marks_doc(username=None , password=None ,classes_data=
 
     # save the modified workbook
     existing_wb.save(f'{outdir}/دفتر علامات جانبي -{teacher}.xlsx')
+    if return_content:
+        content_dict[f'دفتر علامات جانبي -{teacher}.xlsx'] = return_file_content(f'{outdir}/دفتر علامات جانبي -{teacher}.xlsx')
+        delete_file(f'{outdir}/دفتر علامات جانبي -{teacher}.xlsx')
+        return content_dict
 
 def get_cookie_as_string(usern , passd , url='https://emis.moe.gov.jo/openemis-core/'):
     '''
@@ -1975,6 +1984,7 @@ def fill_student_absent_doc_wrapper_with_absent_filled(username, password ,templ
     student_details = get_student_statistic_info(username,password,teacher_full_name=teacher_full_name)
     
     required_data = get_required_data_to_enter_absent(auth)
+    
     absent_data_list = get_class_absent_days_with_id(auth , required_data=required_data)
     fill_student_absent_doc_name_days_cover(student_details , template , outdir , context = context ,absent_data_list=absent_data_list)
 
@@ -2473,7 +2483,7 @@ def fill_official_marks_functions_wrapper_v2(username=None , password=None , out
                     'teacher_20_1': teacher,
                     'period_id': period_id
                     }
-    content_dict = []
+    content_dict = {}
     
     primary_classes,other_classes=extract_primary_and_other_classes(devided_teacher_load_list)        
     if divded_dfter_to_primary_and_secnedry : 
@@ -7643,7 +7653,7 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
     institution_area_data = inst_area(auth)
     institution_data = inst_name(auth)
     curr_year_code = get_curr_period(auth)['data'][0]['code']
-    content_list=[]
+    content_dict={}
 
     for group in grouped_list:
         
@@ -7807,8 +7817,8 @@ def create_tables(auth , grouped_list ,term2=False ,template='./templet_files/ta
             marks_sheet['g3'] = group[0]['student_class_name_letter']
             
             template_file.save(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
-            content_list.append(return_file_content(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx'))
-    return content_list
+            content_dict[f" جدول  {group[0]['student_class_name_letter']}.xlsx"] = return_file_content(outdir+' جدول '+group[0]['student_class_name_letter']+'.xlsx')
+    return content_dict
 
 def create_certs(grouped_list ,absent_list_with_names, term2=False ,template='./templet_files/a4_gray_cert.xlsx' ,image='./templet_files/Pasted image.png' , outdir='./send_folder/'):
     """
