@@ -50,7 +50,7 @@ from itertools import groupby
 import traceback
 import pandas as pd
 from loguru import logger
-from setting import *
+from .setting import *
 import time 
 import ijson 
 from docx import Document
@@ -121,7 +121,6 @@ def round_half_up(n):
     return int(math.floor(n + 0.5))
 
 def get_grades_data(auth,period_id=None ,session=None):
-    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     """
     This function retrieves the assessment ID associated with a given grade ID.
     
@@ -164,7 +163,6 @@ def get_grade_name_from_assessment_id(auth , assessment_id):
     request
     :param grade_id: The grade_id parameter is the unique identifier for a specific grade
     """
-    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}')['data']
     return [d['name'] for d in my_list if d.get('id') == assessment_id][0].replace('الفترات التقويمية ل','ا').strip()
 
@@ -9960,7 +9958,6 @@ def get_editable_assessments( auth , username ,assessment_grade_id=None , class_
         return sorted_dict    
 
 def assessments_periods_min_max_mark(auth , assessment_id , education_subject_id ,session=None):
-    from setting import ASSESSMENTS_PERIODS_MIN_MAX_MARK_URL
     """
          استعلام عن القيمة القصوى و الدنيا لكل التقويمات  
         عوامل الدالة تعريفي السنة الدراسية و التوكن
@@ -10040,7 +10037,6 @@ def enter_marks_arbitrary(username , password , assessment_period_id ,range1 ,ra
                 ,assessment_period_id= assessment_period_id)
 
 def get_class_students_ids(auth,academic_period_id,institution_subject_id,institution_class_id,institution_id,session=None):
-    from setting import GET_CLASS_STUDENTS_IDS_URL
     """
     استدعاء معلومات عن الطلاب في الصف
     عوامل الدالة هي الرابط و التوكن و تعريفي الفترة الاكاديمية و تعريفي مادة المؤسسة و تعريفي صف المؤسسة و تعريفي المؤسسة
@@ -10086,7 +10082,6 @@ def get_required_data_to_enter_marks(auth ,username,session=None):
     return required_data_to_enter_marks
 
 def get_grade_info(auth,period_id=None,session=None):
-    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL    
     """
     The function "get_grade_info" takes an authentication token as input and returns information about a
     student's grades.
@@ -10109,13 +10104,11 @@ def get_grade_name_from_grade_id(auth , grade_id):
     request
     :param grade_id: The grade_id parameter is the unique identifier for a specific grade
     """
-    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     my_list = make_request(auth=auth , url=f'{GET_GRADE_ID_FROM_ASSESSMENT_ID_URL}')['data']
 
     return [d['name'] for d in my_list if d.get('education_grade_id') == grade_id][0].replace('الفترات التقويمية ل','ا')
 
 def get_assessment_id_from_grade_id(auth , grade_id,period_id=None,session=None):
-    from setting import GET_GRADE_ID_FROM_ASSESSMENT_ID_URL
     """
     This function retrieves the assessment ID associated with a given grade ID.
     
